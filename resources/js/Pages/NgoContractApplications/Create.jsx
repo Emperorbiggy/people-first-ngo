@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { Transition } from '@headlessui/react';
-import Webcam from 'react-webcam';
 import PaystackService from '../../services/paystack';
 
 const states = [
@@ -100,20 +100,77 @@ export default function Create() {
     const [backgroundWarning, setBackgroundWarning] = useState('');
     const [idCardFileName, setIdCardFileName] = useState('');
     const [certificateFileName, setCertificateFileName] = useState('');
-    const webcamRef = useRef(null);
+    const videoRef = useRef(null);
+    const streamRef = useRef(null);
+    const retryRef = useRef(null);
     const [facingMode, setFacingMode] = useState('user');
+    const [cameraError, setCameraError] = useState('');
+    const [cameraReady, setCameraReady] = useState(false);
     const [banks, setBanks] = useState([]);
     const [accountName, setAccountName] = useState('');
     const [showAccountConfirmation, setShowAccountConfirmation] = useState(false);
     const [isResolvingAccount, setIsResolvingAccount] = useState(false);
     const [accountResolutionError, setAccountResolutionError] = useState('');
 
-    const startCamera = () => setShowCamera(true);
-    const stopCamera = () => setShowCamera(false);
+    const releaseStream = () => {
+        if (retryRef.current) clearTimeout(retryRef.current);
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach(t => t.stop());
+            streamRef.current = null;
+        }
+        if (videoRef.current) videoRef.current.srcObject = null;
+    };
+
+    const acquireCamera = useCallback(async (facing, attempt = 0) => {
+        releaseStream();
+        setCameraError('');
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facing }, audio: false });
+            streamRef.current = stream;
+            if (videoRef.current) {
+                videoRef.current.srcObject = stream;
+                videoRef.current.play();
+            }
+            setCameraReady(true);
+        } catch (err) {
+            if ((err.name === 'AbortError' || err.name === 'NotReadableError') && attempt < 4) {
+                retryRef.current = setTimeout(() => acquireCamera(facing, attempt + 1), 700);
+            } else if (err.name === 'NotAllowedError') {
+                setCameraError('Camera permission denied. Please allow camera access in your browser settings.');
+            } else {
+                setCameraError('Could not access camera. Please close other apps using the camera and try again.');
+            }
+        }
+    }, []);
+
+    const startCamera = () => {
+        setCameraError('');
+        setCameraReady(false);
+        setShowCamera(true);
+        document.body.style.overflow = 'hidden';
+    };
+
+    useEffect(() => {
+        if (showCamera) acquireCamera(facingMode);
+        return () => { if (!showCamera) releaseStream(); };
+    }, [showCamera, facingMode]);
+
+    const stopCamera = () => {
+        releaseStream();
+        setShowCamera(false);
+        setCameraError('');
+        setCameraReady(false);
+        document.body.style.overflow = '';
+    };
 
     const capturePhoto = useCallback(async () => {
-        const imageSrc = webcamRef.current?.getScreenshot();
-        if (!imageSrc) return;
+        if (!videoRef.current || !streamRef.current) return;
+        const video = videoRef.current;
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        canvas.getContext('2d').drawImage(video, 0, 0);
+        const imageSrc = canvas.toDataURL('image/jpeg');
 
         const res = await fetch(imageSrc);
         const blob = await res.blob();
@@ -124,7 +181,7 @@ export default function Create() {
 
         const analysis = await detectBackground(file, true);
         setBackgroundWarning(analysis.message);
-    }, [webcamRef]);
+    }, []);
 
     const detectBackground = (imageSource, isFile = false) => {
         return new Promise((resolve) => {
@@ -563,8 +620,8 @@ export default function Create() {
                                                     required
                                                 >
                                                     <option value="">Select your bank</option>
-                                                    {banks.map(bank => (
-                                                        <option key={bank.code || bank} value={bank.code || bank}>{bank.name || bank}</option>
+                                                    {banks.map((bank, index) => (
+                                                        <option key={`${bank.code || bank}-${index}`} value={bank.code || bank}>{bank.name || bank}</option>
                                                     ))}
                                                 </select>
                                                 {errors.bank_name && <p className="text-sm sm:text-base text-red-600 mt-2 font-medium">{errors.bank_name}</p>}
@@ -795,8 +852,8 @@ export default function Create() {
                                             </div>
 
                                             {/* Camera Modal */}
-                                            {showCamera && (
-                                                <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
+                                            {showCamera && createPortal(
+                                                <div className="fixed inset-0 bg-black bg-opacity-75 z-[9999] flex items-center justify-center p-4">
                                                     <div className="bg-white rounded-xl max-w-lg w-full">
                                                         <div className="p-4 border-b flex items-center justify-between">
                                                             <div>
@@ -810,17 +867,32 @@ export default function Create() {
                                                             </button>
                                                         </div>
                                                         <div className="p-4">
-                                                            <Webcam
-                                                                ref={webcamRef}
-                                                                screenshotFormat="image/jpeg"
-                                                                videoConstraints={{ facingMode }}
-                                                                className="w-full rounded-lg"
-                                                                mirrored={facingMode === 'user'}
-                                                            />
+                                                            {cameraError ? (
+                                                                <div className="w-full rounded-lg bg-red-50 border border-red-200 p-6 text-center">
+                                                                    <p className="text-red-600 font-medium text-sm mb-2">{cameraError}</p>
+                                                                    <button type="button" onClick={() => acquireCamera(facingMode)} className="text-sm text-blue-600 underline">Try again</button>
+                                                                </div>
+                                                            ) : (
+                                                                <div className="relative bg-black rounded-lg overflow-hidden" style={{ minHeight: 240 }}>
+                                                                    {!cameraReady && (
+                                                                        <div className="absolute inset-0 flex items-center justify-center bg-gray-900 z-10">
+                                                                            <p className="text-white text-sm">Starting camera...</p>
+                                                                        </div>
+                                                                    )}
+                                                                    <video
+                                                                        ref={videoRef}
+                                                                        autoPlay
+                                                                        playsInline
+                                                                        muted
+                                                                        className="w-full rounded-lg"
+                                                                        style={{ transform: facingMode === 'user' ? 'scaleX(-1)' : 'none' }}
+                                                                    />
+                                                                </div>
+                                                            )}
                                                             <div className="flex justify-center gap-3 mt-4 flex-wrap">
                                                                 <button
                                                                     type="button"
-                                                                    onClick={() => setFacingMode(f => f === 'user' ? 'environment' : 'user')}
+                                                                    onClick={() => { setCameraReady(false); setFacingMode(f => f === 'user' ? 'environment' : 'user'); }}
                                                                     className="px-4 py-2 bg-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-300 transition-colors text-sm"
                                                                 >
                                                                     Flip Camera
@@ -828,7 +900,8 @@ export default function Create() {
                                                                 <button
                                                                     type="button"
                                                                     onClick={capturePhoto}
-                                                                    className="px-6 py-2 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors"
+                                                                    disabled={!cameraReady}
+                                                                    className="px-6 py-2 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                                                 >
                                                                     Capture
                                                                 </button>
@@ -843,7 +916,7 @@ export default function Create() {
                                                         </div>
                                                     </div>
                                                 </div>
-                                            )}
+                                            , document.body)}
 
                                             {/* Captured/Uploaded Image Preview with Background Analysis */}
                                             {capturedImage && (
@@ -1085,7 +1158,7 @@ export default function Create() {
             )}
 
             {/* Add custom styles for animations */}
-            <style jsx>{`
+            <style>{`
                 @keyframes blob {
                     0% {
                         transform: translate(0px, 0px) scale(1);
