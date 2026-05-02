@@ -1,0 +1,1026 @@
+import React, { useState, useEffect } from 'react';
+import { Head, Link, useForm } from '@inertiajs/react';
+import { Transition } from '@headlessui/react';
+import PaystackService from '../../services/paystack';
+
+const states = [
+    'Abia', 'Adamawa', 'Akwa Ibom', 'Anambra', 'Bauchi', 'Bayelsa', 'Benue', 'Borno',
+    'Cross River', 'Delta', 'Ebonyi', 'Edo', 'Ekiti', 'Enugu', 'FCT', 'Gombe',
+    'Imo', 'Jigawa', 'Kaduna', 'Kano', 'Katsina', 'Kebbi', 'Kogi', 'Kwara',
+    'Lagos', 'Nasarawa', 'Niger', 'Ogun', 'Ondo', 'Osun', 'Oyo', 'Plateau',
+    'Rivers', 'Sokoto', 'Taraba', 'Yobe', 'Zamfara'
+];
+
+const browsingNetworks = [
+    'MTN',
+    'GLO',
+    'AIRTEL'
+];
+
+const employmentStatuses = [
+    'Employed',
+    'Unemployed',
+    'Student',
+    'Self-employed'
+];
+
+const workGradeLevels = [
+    'Level 1',
+    'Level 2',
+    'Level 3',
+    'Level 4',
+    'Level 5',
+    'Level 6',
+    'Level 7',
+    'Level 8',
+    'Level 9',
+    'Level 10',
+    'Level 11',
+    'Level 12',
+    'Level 13',
+    'Level 14',
+    'Level 15',
+    'Level 16',
+    'Level 17'
+];
+
+
+export default function Create() {
+    const { data, setData, post, processing, errors, recentlySuccessful } = useForm({
+        full_name: '',
+        email_address: '',
+        calling_phone_number: '',
+        whatsapp_number: '',
+        state_of_residence: '',
+        house_address: '',
+        browsing_network: '',
+        browsing_number: '',
+        bank_name: '',
+        bank_code: '',
+        account_number: '',
+        bank_account_name: '',
+        employment_status: '',
+        current_occupation: '',
+        work_grade_level: '',
+        passport_photograph: null,
+        valid_id_card: null,
+        highest_qualification_certificate: null,
+    });
+
+    const submit = (e) => {
+        e.preventDefault();
+        console.log('Form data being submitted:', data);
+        post(route('ngo-contract-applications.store'));
+    };
+
+    const handleFileChange = async (e, fieldName) => {
+        const file = e.target.files[0];
+        setData(fieldName, file);
+        
+        // If it's a passport photo, show preview and run background detection immediately
+        if (fieldName === 'passport_photograph' && file) {
+            setCapturedImage(URL.createObjectURL(file));
+            const analysis = await detectBackground(file, true);
+            setBackgroundWarning(analysis.message);
+        }
+    };
+
+    const [showCamera, setShowCamera] = useState(false);
+    const [cameraStream, setCameraStream] = useState(null);
+    const [capturedImage, setCapturedImage] = useState(null);
+    const [backgroundWarning, setBackgroundWarning] = useState('');
+    const [banks, setBanks] = useState([]);
+    const [accountName, setAccountName] = useState('');
+    const [showAccountConfirmation, setShowAccountConfirmation] = useState(false);
+    const [isResolvingAccount, setIsResolvingAccount] = useState(false);
+    const [accountResolutionError, setAccountResolutionError] = useState('');
+
+    const startCamera = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { facingMode: 'user' } 
+            });
+            setCameraStream(stream);
+            setShowCamera(true);
+        } catch (err) {
+            console.error('Error accessing camera:', err);
+            alert('Unable to access camera. Please check your permissions.');
+        }
+    };
+
+    const stopCamera = () => {
+        if (cameraStream) {
+            cameraStream.getTracks().forEach(track => track.stop());
+            setCameraStream(null);
+        }
+        setShowCamera(false);
+    };
+
+    const capturePhoto = async () => {
+        const video = document.getElementById('camera-video');
+        const canvas = document.getElementById('camera-canvas');
+        const context = canvas.getContext('2d');
+        
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        context.drawImage(video, 0, 0);
+        
+        canvas.toBlob(async (blob) => {
+            const file = new File([blob], 'passport.jpg', { type: 'image/jpeg' });
+            setData('passport_photograph', file);
+            setCapturedImage(URL.createObjectURL(blob));
+            
+            // Advanced background detection with immediate feedback
+            const analysis = await detectBackground(canvas);
+            setBackgroundWarning(analysis.message);
+        }, 'image/jpeg');
+        
+        stopCamera();
+    };
+
+    const detectBackground = (imageSource, isFile = false) => {
+        return new Promise((resolve) => {
+            const img = new Image();
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            
+            img.onload = () => {
+                canvas.width = img.width;
+                canvas.height = img.height;
+                context.drawImage(img, 0, 0);
+                
+                const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imageData.data;
+                
+                // Advanced background detection
+                const backgroundAnalysis = analyzeBackground(data, canvas.width, canvas.height);
+                
+                resolve(backgroundAnalysis);
+            };
+            
+            if (isFile) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(imageSource);
+            } else {
+                img.src = imageSource;
+            }
+        });
+    };
+
+    const analyzeBackground = (imageData, width, height) => {
+        const data = imageData.data;
+        const samples = [];
+        const sampleSize = 100;
+        
+        // Sample from multiple edges and corners for better accuracy
+        const samplePoints = [
+            // Top edge
+            ...Array.from({length: 25}, (_, i) => ({x: Math.floor(i * width / 24), y: 0})),
+            // Bottom edge
+            ...Array.from({length: 25}, (_, i) => ({x: Math.floor(i * width / 24), y: height - 1})),
+            // Left edge
+            ...Array.from({length: 25}, (_, i) => ({x: 0, y: Math.floor(i * height / 24)})),
+            // Right edge
+            ...Array.from({length: 25}, (_, i) => ({x: width - 1, y: Math.floor(i * height / 24)})),
+            // Corners (more samples)
+            ...Array.from({length: 10}, () => ({x: Math.floor(Math.random() * width * 0.1), y: Math.floor(Math.random() * height * 0.1)})),
+            ...Array.from({length: 10}, () => ({x: Math.floor(width - Math.random() * width * 0.1), y: Math.floor(Math.random() * height * 0.1)})),
+            ...Array.from({length: 10}, () => ({x: Math.floor(Math.random() * width * 0.1), y: Math.floor(height - Math.random() * height * 0.1)})),
+            ...Array.from({length: 10}, () => ({x: Math.floor(width - Math.random() * width * 0.1), y: Math.floor(height - Math.random() * height * 0.1)}))
+        ];
+        
+        // Collect color samples
+        samplePoints.forEach(point => {
+            const idx = (point.y * width + point.x) * 4;
+            samples.push([data[idx], data[idx + 1], data[idx + 2]]);
+        });
+        
+        // Calculate color statistics
+        const avgColor = samples.reduce((acc, [r, g, b]) => [
+            acc[0] + r, acc[1] + g, acc[2] + b
+        ], [0, 0, 0]).map(sum => sum / samples.length);
+        
+        const [r, g, b] = avgColor;
+        const brightness = (r + g + b) / 3;
+        
+        // Calculate color variance (to detect non-uniform backgrounds)
+        const variance = samples.reduce((acc, [cr, cg, cb]) => {
+            const diff = Math.sqrt(Math.pow(cr - r, 2) + Math.pow(cg - g, 2) + Math.pow(cb - b, 2));
+            return acc + diff;
+        }, 0) / samples.length;
+        
+        // Advanced background analysis
+        const isWhite = brightness > 220 && variance < 30;
+        const isLight = brightness > 200 && variance < 50;
+        const hasPattern = variance > 40;
+        const isDark = brightness < 180;
+        
+        let result = {
+            isWhite: false,
+            isAcceptable: false,
+            message: '',
+            confidence: 0,
+            brightness: Math.round(brightness),
+            variance: Math.round(variance)
+        };
+        
+        if (isWhite) {
+            result = {
+                ...result,
+                isWhite: true,
+                isAcceptable: true,
+                message: '✅ Perfect! White background detected.',
+                confidence: 95
+            };
+        } else if (isLight) {
+            result = {
+                ...result,
+                isAcceptable: true,
+                message: '✅ Good! Light background detected. White background preferred.',
+                confidence: 75
+            };
+        } else if (hasPattern) {
+            result = {
+                ...result,
+                isAcceptable: false,
+                message: '❌ Patterned background detected. Please use a plain white background.',
+                confidence: 90
+            };
+        } else if (isDark) {
+            result = {
+                ...result,
+                isAcceptable: false,
+                message: '❌ Dark background detected. Please use a white background.',
+                confidence: 95
+            };
+        } else {
+            result = {
+                ...result,
+                isAcceptable: false,
+                message: '⚠️ Background color not suitable. Please use a plain white background.',
+                confidence: 60
+            };
+        }
+        
+        return result;
+    };
+
+    const clearCapturedImage = () => {
+        setCapturedImage(null);
+        setBackgroundWarning('');
+        setData('passport_photograph', null);
+    };
+
+    // Paystack API functions using service layer
+    const fetchBanks = async () => {
+        try {
+            const banksData = await PaystackService.fetchBanks();
+            setBanks(banksData);
+        } catch (error) {
+            console.error('Error fetching banks:', error);
+        }
+    };
+
+    const resolveAccount = async (accountNumber, bankCode) => {
+        if (!accountNumber || !bankCode || accountNumber.length < 10) {
+            return;
+        }
+
+        setIsResolvingAccount(true);
+        setAccountResolutionError('');
+        
+        try {
+            const result = await PaystackService.resolveAccountNumber(accountNumber, bankCode);
+            
+            if (result.status && result.data) {
+                setAccountName(result.data.account_name);
+                setShowAccountConfirmation(true);
+            } else {
+                setAccountResolutionError(result.message || 'Unable to resolve account. Please check the account number.');
+            }
+        } catch (error) {
+            console.error('Error resolving account:', error);
+            setAccountResolutionError('Network error. Please try again.');
+        } finally {
+            setIsResolvingAccount(false);
+        }
+    };
+
+    const confirmAccountName = () => {
+        setData('bank_account_name', accountName);
+        setShowAccountConfirmation(false);
+    };
+
+    const rejectAccountName = () => {
+        setAccountName('');
+        setShowAccountConfirmation(false);
+        setData('account_number', '');
+        setData('bank_account_name', '');
+    };
+
+    // Fetch banks on component mount
+    useEffect(() => {
+        fetchBanks();
+    }, []);
+
+    return (
+        <>
+            <Head title="NGO Contract Application" />
+            
+            <div className="min-h-screen bg-gradient-to-br from-purple-600 via-blue-600 to-cyan-600">
+                {/* Animated Background Elements */}
+                <div className="absolute inset-0 overflow-hidden">
+                    <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
+                    <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-yellow-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>
+                    <div className="absolute top-40 left-40 w-80 h-80 bg-pink-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-4000"></div>
+                </div>
+
+                <div className="relative z-10 flex items-center justify-center min-h-screen p-2 sm:p-4">
+                    <div className="w-full max-w-5xl">
+                        {/* Header Section */}
+                        <div className="text-center mb-6 sm:mb-8">
+                            <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 bg-white rounded-full shadow-2xl mb-3 sm:mb-4">
+                                <svg className="w-8 h-8 sm:w-10 sm:h-10 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                </svg>
+                            </div>
+                            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-2 sm:mb-4 drop-shadow-lg px-4">
+                                NGO Contract Work Application
+                            </h1>
+                            <p className="text-base sm:text-lg md:text-xl text-white/90 max-w-2xl mx-auto drop-shadow px-4">
+                                Join our mission to make a difference. Complete the form below to apply for contract opportunities.
+                            </p>
+                        </div>
+
+                        {/* Form Container */}
+                        <div className="bg-white/95 backdrop-blur-sm rounded-2xl sm:rounded-3xl shadow-2xl p-4 sm:p-6 md:p-8 lg:p-10">
+                            <form onSubmit={submit} className="space-y-8">
+                                {/* Clear Instructions */}
+                                <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl sm:rounded-2xl p-4 sm:p-6 mb-6 sm:mb-8 text-white">
+                                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                                        <div className="text-center sm:text-left">
+                                            <h2 className="text-xl sm:text-2xl font-bold mb-2">Complete Your Application</h2>
+                                            <p className="text-white/90 text-sm sm:text-base">Please fill in all required fields below. All information is needed to process your application.</p>
+                                        </div>
+                                        <div className="hidden sm:block">
+                                            <svg className="w-12 h-12 sm:w-16 sm:h-16 text-white/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Personal Information Section */}
+                                <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl sm:rounded-2xl p-4 sm:p-6 lg:p-8 border-2 border-purple-200 shadow-lg">
+                                    <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-800 mb-4 sm:mb-6 lg:mb-8 flex items-center">
+                                        <div className="w-8 h-8 sm:w-10 sm:h-10 bg-purple-600 rounded-xl flex items-center justify-center mr-3 sm:mr-4">
+                                            <svg className="w-4 h-4 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                            </svg>
+                                        </div>
+                                        <span className="text-sm sm:text-base lg:text-lg">Personal Information</span>
+                                    </h3>
+                                    
+                                    <div className="space-y-4 sm:space-y-6">
+                                        <div>
+                                            <label className="block text-sm sm:text-base font-bold text-gray-700 mb-2 sm:mb-3">Full Name *</label>
+                                            <input
+                                                type="text"
+                                                name="full_name"
+                                                value={data.full_name}
+                                                className="w-full px-3 sm:px-5 py-3 sm:py-4 text-sm sm:text-lg border-2 border-gray-300 rounded-lg sm:rounded-xl focus:ring-2 sm:focus:ring-3 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 hover:border-gray-400"
+                                                placeholder="Enter your full name as it appears on your ID"
+                                                onChange={(e) => setData('full_name', e.target.value)}
+                                                required
+                                            />
+                                            {errors.full_name && <p className="text-sm sm:text-base text-red-600 mt-2 font-medium">{errors.full_name}</p>}
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm sm:text-base font-bold text-gray-700 mb-2 sm:mb-3">Working Email Address *</label>
+                                            <input
+                                                type="email"
+                                                name="email_address"
+                                                value={data.email_address}
+                                                className="w-full px-3 sm:px-5 py-3 sm:py-4 text-sm sm:text-lg border-2 border-gray-300 rounded-lg sm:rounded-xl focus:ring-2 sm:focus:ring-3 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 hover:border-gray-400"
+                                                placeholder="your.email@example.com"
+                                                onChange={(e) => setData('email_address', e.target.value)}
+                                                required
+                                            />
+                                            {errors.email_address && <p className="text-sm sm:text-base text-red-600 mt-2 font-medium">{errors.email_address}</p>}
+                                        </div>
+
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                                            <div>
+                                                <label className="block text-sm sm:text-base font-bold text-gray-700 mb-2 sm:mb-3">Calling Phone Number *</label>
+                                                <input
+                                                    type="tel"
+                                                    name="calling_phone_number"
+                                                    value={data.calling_phone_number}
+                                                    className="w-full px-3 sm:px-5 py-3 sm:py-4 text-sm sm:text-lg border-2 border-gray-300 rounded-lg sm:rounded-xl focus:ring-2 sm:focus:ring-3 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 hover:border-gray-400"
+                                                    placeholder="+234 800 000 0000"
+                                                    onChange={(e) => setData('calling_phone_number', e.target.value)}
+                                                    required
+                                                />
+                                                {errors.calling_phone_number && <p className="text-sm sm:text-base text-red-600 mt-2 font-medium">{errors.calling_phone_number}</p>}
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm sm:text-base font-bold text-gray-700 mb-2 sm:mb-3">WhatsApp Number *</label>
+                                                <input
+                                                    type="tel"
+                                                    name="whatsapp_number"
+                                                    value={data.whatsapp_number}
+                                                    className="w-full px-3 sm:px-5 py-3 sm:py-4 text-sm sm:text-lg border-2 border-gray-300 rounded-lg sm:rounded-xl focus:ring-2 sm:focus:ring-3 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 hover:border-gray-400"
+                                                    placeholder="+234 800 000 0000"
+                                                    onChange={(e) => setData('whatsapp_number', e.target.value)}
+                                                    required
+                                                />
+                                                {errors.whatsapp_number && <p className="text-sm sm:text-base text-red-600 mt-2 font-medium">{errors.whatsapp_number}</p>}
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                                            <div>
+                                                <label className="block text-sm sm:text-base font-bold text-gray-700 mb-2 sm:mb-3">State of Residence *</label>
+                                                <select
+                                                    name="state_of_residence"
+                                                    value={data.state_of_residence}
+                                                    className="w-full px-3 sm:px-5 py-3 sm:py-4 text-sm sm:text-lg border-2 border-gray-300 rounded-lg sm:rounded-xl focus:ring-2 sm:focus:ring-3 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 hover:border-gray-400"
+                                                    onChange={(e) => setData('state_of_residence', e.target.value)}
+                                                    required
+                                                >
+                                                    <option value="">Select your state</option>
+                                                    {states.map(state => (
+                                                        <option key={state} value={state}>{state}</option>
+                                                    ))}
+                                                </select>
+                                                {errors.state_of_residence && <p className="text-sm sm:text-base text-red-600 mt-2 font-medium">{errors.state_of_residence}</p>}
+                                            </div>
+
+                                            </div>
+
+                                        <div>
+                                            <label className="block text-sm sm:text-base font-bold text-gray-700 mb-2 sm:mb-3">House Address *</label>
+                                            <textarea
+                                                name="house_address"
+                                                value={data.house_address}
+                                                className="w-full px-3 sm:px-5 py-3 sm:py-4 text-sm sm:text-lg border-2 border-gray-300 rounded-lg sm:rounded-xl focus:ring-2 sm:focus:ring-3 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 hover:border-gray-400"
+                                                rows={3}
+                                                placeholder="Enter your complete residential address including street name, house number, and landmark"
+                                                onChange={(e) => setData('house_address', e.target.value)}
+                                                required
+                                            />
+                                            {errors.house_address && <p className="text-sm sm:text-base text-red-600 mt-2 font-medium">{errors.house_address}</p>}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Bank & Network Information Section */}
+                                <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-2xl p-8 border-2 border-blue-200 shadow-lg">
+                                    <h3 className="text-2xl font-bold text-gray-800 mb-8 flex items-center">
+                                        <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center mr-4">
+                                            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
+                                            </svg>
+                                        </div>
+                                        Bank & Network Information
+                                    </h3>
+                                    
+                                    <div className="space-y-6">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                                            <div>
+                                                <label className="block text-sm sm:text-base font-bold text-gray-700 mb-2 sm:mb-3">Browsing Network *</label>
+                                                <select
+                                                    name="browsing_network"
+                                                    value={data.browsing_network}
+                                                    className="w-full px-3 sm:px-5 py-3 sm:py-4 text-sm sm:text-lg border-2 border-gray-300 rounded-lg sm:rounded-xl focus:ring-2 sm:focus:ring-3 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 hover:border-gray-400"
+                                                    onChange={(e) => setData('browsing_network', e.target.value)}
+                                                    required
+                                                >
+                                                    <option value="">Select your network</option>
+                                                    {browsingNetworks.map(network => (
+                                                        <option key={network} value={network}>{network}</option>
+                                                    ))}
+                                                </select>
+                                                {errors.browsing_network && <p className="text-sm sm:text-base text-red-600 mt-2 font-medium">{errors.browsing_network}</p>}
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm sm:text-base font-bold text-gray-700 mb-2 sm:mb-3">Browsing Number *</label>
+                                                <input
+                                                    type="text"
+                                                    name="browsing_number"
+                                                    value={data.browsing_number}
+                                                    className="w-full px-3 sm:px-5 py-3 sm:py-4 text-sm sm:text-lg border-2 border-gray-300 rounded-lg sm:rounded-xl focus:ring-2 sm:focus:ring-3 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 hover:border-gray-400"
+                                                    placeholder="Your browsing network number"
+                                                    onChange={(e) => setData('browsing_number', e.target.value)}
+                                                    required
+                                                />
+                                                {errors.browsing_number && <p className="text-sm sm:text-base text-red-600 mt-2 font-medium">{errors.browsing_number}</p>}
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                                            <div>
+                                                <label className="block text-sm sm:text-base font-bold text-gray-700 mb-2 sm:mb-3">Select Your Bank *</label>
+                                                <select
+                                                    name="bank_name"
+                                                    value={data.bank_name}
+                                                    className="w-full px-3 sm:px-5 py-3 sm:py-4 text-sm sm:text-lg border-2 border-gray-300 rounded-lg sm:rounded-xl focus:ring-2 sm:focus:ring-3 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 hover:border-gray-400"
+                                                    onChange={(e) => {
+                                                        const selected = banks.find(b => b.code === e.target.value);
+                                                        setData(prev => ({
+                                                            ...prev,
+                                                            bank_code: selected?.code ?? e.target.value,
+                                                            bank_name: selected?.name ?? e.target.value,
+                                                            bank_account_name: '',
+                                                        }));
+                                                        setAccountName('');
+                                                    }}
+                                                    required
+                                                >
+                                                    <option value="">Select your bank</option>
+                                                    {banks.map(bank => (
+                                                        <option key={bank.code || bank} value={bank.code || bank}>{bank.name || bank}</option>
+                                                    ))}
+                                                </select>
+                                                {errors.bank_name && <p className="text-sm sm:text-base text-red-600 mt-2 font-medium">{errors.bank_name}</p>}
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                                            <div>
+                                                <label className="block text-sm sm:text-base font-bold text-gray-700 mb-2 sm:mb-3">Account Number *</label>
+                                                <div className="relative">
+                                                    <input
+                                                        type="text"
+                                                        name="account_number"
+                                                        value={data.account_number}
+                                                        className="w-full px-3 sm:px-5 py-3 sm:py-4 text-sm sm:text-lg border-2 border-gray-300 rounded-lg sm:rounded-xl focus:ring-2 sm:focus:ring-3 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 hover:border-gray-400 pr-12"
+                                                        placeholder="Your 10-digit bank account number"
+                                                        onChange={(e) => {
+                                                            setData('account_number', e.target.value);
+                                                            setAccountName('');
+                                                            setData('bank_account_name', '');
+                                                            setAccountResolutionError('');
+                                                            
+                                                            // Auto-resolve account when 10 digits are entered
+                                                            if (e.target.value.length === 10 && data.bank_code) {
+                                                                resolveAccount(e.target.value, data.bank_code);
+                                                            }
+                                                        }}
+                                                        maxLength={10}
+                                                        required
+                                                    />
+                                                    {isResolvingAccount && (
+                                                        <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                                                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                {errors.account_number && <p className="text-sm sm:text-base text-red-600 mt-2 font-medium">{errors.account_number}</p>}
+                                                {accountResolutionError && <p className="text-sm sm:text-base text-red-600 mt-2 font-medium">{accountResolutionError}</p>}
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm sm:text-base font-bold text-gray-700 mb-2 sm:mb-3">Bank Account Name *</label>
+                                                <input
+                                                    type="text"
+                                                    name="bank_account_name"
+                                                    value={data.bank_account_name}
+                                                    className="w-full px-3 sm:px-5 py-3 sm:py-4 text-sm sm:text-lg border-2 border-gray-300 rounded-lg sm:rounded-xl focus:ring-2 sm:focus:ring-3 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 hover:border-gray-400 bg-gray-50"
+                                                    placeholder="Account name will be auto-verified"
+                                                    readOnly
+                                                    required
+                                                />
+                                                {accountName && !data.bank_account_name && (
+                                                    <p className="text-xs sm:text-sm text-blue-600 mt-2 font-medium">Account resolved! Please confirm in the popup.</p>
+                                                )}
+                                                {errors.bank_account_name && <p className="text-sm sm:text-base text-red-600 mt-2 font-medium">{errors.bank_account_name}</p>}
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm sm:text-base font-bold text-gray-700 mb-2 sm:mb-3">Employment Status *</label>
+                                            <select
+                                                name="employment_status"
+                                                value={data.employment_status || ''}
+                                                className="w-full px-3 sm:px-5 py-3 sm:py-4 text-sm sm:text-lg border-2 border-gray-300 rounded-lg sm:rounded-xl focus:ring-2 sm:focus:ring-3 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 hover:border-gray-400"
+                                                onChange={(e) => {
+                                                    setData('employment_status', e.target.value);
+                                                    // Clear occupation and work level if not employed or self-employed
+                                                    if (e.target.value !== 'Employed' && e.target.value !== 'Self-employed') {
+                                                        setData('current_occupation', '');
+                                                        setData('work_grade_level', '');
+                                                    }
+                                                    // Clear work level if self-employed (they only need occupation)
+                                                    if (e.target.value === 'Self-employed') {
+                                                        setData('work_grade_level', '');
+                                                    }
+                                                }}
+                                                required
+                                            >
+                                                <option value="">Select your employment status</option>
+                                                {employmentStatuses.map(status => (
+                                                    <option key={status} value={status}>{status}</option>
+                                                ))}
+                                            </select>
+                                            {errors.employment_status && <p className="text-sm sm:text-base text-red-600 mt-2 font-medium">{errors.employment_status}</p>}
+                                        </div>
+
+                                        {(data.employment_status === 'Employed' || data.employment_status === 'Self-employed') && (
+                                            <div className="mt-6">
+                                                <div>
+                                                    <label className="block text-sm sm:text-base font-bold text-gray-700 mb-2 sm:mb-3">Current Occupation *</label>
+                                                    <input
+                                                        type="text"
+                                                        name="current_occupation"
+                                                        value={data.current_occupation || ''}
+                                                        className="w-full px-3 sm:px-5 py-3 sm:py-4 text-sm sm:text-lg border-2 border-gray-300 rounded-lg sm:rounded-xl focus:ring-2 sm:focus:ring-3 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 hover:border-gray-400"
+                                                        placeholder="e.g., Senior Manager, Teacher, Engineer, Business Owner"
+                                                        onChange={(e) => setData('current_occupation', e.target.value)}
+                                                        required
+                                                    />
+                                                    {errors.current_occupation && <p className="text-sm sm:text-base text-red-600 mt-2 font-medium">{errors.current_occupation}</p>}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {data.employment_status === 'Employed' && (
+                                            <div className="mt-6">
+                                                <div>
+                                                    <label className="block text-sm sm:text-base font-bold text-gray-700 mb-2 sm:mb-3">Work Level *</label>
+                                                    <select
+                                                        name="work_grade_level"
+                                                        value={data.work_grade_level || ''}
+                                                        className="w-full px-3 sm:px-5 py-3 sm:py-4 text-sm sm:text-lg border-2 border-gray-300 rounded-lg sm:rounded-xl focus:ring-2 sm:focus:ring-3 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 hover:border-gray-400"
+                                                        onChange={(e) => setData('work_grade_level', e.target.value)}
+                                                        required
+                                                    >
+                                                        <option value="">Select your work level</option>
+                                                        {workGradeLevels.map(grade => (
+                                                            <option key={grade} value={grade}>{grade}</option>
+                                                        ))}
+                                                    </select>
+                                                    {errors.work_grade_level && <p className="text-sm sm:text-base text-red-600 mt-2 font-medium">{errors.work_grade_level}</p>}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Document Uploads Section */}
+                                <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl p-8 border-2 border-green-200 shadow-lg">
+                                    <h3 className="text-2xl font-bold text-gray-800 mb-8 flex items-center">
+                                        <div className="w-10 h-10 bg-green-600 rounded-xl flex items-center justify-center mr-4">
+                                            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                                            </svg>
+                                        </div>
+                                        Document Uploads
+                                    </h3>
+                                    
+                                    
+                                    <div className="space-y-6">
+                                        <div>
+                                            <label className="block text-sm sm:text-base font-bold text-gray-700 mb-2 sm:mb-3">White Background Passport Photograph *</label>
+                                            
+                                            {/* Camera Capture Section */}
+                                            <div className="mb-4">
+                                                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                                                    <button
+                                                        type="button"
+                                                        onClick={startCamera}
+                                                        className="flex-1 px-4 py-2 sm:px-6 sm:py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center"
+                                                    >
+                                                        <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                                        </svg>
+                                                        <span className="text-sm sm:text-base">Take Photo</span>
+                                                    </button>
+                                                    
+                                                    <label className="flex-1 px-4 py-2 sm:px-6 sm:py-3 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors cursor-pointer flex items-center justify-center">
+                                                        <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                                                        </svg>
+                                                        <span className="text-sm sm:text-base">Upload File</span>
+                                                        <input
+                                                            type="file"
+                                                            name="passport_photograph"
+                                                            accept="image/jpeg,image/png,image/jpg"
+                                                            className="hidden"
+                                                            onChange={(e) => {
+                                                                handleFileChange(e, 'passport_photograph');
+                                                                setCapturedImage(null);
+                                                                setBackgroundWarning('');
+                                                            }}
+                                                        />
+                                                    </label>
+                                                </div>
+                                            </div>
+
+                                            {/* Camera Modal */}
+                                            {showCamera && (
+                                                <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
+                                                    <div className="bg-white rounded-xl max-w-2xl w-full">
+                                                        <div className="p-4 border-b">
+                                                            <div className="flex items-center justify-between">
+                                                                <h3 className="text-lg font-semibold">Take Passport Photo</h3>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={stopCamera}
+                                                                    className="text-gray-500 hover:text-gray-700"
+                                                                >
+                                                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                                                                    </svg>
+                                                                </button>
+                                                            </div>
+                                                            <p className="text-sm text-gray-600 mt-2">Please ensure you have a white background</p>
+                                                        </div>
+                                                        <div className="p-4">
+                                                            <video
+                                                                id="camera-video"
+                                                                autoPlay
+                                                                playsInline
+                                                                className="w-full rounded-lg"
+                                                            />
+                                                            <canvas id="camera-canvas" className="hidden" />
+                                                            <div className="flex justify-center mt-4 space-x-4">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={capturePhoto}
+                                                                    className="px-6 py-3 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors"
+                                                                >
+                                                                    Capture Photo
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={stopCamera}
+                                                                    className="px-6 py-3 bg-gray-600 text-white font-medium rounded-lg hover:bg-gray-700 transition-colors"
+                                                                >
+                                                                    Cancel
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Captured/Uploaded Image Preview with Background Analysis */}
+                                            {capturedImage && (
+                                                <div className="mb-4">
+                                                    <div className="flex flex-col items-center">
+                                                        <div className="relative inline-block mb-3">
+                                                            <img
+                                                                src={capturedImage}
+                                                                alt="Passport photo"
+                                                                className="w-32 h-32 sm:w-40 sm:h-40 object-cover rounded-lg border-2 border-green-500"
+                                                            />
+                                                            <button
+                                                                type="button"
+                                                                onClick={clearCapturedImage}
+                                                                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                                                            >
+                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                                                                </svg>
+                                                            </button>
+                                                        </div>
+                                                        
+                                                        {/* Background Analysis Result - Immediately Below Image */}
+                                                        {backgroundWarning && (
+                                                            <div className={`w-full max-w-sm p-3 sm:p-4 rounded-lg border-2 text-center ${
+                                                                backgroundWarning.includes('✅') 
+                                                                    ? 'bg-green-50 border-green-200' 
+                                                                    : backgroundWarning.includes('❌')
+                                                                    ? 'bg-red-50 border-red-200'
+                                                                    : 'bg-yellow-50 border-yellow-200'
+                                                            }`}>
+                                                                <div className="flex items-center justify-center mb-2">
+                                                                    <div className={`flex-shrink-0 mr-2 ${
+                                                                        backgroundWarning.includes('✅') 
+                                                                            ? 'text-green-600' 
+                                                                            : backgroundWarning.includes('❌')
+                                                                            ? 'text-red-600'
+                                                                            : 'text-yellow-600'
+                                                                    }`}>
+                                                                        {backgroundWarning.includes('✅') && (
+                                                                            <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="currentColor" viewBox="0 0 20 20">
+                                                                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                                                            </svg>
+                                                                        )}
+                                                                        {backgroundWarning.includes('❌') && (
+                                                                            <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="currentColor" viewBox="0 0 20 20">
+                                                                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                                                                            </svg>
+                                                                        )}
+                                                                        {backgroundWarning.includes('⚠️') && (
+                                                                            <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="currentColor" viewBox="0 0 20 20">
+                                                                                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                                                            </svg>
+                                                                        )}
+                                                                    </div>
+                                                                    <p className={`text-sm sm:text-base font-bold ${
+                                                                        backgroundWarning.includes('✅') 
+                                                                            ? 'text-green-800' 
+                                                                            : backgroundWarning.includes('❌')
+                                                                            ? 'text-red-800'
+                                                                            : 'text-yellow-800'
+                                                                    }`}>
+                                                                        {backgroundWarning}
+                                                                    </p>
+                                                                </div>
+                                                                <p className="text-xs sm:text-sm text-gray-600">
+                                                                    {backgroundWarning.includes('✅') && 'Your photo meets our requirements.'}
+                                                                    {backgroundWarning.includes('❌') && 'Please retake your photo with a plain white background.'}
+                                                                    {backgroundWarning.includes('⚠️') && 'Consider retaking with a better background for optimal results.'}
+                                                                </p>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {errors.passport_photograph && <p className="text-xs sm:text-sm text-red-600 mt-2 font-medium">{errors.passport_photograph}</p>}
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-base font-bold text-gray-700 mb-3">Valid ID Card *</label>
+                                            <div className="relative">
+                                                <input
+                                                    type="file"
+                                                    name="valid_id_card"
+                                                    accept="image/jpeg,image/png,image/jpg,application/pdf"
+                                                    className="w-full px-5 py-4 text-lg border-2 border-gray-300 rounded-xl focus:ring-3 focus:ring-green-500 focus:border-green-500 transition-all duration-200 hover:border-gray-400 file:mr-4 file:py-3 file:px-6 file:rounded-xl file:border-0 file:text-base file:font-bold file:bg-green-50 file:text-green-700 hover:file:bg-green-100"
+                                                    onChange={(e) => handleFileChange(e, 'valid_id_card')}
+                                                    required
+                                                />
+                                                <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none">
+                                                    <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2"></path>
+                                                    </svg>
+                                                </div>
+                                            </div>
+                                            <p className="text-base text-gray-600 mt-3 font-medium">PDF, JPEG, PNG, JPG (Maximum: 5MB) - National ID, Driver's License, or Voter's Card</p>
+                                            {errors.valid_id_card && <p className="text-base text-red-600 mt-3 font-medium">{errors.valid_id_card}</p>}
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-base font-bold text-gray-700 mb-3">Highest Qualification Certificate *</label>
+                                            <div className="relative">
+                                                <input
+                                                    type="file"
+                                                    name="highest_qualification_certificate"
+                                                    accept="image/jpeg,image/png,image/jpg,application/pdf"
+                                                    className="w-full px-5 py-4 text-lg border-2 border-gray-300 rounded-xl focus:ring-3 focus:ring-green-500 focus:border-green-500 transition-all duration-200 hover:border-gray-400 file:mr-4 file:py-3 file:px-6 file:rounded-xl file:border-0 file:text-base file:font-bold file:bg-green-50 file:text-green-700 hover:file:bg-green-100"
+                                                    onChange={(e) => handleFileChange(e, 'highest_qualification_certificate')}
+                                                    required
+                                                />
+                                                <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none">
+                                                    <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                                    </svg>
+                                                </div>
+                                            </div>
+                                            <p className="text-base text-gray-600 mt-3 font-medium">PDF, JPEG, PNG, JPG (Maximum: 5MB) - Degree, Diploma, or Certificate</p>
+                                            {errors.highest_qualification_certificate && <p className="text-base text-red-600 mt-3 font-medium">{errors.highest_qualification_certificate}</p>}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Submit Section */}
+                                <div className="flex flex-col items-center space-y-4 pt-6">
+                                    <button
+                                        type="submit"
+                                        disabled={processing}
+                                        className="px-12 py-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                                    >
+                                        {processing ? (
+                                            <span className="flex items-center">
+                                                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                </svg>
+                                                Submitting...
+                                            </span>
+                                        ) : (
+                                            <span className="flex items-center">
+                                                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                                                </svg>
+                                                Submit Application
+                                            </span>
+                                        )}
+                                    </button>
+
+                                    <Transition
+                                        show={recentlySuccessful}
+                                        enter="transition ease-out duration-300"
+                                        enterFrom="opacity-0 transform scale-90"
+                                        enterTo="opacity-100 transform scale-100"
+                                        leave="transition ease-in duration-200"
+                                        leaveFrom="opacity-100 transform scale-100"
+                                        leaveTo="opacity-0 transform scale-90"
+                                    >
+                                        <div className="bg-green-100 border border-green-400 text-green-700 px-6 py-4 rounded-xl flex items-center">
+                                            <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                            </svg>
+                                            <span className="font-medium">Application submitted successfully!</span>
+                                        </div>
+                                    </Transition>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Account Confirmation Popup */}
+            {showAccountConfirmation && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
+                        <div className="text-center mb-6">
+                            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 mb-4">
+                                <svg className="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                </svg>
+                            </div>
+                            <h3 className="text-lg font-semibold text-gray-900 mb-2">Confirm Account Details</h3>
+                            <p className="text-sm text-gray-600">Please verify that the account name is correct</p>
+                        </div>
+                        
+                        <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                            <div className="space-y-2">
+                                <div>
+                                    <p className="text-xs font-medium text-gray-500">Account Number</p>
+                                    <p className="text-sm font-semibold text-gray-900">{data.account_number}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs font-medium text-gray-500">Account Name</p>
+                                    <p className="text-sm font-semibold text-gray-900">{accountName}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs font-medium text-gray-500">Bank</p>
+                                    <p className="text-sm font-semibold text-gray-900">
+                                        {data.bank_name}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div className="flex gap-3">
+                            <button
+                                type="button"
+                                onClick={rejectAccountName}
+                                className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 font-medium rounded-lg hover:bg-gray-300 transition-colors"
+                            >
+                                No, It's Wrong
+                            </button>
+                            <button
+                                type="button"
+                                onClick={confirmAccountName}
+                                className="flex-1 px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                            >
+                                Yes, It's Correct
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Add custom styles for animations */}
+            <style jsx>{`
+                @keyframes blob {
+                    0% {
+                        transform: translate(0px, 0px) scale(1);
+                    }
+                    33% {
+                        transform: translate(30px, -50px) scale(1.1);
+                    }
+                    66% {
+                        transform: translate(-20px, 20px) scale(0.9);
+                    }
+                    100% {
+                        transform: translate(0px, 0px) scale(1);
+                    }
+                }
+                .animate-blob {
+                    animation: blob 7s infinite;
+                }
+                .animation-delay-2000 {
+                    animation-delay: 2s;
+                }
+                .animation-delay-4000 {
+                    animation-delay: 4s;
+                }
+            `}</style>
+        </>
+    );
+}
