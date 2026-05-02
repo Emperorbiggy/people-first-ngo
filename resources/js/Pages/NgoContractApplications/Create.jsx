@@ -529,16 +529,13 @@ export default function Create() {
                                                 <label className="block text-sm sm:text-base font-bold text-gray-700 mb-2 sm:mb-3">Select Your Bank *</label>
                                                 <select
                                                     name="bank_name"
-                                                    value={data.bank_name}
+                                                    value={data.bank_code}
                                                     className="w-full px-3 sm:px-5 py-3 sm:py-4 text-sm sm:text-lg border-2 border-gray-300 rounded-lg sm:rounded-xl focus:ring-2 sm:focus:ring-3 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 hover:border-gray-400"
                                                     onChange={(e) => {
                                                         const selected = banks.find(b => b.code === e.target.value);
-                                                        setData(prev => ({
-                                                            ...prev,
-                                                            bank_code: selected?.code ?? e.target.value,
-                                                            bank_name: selected?.name ?? e.target.value,
-                                                            bank_account_name: '',
-                                                        }));
+                                                        setData('bank_code', selected?.code ?? e.target.value);
+                                                        setData('bank_name', selected?.name ?? e.target.value);
+                                                        setData('bank_account_name', '');
                                                         setAccountName('');
                                                     }}
                                                     required
