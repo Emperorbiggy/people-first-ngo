@@ -1,7 +1,7 @@
 import axios from 'axios';
 import AuthService from './jwt';
 
-const API_URL = 'http://localhost:8000/api/';
+const API_URL = `${window.location.origin}/api/`;
 
 class ApiService {
   // NGO Application methods
