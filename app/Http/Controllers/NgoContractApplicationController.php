@@ -74,7 +74,7 @@ class NgoContractApplicationController extends Controller
             'account_number'                     => 'required|string|max:20',
             'bank_account_name'                  => 'required|string|max:255',
             'employment_status'                  => 'required|string|max:255',
-            'availability'                       => 'required|string|in:southwest_travel,outside_state',
+            'availability'                       => 'required|string|in:all_opportunities,southwest_travel,outside_state,not_available',
             'current_occupation'                 => 'required_if:employment_status,Employed,Self-employed|nullable|string|max:255',
             'work_grade_level'                   => 'required_if:employment_status,Employed|nullable|string|max:255',
             'passport_photograph'                => 'required|image|mimes:jpeg,png,jpg|max:2048',

@@ -65,7 +65,7 @@ export default function Create() {
         gender: '',
         age: '',
         employment_status: '',
-        availability: '',
+        availability: 'all_opportunities',
         current_occupation: '',
         work_grade_level: '',
         passport_photograph: null,
@@ -658,12 +658,20 @@ export default function Create() {
                                             <div className="space-y-3">
                                                 {[
                                                     {
+                                                        value: 'all_opportunities',
+                                                        label: 'I am Available for all opportunities',
+                                                    },
+                                                    {
                                                         value: 'southwest_travel',
                                                         label: 'I am available for a short-time contract work that will require me to travel within South West',
                                                     },
                                                     {
                                                         value: 'outside_state',
                                                         label: 'I am available for a 30-day contract work in a state outside my state of residence',
+                                                    },
+                                                    {
+                                                        value: 'not_available',
+                                                        label: 'I am not available',
                                                     },
                                                 ].map(option => (
                                                     <label
