@@ -82,6 +82,8 @@ export default function Show({ application }) {
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
                         <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Personal Information</h2>
                         <Field label="Full Name" value={application.full_name} />
+                        <Field label="Gender" value={application.gender} />
+                        <Field label="Age" value={application.age} />
                         <Field label="Email Address" value={application.email_address} />
                         <Field label="Phone Number" value={application.calling_phone_number} />
                         <Field label="WhatsApp Number" value={application.whatsapp_number} />
@@ -104,10 +106,20 @@ export default function Show({ application }) {
                 {/* Professional */}
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
                     <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Professional Information</h2>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <Field label="Employment Status" value={application.employment_status} />
                         <Field label="Current Occupation" value={application.current_occupation} />
                         <Field label="Work Grade Level" value={application.work_grade_level} />
+                        <Field
+                            label="Availability"
+                            value={
+                                application.availability === 'southwest_travel'
+                                    ? 'Short-time contract (South West travel)'
+                                    : application.availability === 'outside_state'
+                                    ? '30-day contract (outside state)'
+                                    : application.availability
+                            }
+                        />
                     </div>
                 </div>
 

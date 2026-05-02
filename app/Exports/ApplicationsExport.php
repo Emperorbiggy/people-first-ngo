@@ -17,6 +17,8 @@ class ApplicationsExport implements FromCollection, WithHeadings, WithStyles, Sh
         return $this->applications->map(fn ($app) => [
             $app->id,
             $app->full_name,
+            $app->gender,
+            $app->age,
             $app->email_address,
             $app->calling_phone_number,
             $app->whatsapp_number,
@@ -29,6 +31,7 @@ class ApplicationsExport implements FromCollection, WithHeadings, WithStyles, Sh
             $app->account_number,
             $app->bank_account_name,
             $app->employment_status,
+            $app->availability ?? '',
             $app->current_occupation ?? '',
             $app->work_grade_level ?? '',
             $app->created_at->format('Y-m-d H:i'),
@@ -40,6 +43,8 @@ class ApplicationsExport implements FromCollection, WithHeadings, WithStyles, Sh
         return [
             'ID',
             'Full Name',
+            'Gender',
+            'Age',
             'Email Address',
             'Phone Number',
             'WhatsApp Number',
@@ -52,6 +57,7 @@ class ApplicationsExport implements FromCollection, WithHeadings, WithStyles, Sh
             'Account Number',
             'Account Name',
             'Employment Status',
+            'Availability',
             'Current Occupation',
             'Work Grade Level',
             'Submitted At',

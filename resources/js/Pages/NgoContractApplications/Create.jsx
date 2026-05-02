@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { Transition } from '@headlessui/react';
+import Webcam from 'react-webcam';
 import PaystackService from '../../services/paystack';
 
 const states = [
@@ -21,7 +22,9 @@ const employmentStatuses = [
     'Employed',
     'Unemployed',
     'Student',
-    'Self-employed'
+    'Self-employed',
+    'Corp member',
+    'Recently passed out Corp member',
 ];
 
 const workGradeLevels = [
@@ -59,7 +62,10 @@ export default function Create() {
         bank_code: '',
         account_number: '',
         bank_account_name: '',
+        gender: '',
+        age: '',
         employment_status: '',
+        availability: '',
         current_occupation: '',
         work_grade_level: '',
         passport_photograph: null,
@@ -75,68 +81,50 @@ export default function Create() {
 
     const handleFileChange = async (e, fieldName) => {
         const file = e.target.files[0];
+        if (!file) return;
         setData(fieldName, file);
-        
-        // If it's a passport photo, show preview and run background detection immediately
-        if (fieldName === 'passport_photograph' && file) {
+
+        if (fieldName === 'passport_photograph') {
             setCapturedImage(URL.createObjectURL(file));
             const analysis = await detectBackground(file, true);
             setBackgroundWarning(analysis.message);
+        } else if (fieldName === 'valid_id_card') {
+            setIdCardFileName(file.name);
+        } else if (fieldName === 'highest_qualification_certificate') {
+            setCertificateFileName(file.name);
         }
     };
 
     const [showCamera, setShowCamera] = useState(false);
-    const [cameraStream, setCameraStream] = useState(null);
     const [capturedImage, setCapturedImage] = useState(null);
     const [backgroundWarning, setBackgroundWarning] = useState('');
+    const [idCardFileName, setIdCardFileName] = useState('');
+    const [certificateFileName, setCertificateFileName] = useState('');
+    const webcamRef = useRef(null);
+    const [facingMode, setFacingMode] = useState('user');
     const [banks, setBanks] = useState([]);
     const [accountName, setAccountName] = useState('');
     const [showAccountConfirmation, setShowAccountConfirmation] = useState(false);
     const [isResolvingAccount, setIsResolvingAccount] = useState(false);
     const [accountResolutionError, setAccountResolutionError] = useState('');
 
-    const startCamera = async () => {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ 
-                video: { facingMode: 'user' } 
-            });
-            setCameraStream(stream);
-            setShowCamera(true);
-        } catch (err) {
-            console.error('Error accessing camera:', err);
-            alert('Unable to access camera. Please check your permissions.');
-        }
-    };
+    const startCamera = () => setShowCamera(true);
+    const stopCamera = () => setShowCamera(false);
 
-    const stopCamera = () => {
-        if (cameraStream) {
-            cameraStream.getTracks().forEach(track => track.stop());
-            setCameraStream(null);
-        }
-        setShowCamera(false);
-    };
+    const capturePhoto = useCallback(async () => {
+        const imageSrc = webcamRef.current?.getScreenshot();
+        if (!imageSrc) return;
 
-    const capturePhoto = async () => {
-        const video = document.getElementById('camera-video');
-        const canvas = document.getElementById('camera-canvas');
-        const context = canvas.getContext('2d');
-        
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        context.drawImage(video, 0, 0);
-        
-        canvas.toBlob(async (blob) => {
-            const file = new File([blob], 'passport.jpg', { type: 'image/jpeg' });
-            setData('passport_photograph', file);
-            setCapturedImage(URL.createObjectURL(blob));
-            
-            // Advanced background detection with immediate feedback
-            const analysis = await detectBackground(canvas);
-            setBackgroundWarning(analysis.message);
-        }, 'image/jpeg');
-        
+        const res = await fetch(imageSrc);
+        const blob = await res.blob();
+        const file = new File([blob], 'passport.jpg', { type: 'image/jpeg' });
+        setData('passport_photograph', file);
+        setCapturedImage(imageSrc);
         stopCamera();
-    };
+
+        const analysis = await detectBackground(file, true);
+        setBackgroundWarning(analysis.message);
+    }, [webcamRef]);
 
     const detectBackground = (imageSource, isFile = false) => {
         return new Promise((resolve) => {
@@ -399,6 +387,40 @@ export default function Create() {
                                             {errors.full_name && <p className="text-sm sm:text-base text-red-600 mt-2 font-medium">{errors.full_name}</p>}
                                         </div>
 
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                                            <div>
+                                                <label className="block text-sm sm:text-base font-bold text-gray-700 mb-2 sm:mb-3">Gender *</label>
+                                                <select
+                                                    name="gender"
+                                                    value={data.gender}
+                                                    className="w-full px-3 sm:px-5 py-3 sm:py-4 text-sm sm:text-lg border-2 border-gray-300 rounded-lg sm:rounded-xl focus:ring-2 sm:focus:ring-3 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 hover:border-gray-400"
+                                                    onChange={(e) => setData('gender', e.target.value)}
+                                                    required
+                                                >
+                                                    <option value="">Select gender</option>
+                                                    <option value="Male">Male</option>
+                                                    <option value="Female">Female</option>
+                                                </select>
+                                                {errors.gender && <p className="text-sm text-red-600 mt-2 font-medium">{errors.gender}</p>}
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm sm:text-base font-bold text-gray-700 mb-2 sm:mb-3">Age *</label>
+                                                <input
+                                                    type="number"
+                                                    name="age"
+                                                    value={data.age}
+                                                    min="18"
+                                                    max="60"
+                                                    className="w-full px-3 sm:px-5 py-3 sm:py-4 text-sm sm:text-lg border-2 border-gray-300 rounded-lg sm:rounded-xl focus:ring-2 sm:focus:ring-3 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 hover:border-gray-400"
+                                                    placeholder="Enter your age (18–60)"
+                                                    onChange={(e) => setData('age', e.target.value)}
+                                                    required
+                                                />
+                                                {errors.age && <p className="text-sm text-red-600 mt-2 font-medium">{errors.age}</p>}
+                                            </div>
+                                        </div>
+
                                         <div>
                                             <label className="block text-sm sm:text-base font-bold text-gray-700 mb-2 sm:mb-3">Working Email Address *</label>
                                             <input
@@ -629,6 +651,53 @@ export default function Create() {
                                             {errors.employment_status && <p className="text-sm sm:text-base text-red-600 mt-2 font-medium">{errors.employment_status}</p>}
                                         </div>
 
+                                        {/* Availability */}
+                                        <div>
+                                            <label className="block text-sm sm:text-base font-bold text-gray-700 mb-3">Availability for Contract Work *</label>
+                                            <p className="text-sm text-gray-500 mb-3">Select one option that applies to you</p>
+                                            <div className="space-y-3">
+                                                {[
+                                                    {
+                                                        value: 'southwest_travel',
+                                                        label: 'I am available for a short-time contract work that will require me to travel within South West',
+                                                    },
+                                                    {
+                                                        value: 'outside_state',
+                                                        label: 'I am available for a 30-day contract work in a state outside my state of residence',
+                                                    },
+                                                ].map(option => (
+                                                    <label
+                                                        key={option.value}
+                                                        className={`flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
+                                                            data.availability === option.value
+                                                                ? 'border-blue-500 bg-blue-50'
+                                                                : 'border-gray-200 bg-white hover:border-gray-300'
+                                                        }`}
+                                                    >
+                                                        <div className={`mt-0.5 w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-colors ${
+                                                            data.availability === option.value
+                                                                ? 'border-blue-500 bg-blue-500'
+                                                                : 'border-gray-300'
+                                                        }`}>
+                                                            {data.availability === option.value && (
+                                                                <div className="w-2 h-2 rounded-full bg-white" />
+                                                            )}
+                                                        </div>
+                                                        <input
+                                                            type="radio"
+                                                            name="availability"
+                                                            value={option.value}
+                                                            checked={data.availability === option.value}
+                                                            onChange={() => setData('availability', option.value)}
+                                                            className="sr-only"
+                                                        />
+                                                        <span className="text-sm sm:text-base text-gray-700 font-medium">{option.label}</span>
+                                                    </label>
+                                                ))}
+                                            </div>
+                                            {errors.availability && <p className="text-sm text-red-600 mt-2 font-medium">{errors.availability}</p>}
+                                        </div>
+
                                         {(data.employment_status === 'Employed' || data.employment_status === 'Self-employed') && (
                                             <div className="mt-6">
                                                 <div>
@@ -711,11 +780,7 @@ export default function Create() {
                                                             name="passport_photograph"
                                                             accept="image/jpeg,image/png,image/jpg"
                                                             className="hidden"
-                                                            onChange={(e) => {
-                                                                handleFileChange(e, 'passport_photograph');
-                                                                setCapturedImage(null);
-                                                                setBackgroundWarning('');
-                                                            }}
+                                                            onChange={(e) => handleFileChange(e, 'passport_photograph')}
                                                         />
                                                     </label>
                                                 </div>
@@ -724,42 +789,45 @@ export default function Create() {
                                             {/* Camera Modal */}
                                             {showCamera && (
                                                 <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
-                                                    <div className="bg-white rounded-xl max-w-2xl w-full">
-                                                        <div className="p-4 border-b">
-                                                            <div className="flex items-center justify-between">
+                                                    <div className="bg-white rounded-xl max-w-lg w-full">
+                                                        <div className="p-4 border-b flex items-center justify-between">
+                                                            <div>
                                                                 <h3 className="text-lg font-semibold">Take Passport Photo</h3>
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={stopCamera}
-                                                                    className="text-gray-500 hover:text-gray-700"
-                                                                >
-                                                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
-                                                                    </svg>
-                                                                </button>
+                                                                <p className="text-sm text-gray-500">Use a plain white background</p>
                                                             </div>
-                                                            <p className="text-sm text-gray-600 mt-2">Please ensure you have a white background</p>
+                                                            <button type="button" onClick={stopCamera} className="text-gray-500 hover:text-gray-700">
+                                                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                                                                </svg>
+                                                            </button>
                                                         </div>
                                                         <div className="p-4">
-                                                            <video
-                                                                id="camera-video"
-                                                                autoPlay
-                                                                playsInline
+                                                            <Webcam
+                                                                ref={webcamRef}
+                                                                screenshotFormat="image/jpeg"
+                                                                videoConstraints={{ facingMode }}
                                                                 className="w-full rounded-lg"
+                                                                mirrored={facingMode === 'user'}
                                                             />
-                                                            <canvas id="camera-canvas" className="hidden" />
-                                                            <div className="flex justify-center mt-4 space-x-4">
+                                                            <div className="flex justify-center gap-3 mt-4 flex-wrap">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setFacingMode(f => f === 'user' ? 'environment' : 'user')}
+                                                                    className="px-4 py-2 bg-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-300 transition-colors text-sm"
+                                                                >
+                                                                    Flip Camera
+                                                                </button>
                                                                 <button
                                                                     type="button"
                                                                     onClick={capturePhoto}
-                                                                    className="px-6 py-3 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors"
+                                                                    className="px-6 py-2 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors"
                                                                 >
-                                                                    Capture Photo
+                                                                    Capture
                                                                 </button>
                                                                 <button
                                                                     type="button"
                                                                     onClick={stopCamera}
-                                                                    className="px-6 py-3 bg-gray-600 text-white font-medium rounded-lg hover:bg-gray-700 transition-colors"
+                                                                    className="px-4 py-2 bg-gray-600 text-white font-medium rounded-lg hover:bg-gray-700 transition-colors"
                                                                 >
                                                                     Cancel
                                                                 </button>
@@ -865,6 +933,14 @@ export default function Create() {
                                                 </div>
                                             </div>
                                             <p className="text-base text-gray-600 mt-3 font-medium">PDF, JPEG, PNG, JPG (Maximum: 5MB) - National ID, Driver's License, or Voter's Card</p>
+                                            {idCardFileName && (
+                                                <div className="mt-3 flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-xl">
+                                                    <svg className="w-5 h-5 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                    </svg>
+                                                    <span className="text-sm text-green-800 font-medium truncate">{idCardFileName}</span>
+                                                </div>
+                                            )}
                                             {errors.valid_id_card && <p className="text-base text-red-600 mt-3 font-medium">{errors.valid_id_card}</p>}
                                         </div>
 
@@ -886,6 +962,14 @@ export default function Create() {
                                                 </div>
                                             </div>
                                             <p className="text-base text-gray-600 mt-3 font-medium">PDF, JPEG, PNG, JPG (Maximum: 5MB) - Degree, Diploma, or Certificate</p>
+                                            {certificateFileName && (
+                                                <div className="mt-3 flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-xl">
+                                                    <svg className="w-5 h-5 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                    </svg>
+                                                    <span className="text-sm text-green-800 font-medium truncate">{certificateFileName}</span>
+                                                </div>
+                                            )}
                                             {errors.highest_qualification_certificate && <p className="text-base text-red-600 mt-3 font-medium">{errors.highest_qualification_certificate}</p>}
                                         </div>
                                     </div>

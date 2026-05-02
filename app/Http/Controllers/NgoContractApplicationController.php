@@ -60,6 +60,8 @@ class NgoContractApplicationController extends Controller
     {
         $validated = $request->validate([
             'full_name'                          => 'required|string|max:255',
+            'gender'                             => 'required|in:Male,Female',
+            'age'                                => 'required|integer|min:18|max:60',
             'email_address'                      => 'required|email|max:255',
             'calling_phone_number'               => 'required|string|max:20',
             'whatsapp_number'                    => 'required|string|max:20',
@@ -72,6 +74,7 @@ class NgoContractApplicationController extends Controller
             'account_number'                     => 'required|string|max:20',
             'bank_account_name'                  => 'required|string|max:255',
             'employment_status'                  => 'required|string|max:255',
+            'availability'                       => 'required|string|in:southwest_travel,outside_state',
             'current_occupation'                 => 'required_if:employment_status,Employed,Self-employed|nullable|string|max:255',
             'work_grade_level'                   => 'required_if:employment_status,Employed|nullable|string|max:255',
             'passport_photograph'                => 'required|image|mimes:jpeg,png,jpg|max:2048',
@@ -85,6 +88,8 @@ class NgoContractApplicationController extends Controller
 
         NgoContractApplication::create([
             'full_name'                                => $validated['full_name'],
+            'gender'                                   => $validated['gender'],
+            'age'                                      => $validated['age'],
             'email_address'                            => $validated['email_address'],
             'calling_phone_number'                     => $validated['calling_phone_number'],
             'whatsapp_number'                          => $validated['whatsapp_number'],
@@ -97,6 +102,7 @@ class NgoContractApplicationController extends Controller
             'account_number'                           => $validated['account_number'],
             'bank_account_name'                        => $validated['bank_account_name'],
             'employment_status'                        => $validated['employment_status'],
+            'availability'                             => $validated['availability'],
             'current_occupation'                       => $validated['current_occupation'] ?? null,
             'work_grade_level'                         => $validated['work_grade_level'] ?? null,
             'passport_photograph_path'                 => $passportPath,

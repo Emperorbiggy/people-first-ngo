@@ -8,6 +8,8 @@ class NgoContractApplication extends Model
 {
     protected $fillable = [
         'full_name',
+        'gender',
+        'age',
         'email_address',
         'calling_phone_number',
         'whatsapp_number',
@@ -20,6 +22,7 @@ class NgoContractApplication extends Model
         'account_number',
         'bank_account_name',
         'employment_status',
+        'availability',
         'current_occupation',
         'work_grade_level',
         'passport_photograph_path',
