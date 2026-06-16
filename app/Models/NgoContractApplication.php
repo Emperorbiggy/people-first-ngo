@@ -27,6 +27,14 @@ class NgoContractApplication extends Model
         'work_grade_level',
         'passport_photograph_path',
         'valid_id_card_path',
-        'highest_qualification_certificate_path'
+        'highest_qualification_certificate_path',
+        'lga',
+        'ward',
+        'unit',
+        'has_voter_card',
+    ];
+
+    protected $casts = [
+        'has_voter_card' => 'boolean',
     ];
 }

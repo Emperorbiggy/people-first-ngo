@@ -50,6 +50,18 @@ export default function Dashboard({ applications, states, selectedState, totalCo
                     </div>
                 </div>
                 <div className="flex items-center gap-4">
+                    <Link
+                        href={route('imported-applications.index')}
+                        className="text-sm text-gray-600 hover:text-gray-800 hidden sm:block"
+                    >
+                        Imported Records
+                    </Link>
+                    <Link
+                        href={route('imported-applications.import')}
+                        className="text-sm text-blue-600 hover:text-blue-800 font-medium hidden sm:block"
+                    >
+                        Import CSV
+                    </Link>
                     <span className="text-sm text-gray-600 hidden sm:block">
                         {auth?.user?.name}
                     </span>
