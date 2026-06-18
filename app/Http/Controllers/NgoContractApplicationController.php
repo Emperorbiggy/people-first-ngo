@@ -137,8 +137,17 @@ class NgoContractApplicationController extends Controller
 
     public function exportZip(Request $request)
     {
-        $state = $request->get('state', 'all');
-        $batch = max(1, (int) $request->get('batch', 1));
+        $state    = $request->get('state', 'all');
+        $batch    = max(1, (int) $request->get('batch', 1));
+        $fileType = $request->get('file', 'passport'); // passport | id_card | certificate
+
+        $columnMap = [
+            'passport'    => ['col' => 'passport_photograph_path',               'label' => 'passports'],
+            'id_card'     => ['col' => 'valid_id_card_path',                     'label' => 'id_cards'],
+            'certificate' => ['col' => 'highest_qualification_certificate_path', 'label' => 'certificates'],
+        ];
+
+        $map = $columnMap[$fileType] ?? $columnMap['passport'];
 
         $query = NgoContractApplication::latest();
         if ($state !== 'all') {
@@ -153,15 +162,15 @@ class NgoContractApplicationController extends Controller
         }
 
         $suffix  = $state !== 'all' ? "_{$state}" : '';
-        $zipName = "passports_batch{$batch}{$suffix}.zip";
+        $zipName = "{$map['label']}_batch{$batch}{$suffix}.zip";
         $zipPath = "{$tempDir}/{$zipName}";
 
         $zip = new ZipArchive();
         $zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
 
         foreach ($applications as $app) {
-            $filePath = storage_path('app/public/' . $app->passport_photograph_path);
-            if (file_exists($filePath)) {
+            $filePath = storage_path('app/public/' . $app->{$map['col']});
+            if ($filePath && file_exists($filePath)) {
                 $zip->addFile($filePath, basename($filePath));
             }
         }
