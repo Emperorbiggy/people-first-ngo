@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Link, router } from '@inertiajs/react';
+import AdminLayout from '@/Layouts/AdminLayout';
 
 function StatCard({ label, value, icon, color }) {
     return (
@@ -16,8 +17,7 @@ function StatCard({ label, value, icon, color }) {
 }
 
 export default function Dashboard({ applications, states, selectedState, totalCount, batchCount, statsByState }) {
-    const { auth } = usePage().props;
-    const [batch, setBatch] = useState(1);
+const [batch, setBatch] = useState(1);
     const [exportState, setExportState] = useState(selectedState);
 
     const applyFilter = (state) => {
@@ -32,55 +32,8 @@ export default function Dashboard({ applications, states, selectedState, totalCo
     const totalBatches = Math.max(1, Math.ceil(applications.length / 500));
 
     return (
-        <div className="min-h-screen bg-gray-50">
-            <Head title="Admin Dashboard" />
-
-            {/* Top Nav */}
-            <nav className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between shadow-sm">
-                <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center">
-                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                                d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                        </svg>
-                    </div>
-                    <div>
-                        <span className="font-bold text-gray-800 text-lg">NGO Admin</span>
-                        <span className="ml-2 text-xs text-gray-400 hidden sm:inline">Contract Work Programme</span>
-                    </div>
-                </div>
-                <div className="flex items-center gap-4">
-                    <Link
-                        href={route('imported-applications.index')}
-                        className="text-sm text-gray-600 hover:text-gray-800 hidden sm:block"
-                    >
-                        Imported Records
-                    </Link>
-                    <Link
-                        href={route('imported-applications.import')}
-                        className="text-sm text-blue-600 hover:text-blue-800 font-medium hidden sm:block"
-                    >
-                        Import CSV
-                    </Link>
-                    <span className="text-sm text-gray-600 hidden sm:block">
-                        {auth?.user?.name}
-                    </span>
-                    <Link
-                        href={route('logout')}
-                        method="post"
-                        as="button"
-                        className="text-sm text-red-500 hover:text-red-700 font-medium flex items-center gap-1 transition"
-                    >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                        </svg>
-                        Logout
-                    </Link>
-                </div>
-            </nav>
-
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        <AdminLayout title="Admin Dashboard">
+            <div className="max-w-7xl mx-auto space-y-8">
 
                 {/* Stats Row */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -372,6 +325,6 @@ export default function Dashboard({ applications, states, selectedState, totalCo
                     </div>
                 </div>
             </div>
-        </div>
+        </AdminLayout>
     );
 }

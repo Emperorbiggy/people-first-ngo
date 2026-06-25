@@ -42,7 +42,12 @@ return [
             'driver' => 'session',
             'provider' => 'users',
         ],
-        
+
+        'databoy' => [
+            'driver' => 'session',
+            'provider' => 'databoys',
+        ],
+
         'api' => [
             'driver' => 'jwt',
             'provider' => 'users',
@@ -71,6 +76,11 @@ return [
         'users' => [
             'driver' => 'eloquent',
             'model' => env('AUTH_MODEL', User::class),
+        ],
+
+        'databoys' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\Databoy::class,
         ],
 
         // 'users' => [

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
+import AdminLayout from '@/Layouts/AdminLayout';
 
 export default function Index({ applications }) {
     const { flash } = usePage().props;
@@ -26,39 +27,8 @@ export default function Index({ applications }) {
         : route('imported-applications.export', { lga: lgaFilter });
 
     return (
-        <div className="min-h-screen bg-gray-50">
-            <Head title="Imported Applications" />
-
-            {/* Nav */}
-            <nav className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between shadow-sm">
-                <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center">
-                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                                d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                        </svg>
-                    </div>
-                    <span className="font-bold text-gray-800 text-lg">NGO Admin</span>
-                </div>
-                <div className="flex items-center gap-4">
-                    <Link href={route('dashboard')} className="text-sm text-gray-600 hover:text-gray-800">
-                        Dashboard
-                    </Link>
-                    <Link href={route('imported-applications.import')} className="text-sm text-blue-600 hover:text-blue-800 font-medium">
-                        Import CSV
-                    </Link>
-                    <Link
-                        href={route('logout')}
-                        method="post"
-                        as="button"
-                        className="text-sm text-red-500 hover:text-red-700 font-medium"
-                    >
-                        Logout
-                    </Link>
-                </div>
-            </nav>
-
-            <div className="max-w-7xl mx-auto px-4 py-10">
+        <AdminLayout title="Imported Applications">
+            <div className="max-w-7xl mx-auto">
                 {/* Flash message */}
                 {flash?.success && (
                     <div className="mb-6 bg-green-50 border border-green-200 rounded-xl px-5 py-4 flex items-start gap-3">
@@ -197,6 +167,6 @@ export default function Index({ applications }) {
                     )}
                 </div>
             </div>
-        </div>
+        </AdminLayout>
     );
 }

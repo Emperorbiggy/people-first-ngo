@@ -23,6 +23,8 @@
         "vite": "^7.0.7"
     },
     "dependencies": {
+        "lucide-react": "^1.21.0",
+        "react-hot-toast": "^2.6.0",
         "react-webcam": "^7.2.0"
     }
 }
