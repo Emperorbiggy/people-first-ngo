@@ -26,7 +26,7 @@ class DataboyController extends Controller
 
         $databoys = Databoy::with(['lga:id,name', 'ward:id,name'])
             ->latest()
-            ->get(['id', 'full_name', 'login_email', 'login_password_plain', 'calling_phone_number', 'lga_id', 'ward_id', 'created_at'])
+            ->get(['id', 'full_name', 'login_email', 'login_password_plain', 'calling_phone_number', 'is_active', 'lga_id', 'ward_id', 'created_at'])
             ->map(fn ($db) => [
                 'id'                   => $db->id,
                 'full_name'            => $db->full_name,
