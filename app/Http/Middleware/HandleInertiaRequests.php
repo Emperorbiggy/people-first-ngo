@@ -35,7 +35,7 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
             ],
-            'databoy' => Auth::guard('databoy')->user(),
+            'databoy' => optional(Auth::guard('databoy')->user())->load('ward', 'lga'),
             'flash'   => [
                 'success' => session('success'),
                 'error'   => session('error'),
