@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Databoy;
 use App\Http\Controllers\Controller;
 use App\Models\Databoy;
 use App\Models\Lga;
+use App\Models\Setting;
 use App\Models\State;
 use App\Models\Ward;
 use Illuminate\Http\Request;
@@ -15,6 +16,10 @@ class RegistrationController extends Controller
 {
     public function showForm()
     {
+        if (Setting::get('databoy_registration_open', '1') !== '1') {
+            return inertia('Databoy/RegistrationClosed');
+        }
+
         $states = State::orderBy('name')->get(['id', 'name']);
         return inertia('Databoy/Register', ['states' => $states]);
     }

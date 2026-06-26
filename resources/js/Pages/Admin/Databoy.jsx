@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 
 function StatCard({ label, value, icon, color }) {
@@ -170,7 +169,7 @@ export default function DataboyAdmin({ stats = {}, lgaCoverage = [], databoys = 
                             <table className="min-w-full">
                                 <thead>
                                     <tr className="bg-gray-50 text-left">
-                                        {['#', 'Name', 'Login Email', 'Password', 'Phone', 'LGA', 'Ward', 'Status', 'Registered'].map((h) => (
+                                        {['#', 'Name', 'Login Email', 'Password', 'Phone', 'LGA', 'Ward', 'Registered'].map((h) => (
                                             <th key={h} className="px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
                                         ))}
                                     </tr>
@@ -203,20 +202,6 @@ export default function DataboyAdmin({ stats = {}, lgaCoverage = [], databoys = 
                                                 </span>
                                             </td>
                                             <td className="px-5 py-3 text-sm text-gray-600 whitespace-nowrap">{db.ward?.name ?? '—'}</td>
-                                            <td className="px-5 py-3 whitespace-nowrap">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => router.post(route('admin.databoy.toggle', db.id))}
-                                                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition ${
-                                                        db.is_active
-                                                            ? 'bg-green-100 text-green-700 hover:bg-red-100 hover:text-red-700'
-                                                            : 'bg-gray-100 text-gray-500 hover:bg-green-100 hover:text-green-700'
-                                                    }`}
-                                                >
-                                                    <span className={`w-1.5 h-1.5 rounded-full ${db.is_active ? 'bg-green-500' : 'bg-gray-400'}`} />
-                                                    {db.is_active ? 'Active' : 'Inactive'}
-                                                </button>
-                                            </td>
                                             <td className="px-5 py-3 text-xs text-gray-400 whitespace-nowrap">
                                                 {new Date(db.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                                             </td>

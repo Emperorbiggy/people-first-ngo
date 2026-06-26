@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\DataboyApplication;
 use App\Models\Lga;
 use App\Models\PollingUnit;
+use App\Models\Setting;
 use App\Models\State;
 use App\Models\Ward;
 use Illuminate\Http\Request;
@@ -27,8 +28,12 @@ class ApplicationController extends Controller
 
     public function create()
     {
+        $accessEnabled = Setting::get('databoy_access_enabled', '1') === '1';
         $states = State::orderBy('name')->get(['id', 'name']);
-        return inertia('Databoy/Applications/Create', ['states' => $states]);
+        return inertia('Databoy/Applications/Create', [
+            'states'        => $states,
+            'accessEnabled' => $accessEnabled,
+        ]);
     }
 
     public function getLgas(State $state)
@@ -56,8 +61,8 @@ class ApplicationController extends Controller
     {
         $databoy = Auth::guard('databoy')->user();
 
-        if (!$databoy->is_active) {
-            return back()->withErrors(['account' => 'Your account is not active yet.']);
+        if (Setting::get('databoy_access_enabled', '1') !== '1') {
+            return back()->withErrors(['account' => 'Application access is currently disabled by admin.']);
         }
 
         $validated = $request->validate([

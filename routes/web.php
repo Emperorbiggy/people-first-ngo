@@ -7,6 +7,7 @@ use App\Http\Controllers\VerificationController;
 use App\Http\Controllers\GeoImportController;
 use App\Http\Controllers\Admin\DataboyController as AdminDataboyController;
 use App\Http\Controllers\Admin\DataboyApplicationController as AdminDataboyApplicationController;
+use App\Http\Controllers\Admin\SettingsController as AdminSettingsController;
 use App\Http\Controllers\Databoy\RegistrationController;
 use App\Http\Controllers\Databoy\AuthController as DataboyAuthController;
 use App\Http\Controllers\Databoy\DashboardController as DataboyDashboardController;
@@ -45,6 +46,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/imported-applications/import', [ImportedContractApplicationController::class, 'showImport'])->name('imported-applications.import');
     Route::post('/imported-applications/import', [ImportedContractApplicationController::class, 'import'])->name('imported-applications.do-import');
     Route::get('/imported-applications/export', [ImportedContractApplicationController::class, 'exportExcel'])->name('imported-applications.export');
+
+    // Admin Settings
+    Route::get('/admin/settings', [AdminSettingsController::class, 'index'])->name('admin.settings');
+    Route::post('/admin/settings', [AdminSettingsController::class, 'update'])->name('admin.settings.update');
 
     // Admin Databoy overview
     Route::get('/admin/databoy', [AdminDataboyController::class, 'index'])->name('admin.databoy');

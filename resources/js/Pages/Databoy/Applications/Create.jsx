@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { useForm, usePage } from '@inertiajs/react';
+import { useForm } from '@inertiajs/react';
 import DataboyLayout from '@/Layouts/DataboyLayout';
 import axios from 'axios';
 import PaystackService from '@/services/paystack';
@@ -62,9 +62,8 @@ function NotActive() {
     );
 }
 
-export default function Create({ states: geoStates = [] }) {
-    const { auth } = usePage().props;
-    if (!auth?.databoy?.is_active) return <NotActive />;
+export default function Create({ states: geoStates = [], accessEnabled = true }) {
+    if (!accessEnabled) return <NotActive />;
     const { data, setData, post, processing, errors } = useForm({
         full_name: '', gender: '', age: '', email_address: '',
         calling_phone_number: '', whatsapp_number: '',
