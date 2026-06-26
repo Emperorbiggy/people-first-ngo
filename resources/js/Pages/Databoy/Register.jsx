@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Head, useForm } from '@inertiajs/react';
 import axios from 'axios';
 import PaystackService from '@/services/paystack';
@@ -33,7 +33,6 @@ export default function Register({ states = [] }) {
         browsing_network: '', browsing_number: '',
         bank_name: '', bank_code: '', account_number: '', bank_account_name: '',
         employment_status: '', availability: '',
-        passport_photograph: null, valid_id_card: null, highest_qualification_certificate: null,
     });
 
     const [banks, setBanks]             = useState([]);
@@ -41,16 +40,9 @@ export default function Register({ states = [] }) {
     const [wards, setWards]             = useState([]);
     const [loadingLgas, setLoadingLgas]   = useState(false);
     const [loadingWards, setLoadingWards] = useState(false);
-    const [resolving, setResolving]     = useState(false);
+    const [resolving, setResolving]       = useState(false);
     const [resolvedName, setResolvedName] = useState('');
     const [resolveError, setResolveError] = useState('');
-    const [passportName, setPassportName] = useState('');
-    const [idCardName, setIdCardName]     = useState('');
-    const [certName, setCertName]         = useState('');
-
-    const passportRef = useRef();
-    const idCardRef   = useRef();
-    const certRef     = useRef();
 
     useEffect(() => {
         PaystackService.fetchBanks()
@@ -121,12 +113,6 @@ export default function Register({ states = [] }) {
         setData((d) => ({ ...d, account_number: '', bank_account_name: '' }));
         setResolvedName('');
         setResolveError('');
-    };
-
-    const handleFile = (field, file, setName) => {
-        if (!file) return;
-        setData(field, file);
-        setName(file.name);
     };
 
     const submit = (e) => {
@@ -366,67 +352,6 @@ export default function Register({ states = [] }) {
                                     ))}
                                 </div>
                                 {errors.availability && <p className={errCls}>{errors.availability}</p>}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Document Uploads */}
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                        <SectionTitle>Document Uploads</SectionTitle>
-                        <div className="space-y-5">
-                            {/* Passport */}
-                            <div>
-                                <label className={labelCls}>White Background Passport Photograph *</label>
-                                <div
-                                    onClick={() => passportRef.current.click()}
-                                    className="border-2 border-dashed border-gray-300 rounded-xl p-5 text-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50 transition"
-                                >
-                                    {passportName ? (
-                                        <p className="text-sm font-medium text-indigo-700">{passportName}</p>
-                                    ) : (
-                                        <>
-                                            <p className="text-sm text-gray-600 font-medium">Upload Passport Photo</p>
-                                            <p className="text-xs text-gray-400 mt-1">JPEG, PNG (max 2MB) · White background required</p>
-                                        </>
-                                    )}
-                                </div>
-                                <input ref={passportRef} type="file" accept=".jpg,.jpeg,.png" className="hidden"
-                                    onChange={(e) => handleFile('passport_photograph', e.target.files[0], setPassportName)} />
-                                {errors.passport_photograph && <p className={errCls}>{errors.passport_photograph}</p>}
-                            </div>
-
-                            {/* Valid ID */}
-                            <div>
-                                <label className={labelCls}>Valid ID Card *</label>
-                                <div className="flex items-center gap-3 border border-gray-300 rounded-xl px-4 py-3 cursor-pointer hover:border-indigo-400 bg-white"
-                                    onClick={() => idCardRef.current.click()}>
-                                    <svg className="w-5 h-5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                                            d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-                                    </svg>
-                                    <span className="text-sm text-gray-600 truncate">{idCardName || 'No file chosen'}</span>
-                                </div>
-                                <p className="mt-1 text-xs text-gray-400">PDF, JPEG, PNG, JPG (max 5MB) · National ID, Driver's License, or Voter's Card</p>
-                                <input ref={idCardRef} type="file" accept=".pdf,.jpg,.jpeg,.png" className="hidden"
-                                    onChange={(e) => handleFile('valid_id_card', e.target.files[0], setIdCardName)} />
-                                {errors.valid_id_card && <p className={errCls}>{errors.valid_id_card}</p>}
-                            </div>
-
-                            {/* Certificate */}
-                            <div>
-                                <label className={labelCls}>Highest Qualification Certificate *</label>
-                                <div className="flex items-center gap-3 border border-gray-300 rounded-xl px-4 py-3 cursor-pointer hover:border-indigo-400 bg-white"
-                                    onClick={() => certRef.current.click()}>
-                                    <svg className="w-5 h-5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                                            d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-                                    </svg>
-                                    <span className="text-sm text-gray-600 truncate">{certName || 'No file chosen'}</span>
-                                </div>
-                                <p className="mt-1 text-xs text-gray-400">PDF, JPEG, PNG, JPG (max 5MB) · Degree, Diploma, or Certificate</p>
-                                <input ref={certRef} type="file" accept=".pdf,.jpg,.jpeg,.png" className="hidden"
-                                    onChange={(e) => handleFile('highest_qualification_certificate', e.target.files[0], setCertName)} />
-                                {errors.highest_qualification_certificate && <p className={errCls}>{errors.highest_qualification_certificate}</p>}
                             </div>
                         </div>
                     </div>

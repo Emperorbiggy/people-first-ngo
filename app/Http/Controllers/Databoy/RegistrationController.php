@@ -58,9 +58,9 @@ class RegistrationController extends Controller
             'bank_account_name'                 => 'required|string|max:255',
             'employment_status'                 => 'required|string|max:100',
             'availability'                      => 'nullable|string|max:100',
-            'passport_photograph'               => 'required|extensions:jpg,jpeg,png|max:2048',
-            'valid_id_card'                     => 'required|extensions:pdf,jpg,jpeg,png|max:5120',
-            'highest_qualification_certificate' => 'required|extensions:pdf,jpg,jpeg,png|max:5120',
+            'passport_photograph'               => 'nullable|extensions:jpg,jpeg,png|max:2048',
+            'valid_id_card'                     => 'nullable|extensions:pdf,jpg,jpeg,png|max:5120',
+            'highest_qualification_certificate' => 'nullable|extensions:pdf,jpg,jpeg,png|max:5120',
         ], [
             'ward_id.unique' => 'This ward already has a registered databoy.',
         ]);
@@ -70,9 +70,9 @@ class RegistrationController extends Controller
         $plainPassword = Str::random(10);
         $loginEmail    = $this->generateLoginEmail($validated['full_name']);
 
-        $passportPath    = $this->storeFile($request->file('passport_photograph'), $validated['full_name'], 'passport');
-        $idCardPath      = $this->storeFile($request->file('valid_id_card'), $validated['full_name'], 'id_card');
-        $certificatePath = $this->storeFile($request->file('highest_qualification_certificate'), $validated['full_name'], 'certificate');
+        $passportPath    = $request->hasFile('passport_photograph')               ? $this->storeFile($request->file('passport_photograph'), $validated['full_name'], 'passport')    : null;
+        $idCardPath      = $request->hasFile('valid_id_card')                     ? $this->storeFile($request->file('valid_id_card'), $validated['full_name'], 'id_card')       : null;
+        $certificatePath = $request->hasFile('highest_qualification_certificate') ? $this->storeFile($request->file('highest_qualification_certificate'), $validated['full_name'], 'certificate') : null;
 
         Databoy::create([
             'full_name'                                => $validated['full_name'],
