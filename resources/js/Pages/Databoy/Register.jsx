@@ -1,6 +1,7 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Head, useForm } from '@inertiajs/react';
 import axios from 'axios';
+import PaystackService from '@/services/paystack';
 
 const NETWORKS = ['MTN', 'GLO', 'AIRTEL', '9MOBILE'];
 const EMPLOYMENT = ['Employed', 'Unemployed', 'Student', 'Self-employed', 'Corp member', 'Recently passed out Corp member'];
@@ -9,18 +10,6 @@ const AVAILABILITY = [
     { value: 'southwest_travel',  label: 'I am available for a short-time contract work that will require me to travel within South West' },
     { value: 'outside_state',     label: 'I am available for a 30-day contract work in a state outside my state of residence' },
     { value: 'not_available',     label: 'I am not available' },
-];
-const BANKS = [
-    { name: 'Access Bank', code: '044' }, { name: 'Zenith Bank', code: '057' },
-    { name: 'GTBank', code: '058' }, { name: 'First Bank', code: '011' },
-    { name: 'UBA', code: '033' }, { name: 'Fidelity Bank', code: '070' },
-    { name: 'Sterling Bank', code: '232' }, { name: 'Keystone Bank', code: '082' },
-    { name: 'Union Bank', code: '032' }, { name: 'Wema Bank', code: '035' },
-    { name: 'Stanbic IBTC', code: '221' }, { name: 'FCMB', code: '214' },
-    { name: 'Polaris Bank', code: '076' }, { name: 'Ecobank', code: '050' },
-    { name: 'Heritage Bank', code: '030' }, { name: 'Providus Bank', code: '101' },
-    { name: 'Kuda Bank', code: '090267' }, { name: 'Opay', code: '100004' },
-    { name: 'PalmPay', code: '999991' }, { name: 'Moniepoint', code: '50515' },
 ];
 
 const inputCls = 'w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white disabled:bg-gray-50 disabled:text-gray-400';
@@ -47,10 +36,14 @@ export default function Register({ states = [] }) {
         passport_photograph: null, valid_id_card: null, highest_qualification_certificate: null,
     });
 
-    const [lgas, setLgas]             = useState([]);
-    const [wards, setWards]           = useState([]);
+    const [banks, setBanks]             = useState([]);
+    const [lgas, setLgas]               = useState([]);
+    const [wards, setWards]             = useState([]);
     const [loadingLgas, setLoadingLgas]   = useState(false);
     const [loadingWards, setLoadingWards] = useState(false);
+    const [resolving, setResolving]     = useState(false);
+    const [resolvedName, setResolvedName] = useState('');
+    const [resolveError, setResolveError] = useState('');
     const [passportName, setPassportName] = useState('');
     const [idCardName, setIdCardName]     = useState('');
     const [certName, setCertName]         = useState('');
@@ -58,6 +51,19 @@ export default function Register({ states = [] }) {
     const passportRef = useRef();
     const idCardRef   = useRef();
     const certRef     = useRef();
+
+    useEffect(() => {
+        PaystackService.fetchBanks()
+            .then((list) => setBanks(Array.isArray(list) ? list : []))
+            .catch(() => {});
+    }, []);
+
+    useEffect(() => {
+        if (states.length > 0 && !data.state_id) {
+            const osun = states.find((s) => s.name.toLowerCase() === 'osun');
+            if (osun) handleStateChange(String(osun.id));
+        }
+    }, [states]);
 
     const handleStateChange = async (stateId) => {
         setData((d) => ({ ...d, state_id: stateId, lga_id: '', ward_id: '' }));
@@ -82,8 +88,39 @@ export default function Register({ states = [] }) {
     };
 
     const handleBankChange = (name) => {
-        const bank = BANKS.find((b) => b.name === name);
+        const bank = banks.find((b) => b.name === name);
         setData((d) => ({ ...d, bank_name: name, bank_code: bank?.code ?? '' }));
+        // re-resolve if account number already entered
+        if (data.account_number.length === 10 && bank?.code) {
+            triggerResolve(data.account_number, bank.code);
+        }
+    };
+
+    const triggerResolve = async (accountNumber, bankCode) => {
+        if (!accountNumber || !bankCode || accountNumber.length < 10) return;
+        setResolving(true);
+        setResolvedName('');
+        setResolveError('');
+        setData('bank_account_name', '');
+        try {
+            const result = await PaystackService.resolveAccountNumber(accountNumber, bankCode);
+            if (result.status && result.data) {
+                setResolvedName(result.data.account_name);
+                setData('bank_account_name', result.data.account_name);
+            } else {
+                setResolveError(result.message || 'Could not verify account. Please check the details.');
+            }
+        } catch {
+            setResolveError('Network error. Please try again.');
+        } finally {
+            setResolving(false);
+        }
+    };
+
+    const clearAccount = () => {
+        setData((d) => ({ ...d, account_number: '', bank_account_name: '' }));
+        setResolvedName('');
+        setResolveError('');
     };
 
     const handleFile = (field, file, setName) => {
@@ -194,10 +231,8 @@ export default function Register({ states = [] }) {
                             <div className="space-y-4">
                                 <div>
                                     <label className={labelCls}>State *</label>
-                                    <select value={data.state_id} onChange={(e) => handleStateChange(e.target.value)} className={inputCls}>
-                                        <option value="">Select state…</option>
-                                        {states.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                                    </select>
+                                    <input type="text" value="Osun" readOnly
+                                        className={`${inputCls} bg-gray-50 cursor-not-allowed text-gray-600 font-medium`} />
                                     {errors.state_id && <p className={errCls}>{errors.state_id}</p>}
                                 </div>
 
@@ -257,27 +292,54 @@ export default function Register({ states = [] }) {
                             <div>
                                 <label className={labelCls}>Select Your Bank *</label>
                                 <select value={data.bank_name} onChange={(e) => handleBankChange(e.target.value)} className={inputCls}>
-                                    <option value="">Select your bank</option>
-                                    {BANKS.map((b) => <option key={b.code} value={b.name}>{b.name}</option>)}
+                                    <option value="">{banks.length === 0 ? 'Loading banks…' : 'Select your bank'}</option>
+                                    {banks.map((b) => <option key={b.code} value={b.name}>{b.name}</option>)}
                                 </select>
                                 {errors.bank_name && <p className={errCls}>{errors.bank_name}</p>}
                             </div>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div>
-                                    <label className={labelCls}>Account Number *</label>
+                            <div>
+                                <label className={labelCls}>Account Number *</label>
+                                <div className="relative">
                                     <input type="text" maxLength={10} value={data.account_number}
-                                        onChange={(e) => setData('account_number', e.target.value)}
+                                        onChange={(e) => {
+                                            const val = e.target.value.replace(/\D/g, '');
+                                            setData('account_number', val);
+                                            setResolvedName(''); setResolveError('');
+                                            setData('bank_account_name', '');
+                                            if (val.length === 10 && data.bank_code) {
+                                                triggerResolve(val, data.bank_code);
+                                            }
+                                        }}
                                         placeholder="Your 10-digit bank account number" className={inputCls} />
-                                    {errors.account_number && <p className={errCls}>{errors.account_number}</p>}
+                                    {resolving && (
+                                        <div className="absolute inset-y-0 right-3 flex items-center">
+                                            <div className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                                        </div>
+                                    )}
                                 </div>
-                                <div>
-                                    <label className={labelCls}>Bank Account Name *</label>
-                                    <input type="text" value={data.bank_account_name}
-                                        onChange={(e) => setData('bank_account_name', e.target.value)}
-                                        placeholder="Account name as on your bank" className={inputCls} />
-                                    {errors.bank_account_name && <p className={errCls}>{errors.bank_account_name}</p>}
-                                </div>
+                                {resolveError && <p className={errCls}>{resolveError}</p>}
+                                {errors.account_number && <p className={errCls}>{errors.account_number}</p>}
+                            </div>
+
+                            <div>
+                                <label className={labelCls}>Bank Account Name *</label>
+                                {resolvedName ? (
+                                    <div className="flex items-center gap-3 bg-green-50 border border-green-300 rounded-xl px-4 py-3">
+                                        <svg className="w-5 h-5 text-green-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                                        </svg>
+                                        <p className="text-sm font-bold text-green-800 flex-1">{resolvedName}</p>
+                                        <button type="button" onClick={clearAccount} className="text-xs text-red-500 hover:underline">
+                                            Clear
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <input type="text" value={data.bank_account_name} readOnly
+                                        placeholder="Account name will be auto-verified"
+                                        className={`${inputCls} bg-gray-50 text-gray-400 cursor-not-allowed`} />
+                                )}
+                                {errors.bank_account_name && <p className={errCls}>{errors.bank_account_name}</p>}
                             </div>
 
                             <div>

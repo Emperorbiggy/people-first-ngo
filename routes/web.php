@@ -5,6 +5,8 @@ use App\Http\Controllers\NgoContractApplicationController;
 use App\Http\Controllers\ImportedContractApplicationController;
 use App\Http\Controllers\VerificationController;
 use App\Http\Controllers\GeoImportController;
+use App\Http\Controllers\Admin\DataboyController as AdminDataboyController;
+use App\Http\Controllers\Admin\DataboyApplicationController as AdminDataboyApplicationController;
 use App\Http\Controllers\Databoy\RegistrationController;
 use App\Http\Controllers\Databoy\AuthController as DataboyAuthController;
 use App\Http\Controllers\Databoy\DashboardController as DataboyDashboardController;
@@ -43,6 +45,15 @@ Route::middleware('auth')->group(function () {
     Route::get('/imported-applications/import', [ImportedContractApplicationController::class, 'showImport'])->name('imported-applications.import');
     Route::post('/imported-applications/import', [ImportedContractApplicationController::class, 'import'])->name('imported-applications.do-import');
     Route::get('/imported-applications/export', [ImportedContractApplicationController::class, 'exportExcel'])->name('imported-applications.export');
+
+    // Admin Databoy overview
+    Route::get('/admin/databoy', [AdminDataboyController::class, 'index'])->name('admin.databoy');
+
+    // Admin Databoy Applications
+    Route::get('/admin/databoy-applications/export/excel', [AdminDataboyApplicationController::class, 'exportExcel'])->name('admin.databoy-applications.export.excel');
+    Route::get('/admin/databoy-applications/export/zip',   [AdminDataboyApplicationController::class, 'exportZip'])->name('admin.databoy-applications.export.zip');
+    Route::get('/admin/databoy-applications/{databoyApplication}', [AdminDataboyApplicationController::class, 'show'])->name('admin.databoy-applications.show');
+    Route::get('/admin/databoy-applications', [AdminDataboyApplicationController::class, 'index'])->name('admin.databoy-applications.index');
 
     // Geo Import
     Route::get('/geo-import', [GeoImportController::class, 'showPage'])->name('geo.import');
