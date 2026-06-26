@@ -56,6 +56,10 @@ class ApplicationController extends Controller
     {
         $databoy = Auth::guard('databoy')->user();
 
+        if (!$databoy->is_active) {
+            return back()->withErrors(['account' => 'Your account is not active yet.']);
+        }
+
         $validated = $request->validate([
             'full_name'                         => 'required|string|max:255',
             'gender'                            => 'required|in:Male,Female',

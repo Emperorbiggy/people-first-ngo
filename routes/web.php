@@ -48,6 +48,7 @@ Route::middleware('auth')->group(function () {
 
     // Admin Databoy overview
     Route::get('/admin/databoy', [AdminDataboyController::class, 'index'])->name('admin.databoy');
+    Route::post('/admin/databoy/{databoy}/toggle', [AdminDataboyController::class, 'toggle'])->name('admin.databoy.toggle');
 
     // Admin Databoy Applications
     Route::get('/admin/databoy-applications/export/excel', [AdminDataboyApplicationController::class, 'exportExcel'])->name('admin.databoy-applications.export.excel');

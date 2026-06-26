@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Databoy;
 use App\Models\Lga;
+use Illuminate\Http\Request;
 
 class DataboyController extends Controller
 {
@@ -32,11 +33,18 @@ class DataboyController extends Controller
                 'login_email'          => $db->login_email,
                 'login_password_plain' => $db->getRawOriginal('login_password_plain'),
                 'calling_phone_number' => $db->calling_phone_number,
+                'is_active'            => $db->is_active,
                 'lga'                  => $db->lga,
                 'ward'                 => $db->ward,
                 'created_at'           => $db->created_at,
             ]);
 
         return inertia('Admin/Databoy', compact('stats', 'lgaCoverage', 'databoys'));
+    }
+
+    public function toggle(Databoy $databoy)
+    {
+        $databoy->update(['is_active' => !$databoy->is_active]);
+        return back();
     }
 }

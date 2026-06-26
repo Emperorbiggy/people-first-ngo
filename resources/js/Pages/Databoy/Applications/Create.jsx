@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { useForm } from '@inertiajs/react';
+import { useForm, usePage } from '@inertiajs/react';
 import DataboyLayout from '@/Layouts/DataboyLayout';
 import axios from 'axios';
 import PaystackService from '@/services/paystack';
@@ -35,7 +35,36 @@ function Section({ title, children }) {
     );
 }
 
+function NotActive() {
+    return (
+        <DataboyLayout title="Not Active">
+            <div className="min-h-[60vh] flex items-center justify-center p-6">
+                <div className="max-w-md w-full text-center space-y-5">
+                    <div className="w-16 h-16 bg-amber-100 rounded-2xl flex items-center justify-center mx-auto">
+                        <svg className="w-8 h-8 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                                d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 className="text-xl font-bold text-gray-800">Account Not Active Yet</h2>
+                        <p className="text-sm text-gray-500 mt-2">
+                            Your account is pending activation by the admin. Once activated, you will be able to register applicants.
+                            Please check back later or contact your supervisor.
+                        </p>
+                    </div>
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800">
+                        Contact admin to activate your databoy account.
+                    </div>
+                </div>
+            </div>
+        </DataboyLayout>
+    );
+}
+
 export default function Create({ states: geoStates = [] }) {
+    const { auth } = usePage().props;
+    if (!auth?.databoy?.is_active) return <NotActive />;
     const { data, setData, post, processing, errors } = useForm({
         full_name: '', gender: '', age: '', email_address: '',
         calling_phone_number: '', whatsapp_number: '',

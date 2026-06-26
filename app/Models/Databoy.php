@@ -17,12 +17,12 @@ class Databoy extends Authenticatable
         'bank_name', 'bank_code', 'account_number', 'bank_account_name',
         'employment_status', 'availability',
         'passport_photograph_path', 'valid_id_card_path', 'highest_qualification_certificate_path',
-        'login_email', 'login_password_plain', 'password',
+        'login_email', 'login_password_plain', 'password', 'is_active',
     ];
 
     protected $hidden = ['password', 'remember_token', 'login_password_plain'];
 
-    protected $casts = ['age' => 'integer'];
+    protected $casts = ['age' => 'integer', 'is_active' => 'boolean'];
 
     public function getAuthIdentifierName(): string { return 'login_email'; }
 
