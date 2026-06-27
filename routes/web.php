@@ -54,6 +54,9 @@ Route::middleware('auth')->group(function () {
     // Admin Databoy overview
     Route::get('/admin/databoy', [AdminDataboyController::class, 'index'])->name('admin.databoy');
     Route::post('/admin/databoy/{databoy}/toggle', [AdminDataboyController::class, 'toggle'])->name('admin.databoy.toggle');
+    Route::post('/admin/databoy/{databoy}/release', [AdminDataboyController::class, 'release'])->name('admin.databoy.release');
+    Route::post('/admin/databoy/{databoy}/assign', [AdminDataboyController::class, 'assign'])->name('admin.databoy.assign');
+    Route::get('/admin/api/lgas/{lga}/available-wards', [AdminDataboyController::class, 'availableWards'])->name('admin.api.available-wards');
 
     // Admin Databoy Applications
     Route::get('/admin/databoy-applications/export/excel', [AdminDataboyApplicationController::class, 'exportExcel'])->name('admin.databoy-applications.export.excel');

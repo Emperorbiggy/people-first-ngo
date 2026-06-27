@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Databoy;
 use App\Models\Lga;
+use App\Models\Ward;
 use Illuminate\Http\Request;
 
 class DataboyController extends Controller
@@ -34,17 +35,67 @@ class DataboyController extends Controller
                 'login_password_plain' => $db->getRawOriginal('login_password_plain'),
                 'calling_phone_number' => $db->calling_phone_number,
                 'is_active'            => $db->is_active,
+                'lga_id'               => $db->lga_id,
+                'ward_id'              => $db->ward_id,
                 'lga'                  => $db->lga,
                 'ward'                 => $db->ward,
                 'created_at'           => $db->created_at,
             ]);
 
-        return inertia('Admin/Databoy', compact('stats', 'lgaCoverage', 'databoys'));
+        $lgas = Lga::orderBy('name')->get(['id', 'name']);
+
+        return inertia('Admin/Databoy', compact('stats', 'lgaCoverage', 'databoys', 'lgas'));
     }
 
     public function toggle(Databoy $databoy)
     {
         $databoy->update(['is_active' => !$databoy->is_active]);
         return back();
+    }
+
+    public function release(Databoy $databoy)
+    {
+        $databoy->update(['lga_id' => null, 'ward_id' => null]);
+        return back()->with('success', "{$databoy->full_name}'s ward has been released.");
+    }
+
+    public function assign(Request $request, Databoy $databoy)
+    {
+        $request->validate([
+            'lga_id'  => 'required|exists:lgas,id',
+            'ward_id' => 'required|exists:wards,id',
+        ]);
+
+        // Ensure the ward isn't already taken by someone else
+        $conflict = Databoy::where('ward_id', $request->ward_id)
+            ->where('id', '!=', $databoy->id)
+            ->exists();
+
+        if ($conflict) {
+            return back()->withErrors(['ward_id' => 'This ward is already assigned to another databoy.']);
+        }
+
+        $databoy->update([
+            'lga_id'  => $request->lga_id,
+            'ward_id' => $request->ward_id,
+        ]);
+
+        return back()->with('success', "Ward assigned to {$databoy->full_name}.");
+    }
+
+    public function availableWards(Request $request, Lga $lga)
+    {
+        $excludeDataboyId = $request->query('exclude');
+
+        $takenWardIds = Databoy::whereNotNull('ward_id')
+            ->when($excludeDataboyId, fn ($q) => $q->where('id', '!=', $excludeDataboyId))
+            ->pluck('ward_id');
+
+        $wards = Ward::where('lga_id', $lga->id)
+            ->whereNotIn('id', $takenWardIds)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        return response()->json($wards);
     }
 }
