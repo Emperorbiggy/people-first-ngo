@@ -141,11 +141,60 @@ function AssignModal({ databoy, lgas, onClose }) {
     );
 }
 
+function ReleaseModal({ databoy, onConfirm, onClose, loading }) {
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+            <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-5">
+                <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-red-100 rounded-2xl flex items-center justify-center shrink-0">
+                        <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                                d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-gray-800">Release Ward</h3>
+                        <p className="text-xs text-gray-500 mt-0.5">This action cannot be undone without reassigning.</p>
+                    </div>
+                </div>
+
+                <div className="bg-gray-50 rounded-xl px-4 py-3 space-y-1">
+                    <p className="text-xs text-gray-500">Databoy</p>
+                    <p className="text-sm font-semibold text-gray-800">{databoy.full_name}</p>
+                    <p className="text-xs text-gray-500 mt-2">Ward to be released</p>
+                    <p className="text-sm font-semibold text-red-600">{databoy.ward?.name}</p>
+                    {databoy.lga?.name && (
+                        <p className="text-xs text-gray-400">{databoy.lga.name}</p>
+                    )}
+                </div>
+
+                <p className="text-sm text-gray-600">
+                    The ward will become available for other databoys to pick after release.
+                </p>
+
+                <div className="flex gap-3">
+                    <button onClick={onClose} disabled={loading}
+                        className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50 transition disabled:opacity-50">
+                        Cancel
+                    </button>
+                    <button onClick={onConfirm} disabled={loading}
+                        className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-semibold rounded-xl text-sm transition">
+                        {loading ? 'Releasing…' : 'Yes, Release'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 export default function DataboyAdmin({ stats = {}, lgaCoverage = [], databoys = [], lgas = [] }) {
     const { flash } = usePage().props;
-    const [wardFilter, setWardFilter] = useState('');
-    const [editingDb, setEditingDb]   = useState(null);
-    const [releasing, setReleasing]   = useState(null);
+    const [wardFilter, setWardFilter]   = useState('');
+    const [editingDb, setEditingDb]     = useState(null);
+    const [releasingDb, setReleasingDb] = useState(null);
+    const [releasing, setReleasing]     = useState(false);
 
     const filtered = wardFilter.trim()
         ? databoys.filter((db) => {
@@ -157,21 +206,25 @@ export default function DataboyAdmin({ stats = {}, lgaCoverage = [], databoys = 
         })
         : databoys;
 
-    const handleRelease = (db) => {
-        if (!confirm(`Release ${db.full_name} from ward "${db.ward?.name}"? The ward will become available again.`)) return;
-        setReleasing(db.id);
-        router.post(route('admin.databoy.release', db.id), {}, {
-            onFinish: () => setReleasing(null),
+    const handleRelease = () => {
+        setReleasing(true);
+        router.post(route('admin.databoy.release', releasingDb.id), {}, {
+            onSuccess: () => { setReleasingDb(null); setReleasing(false); },
+            onError:   () => setReleasing(false),
         });
     };
 
     return (
         <AdminLayout title="Databoy Overview">
             {editingDb && (
-                <AssignModal
-                    databoy={editingDb}
-                    lgas={lgas}
-                    onClose={() => setEditingDb(null)}
+                <AssignModal databoy={editingDb} lgas={lgas} onClose={() => setEditingDb(null)} />
+            )}
+            {releasingDb && (
+                <ReleaseModal
+                    databoy={releasingDb}
+                    loading={releasing}
+                    onConfirm={handleRelease}
+                    onClose={() => !releasing && setReleasingDb(null)}
                 />
             )}
 
@@ -315,11 +368,10 @@ export default function DataboyAdmin({ stats = {}, lgaCoverage = [], databoys = 
                                                     {db.ward_id && (
                                                         <button
                                                             type="button"
-                                                            onClick={() => handleRelease(db)}
-                                                            disabled={releasing === db.id}
-                                                            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition disabled:opacity-50"
+                                                            onClick={() => setReleasingDb(db)}
+                                                            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition"
                                                         >
-                                                            {releasing === db.id ? '…' : 'Release'}
+                                                            Release
                                                         </button>
                                                     )}
                                                     <button
