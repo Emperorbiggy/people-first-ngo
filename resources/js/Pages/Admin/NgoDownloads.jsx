@@ -106,7 +106,7 @@ export default function NgoDownloads({ counts }) {
                     <DownloadCard
                         title="Valid ID Cards"
                         description="All ID cards uploaded with NGO contract applications."
-                        note="Images are compressed and converted to PDF before packaging."
+                        note="Images are converted to PDF. Run Image Compression from Settings first to reduce file sizes."
                         count={counts.idCards}
                         buttonLabel="Download as PDF ZIP"
                         buttonColor="bg-emerald-600 hover:bg-emerald-700"
@@ -122,7 +122,7 @@ export default function NgoDownloads({ counts }) {
                     <DownloadCard
                         title="Qualification Certificates"
                         description="All qualification certificates uploaded with NGO contract applications."
-                        note="Images (JPG/PNG) are automatically converted to PDF before packaging."
+                        note="Images are converted to PDF. Run Image Compression from Settings first to reduce file sizes."
                         count={counts.certificates}
                         buttonLabel="Download as PDF ZIP"
                         buttonColor="bg-violet-600 hover:bg-violet-700"
@@ -143,9 +143,10 @@ export default function NgoDownloads({ counts }) {
                     <p className="font-semibold">How it works</p>
                     <ul className="list-disc list-inside space-y-0.5 text-xs text-blue-600">
                         <li>Each download packages all available files into a single ZIP archive.</li>
-                        <li>For ID cards and certificates, any JPG or PNG files are converted to PDF on the fly.</li>
+                        <li>For ID cards and certificates, JPG/PNG files are converted to PDF on the fly.</li>
                         <li>Files that are already PDFs are included as-is.</li>
-                        <li>Large collections may take a minute — please wait for the download to start.</li>
+                        <li><strong>To reduce ZIP size:</strong> go to Settings → Compress Images first, then download.</li>
+                        <li>Large collections may take a moment — please wait for the download to start.</li>
                     </ul>
                 </div>
 

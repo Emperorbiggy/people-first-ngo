@@ -37,7 +37,7 @@ class NgoDownloadsController extends Controller
             'valid_id_card_path',
             'id-cards.zip',
             convertToPdf: true,
-            compress: true
+            compress: false
         );
     }
 
@@ -48,7 +48,7 @@ class NgoDownloadsController extends Controller
             'highest_qualification_certificate_path',
             'certificates.zip',
             convertToPdf: true,
-            compress: true
+            compress: false
         );
     }
 
