@@ -205,9 +205,9 @@ class NgoContractApplicationController extends Controller
 
     private function uploadFile($file, $fullName, $type)
     {
-        $sanitizedName = Str::slug($fullName);
+        $sanitizedName = strtolower(preg_replace('/\s+/', ' ', trim($fullName)));
         $randomNumber  = rand(1000, 9999);
-        $fileName      = "{$sanitizedName}_{$randomNumber}_{$type}." . $file->getClientOriginalExtension();
+        $fileName      = "{$sanitizedName} {$randomNumber} {$type}." . $file->getClientOriginalExtension();
 
         return $file->storeAs('ngo-applications', $fileName, 'public');
     }

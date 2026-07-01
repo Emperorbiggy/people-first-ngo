@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { useForm } from '@inertiajs/react';
+import { useForm, usePage } from '@inertiajs/react';
 import DataboyLayout from '@/Layouts/DataboyLayout';
 import axios from 'axios';
 import PaystackService from '@/services/paystack';
@@ -62,13 +62,42 @@ function NotActive() {
     );
 }
 
-export default function Create({ states: geoStates = [], accessEnabled = true }) {
+function NoWard() {
+    return (
+        <DataboyLayout title="No Ward Assigned">
+            <div className="min-h-[60vh] flex items-center justify-center p-6">
+                <div className="max-w-md w-full text-center space-y-5">
+                    <div className="w-16 h-16 bg-violet-100 rounded-2xl flex items-center justify-center mx-auto">
+                        <svg className="w-8 h-8 text-violet-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                                d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 className="text-xl font-bold text-gray-800">No Ward Assigned</h2>
+                        <p className="text-sm text-gray-500 mt-2">
+                            You do not have a ward assigned yet. Contact the admin to assign your ward before you can register applicants.
+                        </p>
+                    </div>
+                    <div className="bg-violet-50 border border-violet-200 rounded-xl px-4 py-3 text-sm text-violet-800">
+                        Contact admin to get your ward assigned.
+                    </div>
+                </div>
+            </div>
+        </DataboyLayout>
+    );
+}
+
+export default function Create({ accessEnabled = true }) {
+    const { databoy } = usePage().props;
     if (!accessEnabled) return <NotActive />;
+    if (!databoy?.ward_id) return <NoWard />;
     const { data, setData, post, processing, errors } = useForm({
         full_name: '', gender: '', age: '', email_address: '',
         calling_phone_number: '', whatsapp_number: '',
         state_of_residence: 'Osun',
-        lga_id: '', ward_id: '', polling_unit_id: '',
+        lga_id: String(databoy?.lga_id ?? ''), ward_id: String(databoy?.ward_id ?? ''), polling_unit_id: '',
         house_address: '',
         browsing_network: '', browsing_number: '',
         bank_name: '', bank_code: '', account_number: '', bank_account_name: '',
@@ -94,17 +123,9 @@ export default function Create({ states: geoStates = [], accessEnabled = true })
     const streamRef = useRef(null);
     const retryRef  = useRef(null);
 
-    // Geo cascade state
-    const [lgas, setLgas]               = useState([]);
-    const [wards, setWards]             = useState([]);
+    // Polling units for the databoy's assigned ward
     const [pollingUnits, setPollingUnits] = useState([]);
-    const [loadingLgas, setLoadingLgas]   = useState(false);
-    const [loadingWards, setLoadingWards] = useState(false);
     const [loadingPUs, setLoadingPUs]     = useState(false);
-
-    // Use geo states if available, otherwise the LGA cascade won't work
-    // We still let state_of_residence be any state string
-    const [selectedGeoStateId, setSelectedGeoStateId] = useState('');
 
     const [passportName, setPassportName] = useState('');
     const [idCardName, setIdCardName]     = useState('');
@@ -113,40 +134,6 @@ export default function Create({ states: geoStates = [], accessEnabled = true })
     const idCardRef   = useRef();
     const certRef     = useRef();
 
-    const handleStateChange = async (stateId) => {
-        setSelectedGeoStateId(stateId);
-        setData((d) => ({ ...d, lga_id: '', ward_id: '', polling_unit_id: '' }));
-        setLgas([]); setWards([]); setPollingUnits([]);
-        if (!stateId) return;
-        setLoadingLgas(true);
-        try {
-            const { data: res } = await axios.get(route('databoy.api.lgas', { state: stateId }));
-            setLgas(res);
-        } catch { /* silent */ } finally { setLoadingLgas(false); }
-    };
-
-    const handleLgaChange = async (lgaId) => {
-        setData((d) => ({ ...d, lga_id: lgaId, ward_id: '', polling_unit_id: '' }));
-        setWards([]); setPollingUnits([]);
-        if (!lgaId) return;
-        setLoadingWards(true);
-        try {
-            const { data: res } = await axios.get(route('databoy.api.wards', { lga: lgaId }));
-            setWards(res);
-        } catch { /* silent */ } finally { setLoadingWards(false); }
-    };
-
-    const handleWardChange = async (wardId) => {
-        setData((d) => ({ ...d, ward_id: wardId, polling_unit_id: '' }));
-        setPollingUnits([]);
-        if (!wardId) return;
-        setLoadingPUs(true);
-        try {
-            const { data: res } = await axios.get(route('databoy.api.polling-units', { ward: wardId }));
-            setPollingUnits(res);
-        } catch { /* silent */ } finally { setLoadingPUs(false); }
-    };
-
     useEffect(() => {
         PaystackService.fetchBanks()
             .then((list) => setBanks(Array.isArray(list) ? list : []))
@@ -154,11 +141,13 @@ export default function Create({ states: geoStates = [], accessEnabled = true })
     }, []);
 
     useEffect(() => {
-        if (geoStates.length > 0 && !selectedGeoStateId) {
-            const osun = geoStates.find((s) => s.name.toLowerCase() === 'osun');
-            if (osun) handleStateChange(String(osun.id));
-        }
-    }, [geoStates]);
+        if (!databoy?.ward_id) return;
+        setLoadingPUs(true);
+        axios.get(route('databoy.api.polling-units', { ward: databoy.ward_id }))
+            .then(({ data: res }) => setPollingUnits(res))
+            .catch(() => {})
+            .finally(() => setLoadingPUs(false));
+    }, [databoy?.ward_id]);
 
     const handleBankChange = (name) => {
         const bank = banks.find((b) => b.name === name);
@@ -387,55 +376,35 @@ export default function Create({ states: geoStates = [], accessEnabled = true })
 
                     {/* Location / Geo */}
                     <Section title="Location (LGA, Ward &amp; Polling Unit)">
-                        {geoStates.length === 0 ? (
-                            <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-xl p-4">
-                                No geo data imported yet. Ask the admin to import geographic data, then LGA/ward/polling unit will be available here.
-                            </p>
-                        ) : (
-                            <>
-                                <div>
-                                    <label className={labelCls}>State</label>
-                                    <input type="text" value="Osun" readOnly
-                                        className={`${inputCls} bg-gray-50 cursor-not-allowed text-gray-600 font-medium`} />
-                                </div>
+                        <div>
+                            <label className={labelCls}>State</label>
+                            <input type="text" value="Osun" readOnly
+                                className={`${inputCls} bg-gray-50 cursor-not-allowed text-gray-600 font-medium`} />
+                        </div>
 
-                                <div>
-                                    <label className={labelCls}>LGA *</label>
-                                    <select value={data.lga_id}
-                                        onChange={(e) => handleLgaChange(e.target.value)}
-                                        disabled={!selectedGeoStateId || loadingLgas}
-                                        className={inputCls}>
-                                        <option value="">{loadingLgas ? 'Loading…' : 'Select LGA…'}</option>
-                                        {lgas.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-                                    </select>
-                                    {errors.lga_id && <p className={errCls}>{errors.lga_id}</p>}
-                                </div>
+                        <div>
+                            <label className={labelCls}>LGA</label>
+                            <input type="text" value={databoy?.lga?.name ?? '—'} readOnly
+                                className={`${inputCls} bg-gray-50 cursor-not-allowed text-gray-600 font-medium`} />
+                        </div>
 
-                                <div>
-                                    <label className={labelCls}>Ward *</label>
-                                    <select value={data.ward_id}
-                                        onChange={(e) => handleWardChange(e.target.value)}
-                                        disabled={!data.lga_id || loadingWards}
-                                        className={inputCls}>
-                                        <option value="">{loadingWards ? 'Loading…' : 'Select Ward…'}</option>
-                                        {wards.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
-                                    </select>
-                                    {errors.ward_id && <p className={errCls}>{errors.ward_id}</p>}
-                                </div>
+                        <div>
+                            <label className={labelCls}>Ward</label>
+                            <input type="text" value={databoy?.ward?.name ?? '—'} readOnly
+                                className={`${inputCls} bg-gray-50 cursor-not-allowed text-gray-600 font-medium`} />
+                        </div>
 
-                                <div>
-                                    <label className={labelCls}>Polling Unit</label>
-                                    <select value={data.polling_unit_id}
-                                        onChange={(e) => setData('polling_unit_id', e.target.value)}
-                                        disabled={!data.ward_id || loadingPUs}
-                                        className={inputCls}>
-                                        <option value="">{loadingPUs ? 'Loading…' : 'Select Polling Unit…'}</option>
-                                        {pollingUnits.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                                    </select>
-                                    {errors.polling_unit_id && <p className={errCls}>{errors.polling_unit_id}</p>}
-                                </div>
-                            </>
-                        )}
+                        <div>
+                            <label className={labelCls}>Polling Unit</label>
+                            <select value={data.polling_unit_id}
+                                onChange={(e) => setData('polling_unit_id', e.target.value)}
+                                disabled={loadingPUs}
+                                className={inputCls}>
+                                <option value="">{loadingPUs ? 'Loading…' : 'Select Polling Unit…'}</option>
+                                {pollingUnits.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                            </select>
+                            {errors.polling_unit_id && <p className={errCls}>{errors.polling_unit_id}</p>}
+                        </div>
 
                         <label className="flex items-center gap-3 cursor-pointer">
                             <input type="checkbox" checked={data.has_voter_card}
