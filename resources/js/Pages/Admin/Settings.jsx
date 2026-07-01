@@ -43,7 +43,7 @@ function SettingRow({ label, description, enabled, settingKey, statusOn, statusO
 }
 
 function FileMaintenanceCard() {
-    const [status, setStatus] = useState('idle'); // idle | running | done | error
+    const [status, setStatus] = useState('idle');
     const [result, setResult] = useState(null);
 
     const run = async () => {
@@ -150,8 +150,8 @@ function FileMaintenanceCard() {
 
 function CompressFilesCard() {
     const LIMIT = 10;
-    const [status, setStatus]     = useState('idle');
-    const [progress, setProgress] = useState({ done: 0, total: 0 });
+    const [status, setStatus]           = useState('idle');
+    const [progress, setProgress]       = useState({ done: 0, total: 0 });
     const [accumulated, setAccumulated] = useState({ compressed: 0, skipped: 0, errors: [], log: [], savedBytes: 0 });
 
     const run = async () => {
@@ -213,7 +213,6 @@ function CompressFilesCard() {
                 <p>Scans all <span className="font-mono bg-white px-1 py-0.5 rounded border border-gray-200">.jpg</span>, <span className="font-mono bg-white px-1 py-0.5 rounded border border-gray-200">.jpeg</span>, and <span className="font-mono bg-white px-1 py-0.5 rounded border border-gray-200">.png</span> files in all upload folders and re-saves them at optimised quality (75% JPEG). Processed in batches of {LIMIT} to avoid server timeouts.</p>
             </div>
 
-            {/* Progress bar while running */}
             {status === 'running' && (
                 <div className="space-y-1.5">
                     <div className="flex justify-between text-xs text-gray-500">
@@ -232,7 +231,6 @@ function CompressFilesCard() {
                 </div>
             )}
 
-            {/* Results */}
             {(status === 'done' || (status === 'error' && accumulated.compressed > 0)) && (
                 <div className="space-y-3">
                     <div className="grid grid-cols-3 gap-3">
