@@ -8,6 +8,7 @@ use App\Http\Controllers\GeoImportController;
 use App\Http\Controllers\Admin\DataboyController as AdminDataboyController;
 use App\Http\Controllers\Admin\DataboyApplicationController as AdminDataboyApplicationController;
 use App\Http\Controllers\Admin\SettingsController as AdminSettingsController;
+use App\Http\Controllers\Admin\DataboyAnalyticsController as AdminDataboyAnalyticsController;
 use App\Http\Controllers\Admin\NgoDownloadsController as AdminNgoDownloadsController;
 use App\Http\Controllers\Databoy\RegistrationController;
 use App\Http\Controllers\Databoy\AuthController as DataboyAuthController;
@@ -68,6 +69,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/admin/ngo-downloads/databoy-app-passports', [AdminNgoDownloadsController::class, 'downloadDataboyAppPassports'])->name('admin.ngo-downloads.databoy-app-passports');
     Route::get('/admin/ngo-downloads/databoy-app-id-cards', [AdminNgoDownloadsController::class, 'downloadDataboyAppIdCards'])->name('admin.ngo-downloads.databoy-app-id-cards');
     Route::get('/admin/ngo-downloads/databoy-app-certificates', [AdminNgoDownloadsController::class, 'downloadDataboyAppCertificates'])->name('admin.ngo-downloads.databoy-app-certificates');
+
+    // Admin Databoy Analytics
+    Route::get('/admin/databoy-analytics', [AdminDataboyAnalyticsController::class, 'index'])->name('admin.databoy-analytics');
+    Route::get('/admin/databoy-analytics/{databoy}', [AdminDataboyAnalyticsController::class, 'detail'])->name('admin.databoy-analytics.detail');
 
     // Admin Databoy overview
     Route::get('/admin/databoy', [AdminDataboyController::class, 'index'])->name('admin.databoy');
