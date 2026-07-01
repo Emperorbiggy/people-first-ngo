@@ -174,20 +174,23 @@ class NgoDownloadsController extends Controller
                         $tempFiles[]  = $compressedPath;
                     }
 
-                    $pdfPath     = $tempDir . '/p_' . uniqid() . '.pdf';
+                    $pdfPath = $tempDir . '/p_' . uniqid() . '.pdf';
                     $this->imageToPdf($sourceForPdf, $sourceExt, $pdfPath);
-                    $zip->addFile($pdfPath, $baseName . '.pdf');
-                    $tempFiles[] = $pdfPath;
+                    $zip->addFromString($baseName . '.pdf', file_get_contents($pdfPath));
+                    @unlink($pdfPath);
                 } else {
-                    $zip->addFile($filePath, basename($filePath));
+                    $zip->addFromString(basename($filePath), file_get_contents($filePath));
                 }
             } catch (\Throwable $e) {
-                $zip->addFile($filePath, basename($filePath));
+                if (file_exists($filePath)) {
+                    $zip->addFromString(basename($filePath), file_get_contents($filePath));
+                }
             }
         }
 
         $zip->close();
 
+        // Clean up any leftover compressed-source temp files
         foreach ($tempFiles as $tmp) {
             @unlink($tmp);
         }
