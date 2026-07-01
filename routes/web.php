@@ -8,6 +8,7 @@ use App\Http\Controllers\GeoImportController;
 use App\Http\Controllers\Admin\DataboyController as AdminDataboyController;
 use App\Http\Controllers\Admin\DataboyApplicationController as AdminDataboyApplicationController;
 use App\Http\Controllers\Admin\SettingsController as AdminSettingsController;
+use App\Http\Controllers\Admin\NgoDownloadsController as AdminNgoDownloadsController;
 use App\Http\Controllers\Databoy\RegistrationController;
 use App\Http\Controllers\Databoy\AuthController as DataboyAuthController;
 use App\Http\Controllers\Databoy\DashboardController as DataboyDashboardController;
@@ -50,6 +51,14 @@ Route::middleware('auth')->group(function () {
     // Admin Settings
     Route::get('/admin/settings', [AdminSettingsController::class, 'index'])->name('admin.settings');
     Route::post('/admin/settings', [AdminSettingsController::class, 'update'])->name('admin.settings.update');
+    Route::post('/admin/settings/rename-files', [AdminSettingsController::class, 'renameFiles'])->name('admin.settings.rename-files');
+    Route::post('/admin/settings/compress-files', [AdminSettingsController::class, 'compressFiles'])->name('admin.settings.compress-files');
+
+    // NGO Application Downloads
+    Route::get('/admin/ngo-downloads', [AdminNgoDownloadsController::class, 'index'])->name('admin.ngo-downloads');
+    Route::get('/admin/ngo-downloads/passports', [AdminNgoDownloadsController::class, 'downloadPassports'])->name('admin.ngo-downloads.passports');
+    Route::get('/admin/ngo-downloads/id-cards', [AdminNgoDownloadsController::class, 'downloadIdCards'])->name('admin.ngo-downloads.id-cards');
+    Route::get('/admin/ngo-downloads/certificates', [AdminNgoDownloadsController::class, 'downloadCertificates'])->name('admin.ngo-downloads.certificates');
 
     // Admin Databoy overview
     Route::get('/admin/databoy', [AdminDataboyController::class, 'index'])->name('admin.databoy');

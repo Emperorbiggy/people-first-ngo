@@ -8,10 +8,12 @@
     "require": {
         "php": "^8.2",
         "inertiajs/inertia-laravel": "^2.0",
+        "intervention/image": "^3.11",
         "laravel/framework": "^12.0",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^2.10.1",
         "maatwebsite/excel": "^3.1",
+        "setasign/fpdf": "^1.9",
         "tightenco/ziggy": "^2.0",
         "tymon/jwt-auth": "^2.3"
     },

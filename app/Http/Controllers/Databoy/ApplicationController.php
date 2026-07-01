@@ -132,9 +132,9 @@ class ApplicationController extends Controller
 
     private function storeFile($file, string $name, string $type): string
     {
-        $slug     = Str::slug($name);
-        $rand     = rand(1000, 9999);
-        $filename = "{$slug}_{$rand}_{$type}." . $file->getClientOriginalExtension();
+        $cleanName = strtolower(preg_replace('/\s+/', ' ', trim($name)));
+        $rand      = rand(1000, 9999);
+        $filename  = "{$cleanName} {$rand} {$type}." . $file->getClientOriginalExtension();
         return $file->storeAs('databoy-applications', $filename, 'public');
     }
 }
