@@ -54,11 +54,20 @@ Route::middleware('auth')->group(function () {
     Route::post('/admin/settings/rename-files', [AdminSettingsController::class, 'renameFiles'])->name('admin.settings.rename-files');
     Route::post('/admin/settings/compress-files', [AdminSettingsController::class, 'compressFiles'])->name('admin.settings.compress-files');
 
-    // NGO Application Downloads
+    // Downloads
     Route::get('/admin/ngo-downloads', [AdminNgoDownloadsController::class, 'index'])->name('admin.ngo-downloads');
+    // NGO Applications
     Route::get('/admin/ngo-downloads/passports', [AdminNgoDownloadsController::class, 'downloadPassports'])->name('admin.ngo-downloads.passports');
     Route::get('/admin/ngo-downloads/id-cards', [AdminNgoDownloadsController::class, 'downloadIdCards'])->name('admin.ngo-downloads.id-cards');
     Route::get('/admin/ngo-downloads/certificates', [AdminNgoDownloadsController::class, 'downloadCertificates'])->name('admin.ngo-downloads.certificates');
+    // Databoy Registrations
+    Route::get('/admin/ngo-downloads/databoy-passports', [AdminNgoDownloadsController::class, 'downloadDataboyPassports'])->name('admin.ngo-downloads.databoy-passports');
+    Route::get('/admin/ngo-downloads/databoy-id-cards', [AdminNgoDownloadsController::class, 'downloadDataboyIdCards'])->name('admin.ngo-downloads.databoy-id-cards');
+    Route::get('/admin/ngo-downloads/databoy-certificates', [AdminNgoDownloadsController::class, 'downloadDataboyCertificates'])->name('admin.ngo-downloads.databoy-certificates');
+    // Databoy Applications
+    Route::get('/admin/ngo-downloads/databoy-app-passports', [AdminNgoDownloadsController::class, 'downloadDataboyAppPassports'])->name('admin.ngo-downloads.databoy-app-passports');
+    Route::get('/admin/ngo-downloads/databoy-app-id-cards', [AdminNgoDownloadsController::class, 'downloadDataboyAppIdCards'])->name('admin.ngo-downloads.databoy-app-id-cards');
+    Route::get('/admin/ngo-downloads/databoy-app-certificates', [AdminNgoDownloadsController::class, 'downloadDataboyAppCertificates'])->name('admin.ngo-downloads.databoy-app-certificates');
 
     // Admin Databoy overview
     Route::get('/admin/databoy', [AdminDataboyController::class, 'index'])->name('admin.databoy');

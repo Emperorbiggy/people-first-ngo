@@ -75,75 +75,176 @@ function DownloadCard({ icon, iconBg, iconColor, title, description, note, count
     );
 }
 
-export default function NgoDownloads({ counts }) {
+const ICONS = {
+    passport: (
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+    ),
+    idCard: (
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+            d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" />
+    ),
+    certificate: (
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+    ),
+};
+
+const PDF_NOTE = 'Images are converted to PDF. Run Image Compression from Settings first to reduce file sizes.';
+
+function SectionHeading({ label, subtitle }) {
     return (
-        <AdminLayout title="NGO Downloads">
-            <div className="max-w-4xl mx-auto space-y-6">
+        <div className="border-b border-gray-200 pb-3">
+            <h2 className="text-base font-bold text-gray-800">{label}</h2>
+            <p className="text-xs text-gray-500 mt-0.5">{subtitle}</p>
+        </div>
+    );
+}
+
+export default function NgoDownloads({ ngo, databoy, databoyApp }) {
+    return (
+        <AdminLayout title="Downloads">
+            <div className="max-w-5xl mx-auto space-y-8">
 
                 <div>
-                    <h1 className="text-xl font-bold text-gray-800">NGO Application Downloads</h1>
-                    <p className="text-sm text-gray-500 mt-0.5">Download passport photographs, ID cards, and qualification certificates in bulk as ZIP archives.</p>
+                    <h1 className="text-xl font-bold text-gray-800">Bulk Downloads</h1>
+                    <p className="text-sm text-gray-500 mt-0.5">Download documents from NGO applications, databoy registrations, and databoy applications as ZIP archives.</p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-
-                    <DownloadCard
-                        title="Passport Photographs"
-                        description="All passport photographs uploaded with NGO contract applications."
-                        note={null}
-                        count={counts.passports}
-                        buttonLabel="Download ZIP"
-                        buttonColor="bg-indigo-600 hover:bg-indigo-700"
-                        href={route('admin.ngo-downloads.passports')}
-                        iconBg="bg-indigo-100"
-                        iconColor="text-indigo-600"
-                        icon={
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        }
+                {/* NGO Applications */}
+                <div className="space-y-4">
+                    <SectionHeading
+                        label="NGO Contract Applications"
+                        subtitle="Documents submitted during NGO contract application."
                     />
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                        <DownloadCard
+                            title="Passport Photographs"
+                            description="All passport photographs from NGO contract applications."
+                            note={null}
+                            count={ngo.passports}
+                            buttonLabel="Download ZIP"
+                            buttonColor="bg-indigo-600 hover:bg-indigo-700"
+                            href={route('admin.ngo-downloads.passports')}
+                            iconBg="bg-indigo-100" iconColor="text-indigo-600"
+                            icon={ICONS.passport}
+                        />
+                        <DownloadCard
+                            title="Valid ID Cards"
+                            description="All ID cards from NGO contract applications."
+                            note={PDF_NOTE}
+                            count={ngo.idCards}
+                            buttonLabel="Download as PDF ZIP"
+                            buttonColor="bg-emerald-600 hover:bg-emerald-700"
+                            href={route('admin.ngo-downloads.id-cards')}
+                            iconBg="bg-emerald-100" iconColor="text-emerald-600"
+                            icon={ICONS.idCard}
+                        />
+                        <DownloadCard
+                            title="Qualification Certificates"
+                            description="All certificates from NGO contract applications."
+                            note={PDF_NOTE}
+                            count={ngo.certificates}
+                            buttonLabel="Download as PDF ZIP"
+                            buttonColor="bg-violet-600 hover:bg-violet-700"
+                            href={route('admin.ngo-downloads.certificates')}
+                            iconBg="bg-violet-100" iconColor="text-violet-600"
+                            icon={ICONS.certificate}
+                        />
+                    </div>
+                </div>
 
-                    <DownloadCard
-                        title="Valid ID Cards"
-                        description="All ID cards uploaded with NGO contract applications."
-                        note="Images are converted to PDF. Run Image Compression from Settings first to reduce file sizes."
-                        count={counts.idCards}
-                        buttonLabel="Download as PDF ZIP"
-                        buttonColor="bg-emerald-600 hover:bg-emerald-700"
-                        href={route('admin.ngo-downloads.id-cards')}
-                        iconBg="bg-emerald-100"
-                        iconColor="text-emerald-600"
-                        icon={
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                                d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" />
-                        }
+                {/* Databoy Registrations */}
+                <div className="space-y-4">
+                    <SectionHeading
+                        label="Databoy Registrations"
+                        subtitle="Documents submitted during databoy registration."
                     />
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                        <DownloadCard
+                            title="Passport Photographs"
+                            description="All passport photographs from databoy registrations."
+                            note={null}
+                            count={databoy.passports}
+                            buttonLabel="Download ZIP"
+                            buttonColor="bg-indigo-600 hover:bg-indigo-700"
+                            href={route('admin.ngo-downloads.databoy-passports')}
+                            iconBg="bg-indigo-100" iconColor="text-indigo-600"
+                            icon={ICONS.passport}
+                        />
+                        <DownloadCard
+                            title="Valid ID Cards"
+                            description="All ID cards from databoy registrations."
+                            note={PDF_NOTE}
+                            count={databoy.idCards}
+                            buttonLabel="Download as PDF ZIP"
+                            buttonColor="bg-emerald-600 hover:bg-emerald-700"
+                            href={route('admin.ngo-downloads.databoy-id-cards')}
+                            iconBg="bg-emerald-100" iconColor="text-emerald-600"
+                            icon={ICONS.idCard}
+                        />
+                        <DownloadCard
+                            title="Qualification Certificates"
+                            description="All certificates from databoy registrations."
+                            note={PDF_NOTE}
+                            count={databoy.certificates}
+                            buttonLabel="Download as PDF ZIP"
+                            buttonColor="bg-violet-600 hover:bg-violet-700"
+                            href={route('admin.ngo-downloads.databoy-certificates')}
+                            iconBg="bg-violet-100" iconColor="text-violet-600"
+                            icon={ICONS.certificate}
+                        />
+                    </div>
+                </div>
 
-                    <DownloadCard
-                        title="Qualification Certificates"
-                        description="All qualification certificates uploaded with NGO contract applications."
-                        note="Images are converted to PDF. Run Image Compression from Settings first to reduce file sizes."
-                        count={counts.certificates}
-                        buttonLabel="Download as PDF ZIP"
-                        buttonColor="bg-violet-600 hover:bg-violet-700"
-                        href={route('admin.ngo-downloads.certificates')}
-                        iconBg="bg-violet-100"
-                        iconColor="text-violet-600"
-                        icon={
-                            <>
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </>
-                        }
+                {/* Databoy Applications */}
+                <div className="space-y-4">
+                    <SectionHeading
+                        label="Databoy Applications"
+                        subtitle="Documents submitted when databoys created their applications."
                     />
-
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                        <DownloadCard
+                            title="Passport Photographs"
+                            description="All passport photographs from databoy applications."
+                            note={null}
+                            count={databoyApp.passports}
+                            buttonLabel="Download ZIP"
+                            buttonColor="bg-indigo-600 hover:bg-indigo-700"
+                            href={route('admin.ngo-downloads.databoy-app-passports')}
+                            iconBg="bg-indigo-100" iconColor="text-indigo-600"
+                            icon={ICONS.passport}
+                        />
+                        <DownloadCard
+                            title="Valid ID Cards"
+                            description="All ID cards from databoy applications."
+                            note={PDF_NOTE}
+                            count={databoyApp.idCards}
+                            buttonLabel="Download as PDF ZIP"
+                            buttonColor="bg-emerald-600 hover:bg-emerald-700"
+                            href={route('admin.ngo-downloads.databoy-app-id-cards')}
+                            iconBg="bg-emerald-100" iconColor="text-emerald-600"
+                            icon={ICONS.idCard}
+                        />
+                        <DownloadCard
+                            title="Qualification Certificates"
+                            description="All certificates from databoy applications."
+                            note={PDF_NOTE}
+                            count={databoyApp.certificates}
+                            buttonLabel="Download as PDF ZIP"
+                            buttonColor="bg-violet-600 hover:bg-violet-700"
+                            href={route('admin.ngo-downloads.databoy-app-certificates')}
+                            iconBg="bg-violet-100" iconColor="text-violet-600"
+                            icon={ICONS.certificate}
+                        />
+                    </div>
                 </div>
 
                 <div className="bg-blue-50 border border-blue-200 rounded-2xl px-5 py-4 text-sm text-blue-700 space-y-1">
                     <p className="font-semibold">How it works</p>
                     <ul className="list-disc list-inside space-y-0.5 text-xs text-blue-600">
                         <li>Each download packages all available files into a single ZIP archive.</li>
-                        <li>For ID cards and certificates, JPG/PNG files are converted to PDF on the fly.</li>
+                        <li>For ID cards and certificates, JPG/PNG/JPEG files are converted to PDF on the fly.</li>
                         <li>Files that are already PDFs are included as-is.</li>
                         <li><strong>To reduce ZIP size:</strong> go to Settings → Compress Images first, then download.</li>
                         <li>Large collections may take a moment — please wait for the download to start.</li>

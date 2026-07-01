@@ -210,7 +210,13 @@ function CompressFilesCard() {
 
             <div className="bg-gray-50 rounded-xl px-4 py-3 text-xs text-gray-600 space-y-1">
                 <p className="font-medium text-gray-700">What this does:</p>
-                <p>Scans all <span className="font-mono bg-white px-1 py-0.5 rounded border border-gray-200">.jpg</span>, <span className="font-mono bg-white px-1 py-0.5 rounded border border-gray-200">.jpeg</span>, and <span className="font-mono bg-white px-1 py-0.5 rounded border border-gray-200">.png</span> files in all upload folders and re-saves them at optimised quality (75% JPEG). Processed in batches of {LIMIT} to avoid server timeouts.</p>
+                <p>Scans all <span className="font-mono bg-white px-1 py-0.5 rounded border border-gray-200">.jpg</span>, <span className="font-mono bg-white px-1 py-0.5 rounded border border-gray-200">.jpeg</span>, and <span className="font-mono bg-white px-1 py-0.5 rounded border border-gray-200">.png</span> files across all three upload folders and re-saves them at optimised quality (75% JPEG). Processed in batches of {LIMIT} to avoid server timeouts.</p>
+                <p className="pt-1 font-medium text-gray-700">Folders included:</p>
+                <div className="flex flex-wrap gap-1.5 pt-0.5">
+                    {['ngo-applications', 'databoy-applications', 'databoy'].map((f) => (
+                        <span key={f} className="font-mono bg-white px-1.5 py-0.5 rounded border border-gray-200 text-gray-700">{f}</span>
+                    ))}
+                </div>
             </div>
 
             {status === 'running' && (

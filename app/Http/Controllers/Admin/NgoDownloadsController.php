@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Databoy;
+use App\Models\DataboyApplication;
 use App\Models\NgoContractApplication;
 use ZipArchive;
 
@@ -11,20 +13,32 @@ class NgoDownloadsController extends Controller
     public function index()
     {
         return inertia('Admin/NgoDownloads', [
-            'counts' => [
+            'ngo' => [
                 'passports'    => NgoContractApplication::whereNotNull('passport_photograph_path')->count(),
                 'idCards'      => NgoContractApplication::whereNotNull('valid_id_card_path')->count(),
                 'certificates' => NgoContractApplication::whereNotNull('highest_qualification_certificate_path')->count(),
             ],
+            'databoy' => [
+                'passports'    => Databoy::whereNotNull('passport_photograph_path')->count(),
+                'idCards'      => Databoy::whereNotNull('valid_id_card_path')->count(),
+                'certificates' => Databoy::whereNotNull('highest_qualification_certificate_path')->count(),
+            ],
+            'databoyApp' => [
+                'passports'    => DataboyApplication::whereNotNull('passport_photograph_path')->count(),
+                'idCards'      => DataboyApplication::whereNotNull('valid_id_card_path')->count(),
+                'certificates' => DataboyApplication::whereNotNull('highest_qualification_certificate_path')->count(),
+            ],
         ]);
     }
+
+    // ── NGO Applications ─────────────────────────────────────────────────────
 
     public function downloadPassports()
     {
         return $this->buildZip(
             NgoContractApplication::whereNotNull('passport_photograph_path')->get(),
             'passport_photograph_path',
-            'passports.zip',
+            'ngo-passports.zip',
             convertToPdf: false,
             compress: false
         );
@@ -35,7 +49,7 @@ class NgoDownloadsController extends Controller
         return $this->buildZip(
             NgoContractApplication::whereNotNull('valid_id_card_path')->get(),
             'valid_id_card_path',
-            'id-cards.zip',
+            'ngo-id-cards.zip',
             convertToPdf: true,
             compress: false
         );
@@ -46,11 +60,83 @@ class NgoDownloadsController extends Controller
         return $this->buildZip(
             NgoContractApplication::whereNotNull('highest_qualification_certificate_path')->get(),
             'highest_qualification_certificate_path',
-            'certificates.zip',
+            'ngo-certificates.zip',
             convertToPdf: true,
             compress: false
         );
     }
+
+    // ── Databoy Registrations ────────────────────────────────────────────────
+
+    public function downloadDataboyPassports()
+    {
+        return $this->buildZip(
+            Databoy::whereNotNull('passport_photograph_path')->get(),
+            'passport_photograph_path',
+            'databoy-passports.zip',
+            convertToPdf: false,
+            compress: false
+        );
+    }
+
+    public function downloadDataboyIdCards()
+    {
+        return $this->buildZip(
+            Databoy::whereNotNull('valid_id_card_path')->get(),
+            'valid_id_card_path',
+            'databoy-id-cards.zip',
+            convertToPdf: true,
+            compress: false
+        );
+    }
+
+    public function downloadDataboyCertificates()
+    {
+        return $this->buildZip(
+            Databoy::whereNotNull('highest_qualification_certificate_path')->get(),
+            'highest_qualification_certificate_path',
+            'databoy-certificates.zip',
+            convertToPdf: true,
+            compress: false
+        );
+    }
+
+    // ── Databoy Applications ─────────────────────────────────────────────────
+
+    public function downloadDataboyAppPassports()
+    {
+        return $this->buildZip(
+            DataboyApplication::whereNotNull('passport_photograph_path')->get(),
+            'passport_photograph_path',
+            'databoy-app-passports.zip',
+            convertToPdf: false,
+            compress: false
+        );
+    }
+
+    public function downloadDataboyAppIdCards()
+    {
+        return $this->buildZip(
+            DataboyApplication::whereNotNull('valid_id_card_path')->get(),
+            'valid_id_card_path',
+            'databoy-app-id-cards.zip',
+            convertToPdf: true,
+            compress: false
+        );
+    }
+
+    public function downloadDataboyAppCertificates()
+    {
+        return $this->buildZip(
+            DataboyApplication::whereNotNull('highest_qualification_certificate_path')->get(),
+            'highest_qualification_certificate_path',
+            'databoy-app-certificates.zip',
+            convertToPdf: true,
+            compress: false
+        );
+    }
+
+    // ── Shared helpers ───────────────────────────────────────────────────────
 
     private function buildZip($applications, string $column, string $zipName, bool $convertToPdf, bool $compress)
     {
@@ -62,7 +148,7 @@ class NgoDownloadsController extends Controller
             mkdir($tempDir, 0755, true);
         }
 
-        $zipPath  = $tempDir . '/dl_' . uniqid() . '.zip';
+        $zipPath   = $tempDir . '/dl_' . uniqid() . '.zip';
         $tempFiles = [];
 
         $zip = new ZipArchive();
@@ -77,7 +163,6 @@ class NgoDownloadsController extends Controller
 
             try {
                 if ($convertToPdf && $ext !== 'pdf') {
-                    // Optionally compress the image first, then convert to PDF
                     $sourceForPdf = $filePath;
                     $sourceExt    = $ext;
 
@@ -97,7 +182,6 @@ class NgoDownloadsController extends Controller
                     $zip->addFile($filePath, basename($filePath));
                 }
             } catch (\Throwable $e) {
-                // Fall back to original file on any error
                 $zip->addFile($filePath, basename($filePath));
             }
         }
@@ -124,7 +208,6 @@ class NgoDownloadsController extends Controller
             $newH  = (int) ($h * $ratio);
             $dst   = imagecreatetruecolor($newW, $newH);
 
-            // Preserve transparency for PNG sources
             if ($ext === 'png') {
                 imagefill($dst, 0, 0, imagecolorallocate($dst, 255, 255, 255));
             }
