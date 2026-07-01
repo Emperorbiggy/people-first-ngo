@@ -132,9 +132,9 @@ export default function NgoDownloads({ ngo, databoy, databoyApp }) {
                         <DownloadCard
                             title="Valid ID Cards"
                             description="All ID cards from NGO contract applications."
-                            note={PDF_NOTE}
+                            note={null}
                             count={ngo.idCards}
-                            buttonLabel="Download as PDF ZIP"
+                            buttonLabel="Download ZIP"
                             buttonColor="bg-emerald-600 hover:bg-emerald-700"
                             href={route('admin.ngo-downloads.id-cards')}
                             iconBg="bg-emerald-100" iconColor="text-emerald-600"
@@ -175,9 +175,9 @@ export default function NgoDownloads({ ngo, databoy, databoyApp }) {
                         <DownloadCard
                             title="Valid ID Cards"
                             description="All ID cards from databoy registrations."
-                            note={PDF_NOTE}
+                            note={null}
                             count={databoy.idCards}
-                            buttonLabel="Download as PDF ZIP"
+                            buttonLabel="Download ZIP"
                             buttonColor="bg-emerald-600 hover:bg-emerald-700"
                             href={route('admin.ngo-downloads.databoy-id-cards')}
                             iconBg="bg-emerald-100" iconColor="text-emerald-600"
@@ -218,9 +218,9 @@ export default function NgoDownloads({ ngo, databoy, databoyApp }) {
                         <DownloadCard
                             title="Valid ID Cards"
                             description="All ID cards from databoy applications."
-                            note={PDF_NOTE}
+                            note={null}
                             count={databoyApp.idCards}
-                            buttonLabel="Download as PDF ZIP"
+                            buttonLabel="Download ZIP"
                             buttonColor="bg-emerald-600 hover:bg-emerald-700"
                             href={route('admin.ngo-downloads.databoy-app-id-cards')}
                             iconBg="bg-emerald-100" iconColor="text-emerald-600"
@@ -244,8 +244,8 @@ export default function NgoDownloads({ ngo, databoy, databoyApp }) {
                     <p className="font-semibold">How it works</p>
                     <ul className="list-disc list-inside space-y-0.5 text-xs text-blue-600">
                         <li>Each download packages all available files into a single ZIP archive.</li>
-                        <li>For ID cards and certificates, JPG/PNG/JPEG files are converted to PDF on the fly.</li>
-                        <li>Files that are already PDFs are included as-is.</li>
+                        <li>Passports and ID cards are downloaded in their original format (JPG/JPEG/PNG).</li>
+                        <li>Qualification certificates are converted to PDF on the fly.</li>
                         <li><strong>To reduce ZIP size:</strong> go to Settings → Compress Images first, then download.</li>
                         <li>Large collections may take a moment — please wait for the download to start.</li>
                     </ul>

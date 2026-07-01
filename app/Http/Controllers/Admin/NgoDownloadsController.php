@@ -50,7 +50,7 @@ class NgoDownloadsController extends Controller
             NgoContractApplication::whereNotNull('valid_id_card_path')->get(),
             'valid_id_card_path',
             'ngo-id-cards.zip',
-            convertToPdf: true,
+            convertToPdf: false,
             compress: false
         );
     }
@@ -85,7 +85,7 @@ class NgoDownloadsController extends Controller
             Databoy::whereNotNull('valid_id_card_path')->get(),
             'valid_id_card_path',
             'databoy-id-cards.zip',
-            convertToPdf: true,
+            convertToPdf: false,
             compress: false
         );
     }
@@ -120,7 +120,7 @@ class NgoDownloadsController extends Controller
             DataboyApplication::whereNotNull('valid_id_card_path')->get(),
             'valid_id_card_path',
             'databoy-app-id-cards.zip',
-            convertToPdf: true,
+            convertToPdf: false,
             compress: false
         );
     }
