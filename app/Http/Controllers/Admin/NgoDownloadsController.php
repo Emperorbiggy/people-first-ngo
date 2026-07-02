@@ -197,7 +197,7 @@ class NgoDownloadsController extends Controller
 
                 } elseif ($convertToJpeg && $ext === 'pdf') {
                     $jpegPath = $tempDir . '/j_' . uniqid() . '.jpg';
-                    $this->pdfToJpegViaApi($filePath, $jpegPath);
+                    $this->pdfToJpeg($filePath, $jpegPath);
                     $zip->addFromString($baseName . '.jpg', file_get_contents($jpegPath));
                     @unlink($jpegPath);
 
@@ -237,58 +237,17 @@ class NgoDownloadsController extends Controller
         imagedestroy($bg);
     }
 
-    private function pdfToJpegViaApi(string $pdfPath, string $outPath): void
+    private function pdfToJpeg(string $pdfPath, string $outPath): void
     {
-        $apiKey = env('CLOUDMERSIVE_API_KEY');
+        $pdf = new \Spatie\PdfToImage\Pdf($pdfPath);
+        $pdf->setPage(1)
+            ->setOutputFormat('jpg')
+            ->setCompressionQuality(90)
+            ->saveImage($outPath);
 
-        if (!$apiKey) {
-            throw new \RuntimeException('CLOUDMERSIVE_API_KEY not set in .env');
+        if (!file_exists($outPath) || filesize($outPath) === 0) {
+            throw new \RuntimeException('Spatie PDF to image produced empty output.');
         }
-
-        $ch = curl_init('https://api.cloudmersive.com/convert/pdf/to/jpg');
-        curl_setopt_array($ch, [
-            CURLOPT_POST           => true,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_HTTPHEADER     => ['Apikey: ' . $apiKey],
-            CURLOPT_POSTFIELDS     => ['inputFile' => new \CURLFile($pdfPath, 'application/pdf', basename($pdfPath))],
-        ]);
-
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-
-        if ($httpCode !== 200 || !$response) {
-            throw new \RuntimeException('Cloudmersive API error: HTTP ' . $httpCode);
-        }
-
-        // Response is a JSON object: { "PngResultPages": [{ "PageNumber":1, "Content":"base64..." }] }
-        $result = json_decode($response, true);
-        $pages  = $result['PngResultPages'] ?? [];
-
-        if (empty($pages)) {
-            throw new \RuntimeException('Cloudmersive returned no pages.');
-        }
-
-        // Take only page 1 and decode it
-        $imageData = base64_decode($pages[0]['Content']);
-
-        if (!$imageData) {
-            throw new \RuntimeException('Cloudmersive returned invalid image data.');
-        }
-
-        // The API returns PNG — convert to JPEG using GD
-        $src = imagecreatefromstring($imageData);
-        if (!$src) {
-            throw new \RuntimeException('Could not create image from Cloudmersive response.');
-        }
-
-        $bg = imagecreatetruecolor(imagesx($src), imagesy($src));
-        imagefill($bg, 0, 0, imagecolorallocate($bg, 255, 255, 255));
-        imagecopy($bg, $src, 0, 0, 0, 0, imagesx($src), imagesy($src));
-        imagedestroy($src);
-
-        imagejpeg($bg, $outPath, 90);
-        imagedestroy($bg);
     }
 
     private function compressImage(string $imagePath, string $ext, string $outPath, int $quality = 75, int $maxDim = 1800): void
