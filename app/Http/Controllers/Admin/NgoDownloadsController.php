@@ -235,27 +235,63 @@ class NgoDownloadsController extends Controller
 
     private function pdfToJpeg(string $pdfPath, string $outPath, int $quality = 90): void
     {
-        $imagick = new \Imagick();
-        $imagick->setResolution(150, 150);
-        $imagick->readImage($pdfPath . '[0]');
-
-        // Flatten onto white background before format change
-        $imagick->setImageBackgroundColor('white');
-        $imagick->setImageAlphaChannel(\Imagick::ALPHACHANNEL_FLATTEN);
-
-        // PDFs are often CMYK — convert to sRGB so JPEG viewers can open the file
-        if ($imagick->getImageColorspace() !== \Imagick::COLORSPACE_SRGB) {
-            $imagick->transformImageColorspace(\Imagick::COLORSPACE_SRGB);
+        // Attempt 1: Imagick PHP extension
+        if (class_exists('Imagick')) {
+            try {
+                $imagick = new \Imagick();
+                $imagick->setResolution(150, 150);
+                $imagick->readImage($pdfPath . '[0]');
+                $imagick->setImageBackgroundColor('white');
+                $imagick->setImageAlphaChannel(\Imagick::ALPHACHANNEL_FLATTEN);
+                if ($imagick->getImageColorspace() !== \Imagick::COLORSPACE_SRGB) {
+                    $imagick->transformImageColorspace(\Imagick::COLORSPACE_SRGB);
+                }
+                $imagick->setImageFormat('jpeg');
+                $imagick->setImageCompressionQuality($quality);
+                file_put_contents($outPath, $imagick->getImageBlob());
+                $imagick->clear();
+                $imagick->destroy();
+                if (file_exists($outPath) && filesize($outPath) > 0) {
+                    return;
+                }
+            } catch (\Throwable $e) {
+                // fall through
+            }
         }
 
-        $imagick->setImageFormat('jpeg');
-        $imagick->setImageCompressionQuality($quality);
+        if (!function_exists('exec')) {
+            throw new \RuntimeException('PDF conversion unavailable: exec() is disabled.');
+        }
 
-        // getImageBlob() is more reliable than writeImage() for format conversion
-        file_put_contents($outPath, $imagick->getImageBlob());
+        // Attempt 2: ImageMagick CLI `convert`
+        @exec('which convert 2>/dev/null', $out1);
+        $convert = trim($out1[0] ?? '');
+        if ($convert) {
+            @exec(
+                $convert . ' -density 150 ' . escapeshellarg($pdfPath . '[0]') .
+                ' -background white -flatten -colorspace sRGB -quality ' . (int) $quality .
+                ' ' . escapeshellarg($outPath) . ' 2>/dev/null'
+            );
+            if (file_exists($outPath) && filesize($outPath) > 0) {
+                return;
+            }
+        }
 
-        $imagick->clear();
-        $imagick->destroy();
+        // Attempt 3: Ghostscript — bypasses ImageMagick policy.xml restrictions
+        @exec('which gs 2>/dev/null', $out2);
+        $gs = trim($out2[0] ?? '');
+        if ($gs) {
+            @exec(
+                $gs . ' -dNOPAUSE -dBATCH -sDEVICE=jpeg -r150 -dJPEGQ=' . (int) $quality .
+                ' -sOutputFile=' . escapeshellarg($outPath) .
+                ' ' . escapeshellarg($pdfPath) . ' 2>/dev/null'
+            );
+            if (file_exists($outPath) && filesize($outPath) > 0) {
+                return;
+            }
+        }
+
+        throw new \RuntimeException('PDF to JPEG conversion failed: no working conversion method found.');
     }
 
     private function compressImage(string $imagePath, string $ext, string $outPath, int $quality = 75, int $maxDim = 1800): void
