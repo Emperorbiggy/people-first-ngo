@@ -89,7 +89,7 @@ class ApplicationController extends Controller
             'work_grade_level'                  => 'nullable|string|max:50',
             'has_voter_card'                    => 'boolean',
             'passport_photograph'               => 'required|extensions:jpg,jpeg,png|max:2048',
-            'valid_id_card'                     => 'required|extensions:pdf,jpg,jpeg,png|max:5120',
+            'valid_id_card'                     => 'required|extensions:jpg,jpeg,png|max:5120',
             'highest_qualification_certificate' => 'required|extensions:pdf,jpg,jpeg,png|max:5120',
         ]);
 

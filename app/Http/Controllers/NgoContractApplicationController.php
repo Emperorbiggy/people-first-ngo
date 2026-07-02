@@ -101,7 +101,7 @@ class NgoContractApplicationController extends Controller
             'current_occupation'                 => 'required_if:employment_status,Employed,Self-employed|nullable|string|max:255',
             'work_grade_level'                   => 'required_if:employment_status,Employed|nullable|string|max:255',
             'passport_photograph'                => 'required|image|mimes:jpeg,png,jpg|max:2048',
-            'valid_id_card'                      => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            'valid_id_card'                      => 'required|file|mimes:jpg,jpeg,png|max:5120',
             'highest_qualification_certificate'  => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120',
         ]);
 
@@ -256,7 +256,7 @@ class NgoContractApplicationController extends Controller
             'current_occupation'                 => 'required_if:employment_status,Employed,Self-employed|nullable|string|max:255',
             'work_grade_level'                   => 'required_if:employment_status,Employed|nullable|string|max:255',
             'passport_photograph'                => 'required|image|mimes:jpeg,png,jpg|max:2048',
-            'valid_id_card'                      => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            'valid_id_card'                      => 'required|file|mimes:jpg,jpeg,png|max:5120',
             'highest_qualification_certificate'  => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120',
         ]);
 

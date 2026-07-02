@@ -191,15 +191,19 @@ class NgoDownloadsController extends Controller
                     $zip->addFromString($baseName . '.jpg', file_get_contents($jpegPath));
                     @unlink($jpegPath);
 
+                } elseif ($convertToJpeg && in_array($ext, ['jpg', 'jpeg'])) {
+                    // Already JPEG — add with normalised .jpg extension
+                    $zip->addFromString($baseName . '.jpg', file_get_contents($filePath));
+
                 } elseif ($convertToJpeg && $ext === 'pdf') {
                     $jpegPath = $tempDir . '/j_' . uniqid() . '.jpg';
-                    $this->pdfToJpeg($filePath, $jpegPath);
+                    $this->pdfToJpegViaApi($filePath, $jpegPath);
                     $zip->addFromString($baseName . '.jpg', file_get_contents($jpegPath));
                     @unlink($jpegPath);
 
                 } else {
-                    // jpg/jpeg already in correct format — add as-is
-                    $zip->addFromString($baseName . '.jpg', file_get_contents($filePath));
+                    // Unknown format — include as-is
+                    $zip->addFromString(basename($filePath), file_get_contents($filePath));
                 }
             } catch (\Throwable $e) {
                 // Conversion failed — add original file with its real extension so it can still be opened
@@ -233,65 +237,58 @@ class NgoDownloadsController extends Controller
         imagedestroy($bg);
     }
 
-    private function pdfToJpeg(string $pdfPath, string $outPath, int $quality = 90): void
+    private function pdfToJpegViaApi(string $pdfPath, string $outPath): void
     {
-        // Attempt 1: Imagick PHP extension
-        if (class_exists('Imagick')) {
-            try {
-                $imagick = new \Imagick();
-                $imagick->setResolution(150, 150);
-                $imagick->readImage($pdfPath . '[0]');
-                $imagick->setImageBackgroundColor('white');
-                $imagick->setImageAlphaChannel(\Imagick::ALPHACHANNEL_FLATTEN);
-                if ($imagick->getImageColorspace() !== \Imagick::COLORSPACE_SRGB) {
-                    $imagick->transformImageColorspace(\Imagick::COLORSPACE_SRGB);
-                }
-                $imagick->setImageFormat('jpeg');
-                $imagick->setImageCompressionQuality($quality);
-                file_put_contents($outPath, $imagick->getImageBlob());
-                $imagick->clear();
-                $imagick->destroy();
-                if (file_exists($outPath) && filesize($outPath) > 0) {
-                    return;
-                }
-            } catch (\Throwable $e) {
-                // fall through
-            }
+        $apiKey = env('CLOUDMERSIVE_API_KEY');
+
+        if (!$apiKey) {
+            throw new \RuntimeException('CLOUDMERSIVE_API_KEY not set in .env');
         }
 
-        if (!function_exists('exec')) {
-            throw new \RuntimeException('PDF conversion unavailable: exec() is disabled.');
+        $ch = curl_init('https://api.cloudmersive.com/convert/pdf/to/jpg');
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPHEADER     => ['Apikey: ' . $apiKey],
+            CURLOPT_POSTFIELDS     => ['inputFile' => new \CURLFile($pdfPath, 'application/pdf', basename($pdfPath))],
+        ]);
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($httpCode !== 200 || !$response) {
+            throw new \RuntimeException('Cloudmersive API error: HTTP ' . $httpCode);
         }
 
-        // Attempt 2: ImageMagick CLI `convert`
-        @exec('which convert 2>/dev/null', $out1);
-        $convert = trim($out1[0] ?? '');
-        if ($convert) {
-            @exec(
-                $convert . ' -density 150 ' . escapeshellarg($pdfPath . '[0]') .
-                ' -background white -flatten -colorspace sRGB -quality ' . (int) $quality .
-                ' ' . escapeshellarg($outPath) . ' 2>/dev/null'
-            );
-            if (file_exists($outPath) && filesize($outPath) > 0) {
-                return;
-            }
+        // Response is a JSON object: { "PngResultPages": [{ "PageNumber":1, "Content":"base64..." }] }
+        $result = json_decode($response, true);
+        $pages  = $result['PngResultPages'] ?? [];
+
+        if (empty($pages)) {
+            throw new \RuntimeException('Cloudmersive returned no pages.');
         }
 
-        // Attempt 3: Ghostscript — bypasses ImageMagick policy.xml restrictions
-        @exec('which gs 2>/dev/null', $out2);
-        $gs = trim($out2[0] ?? '');
-        if ($gs) {
-            @exec(
-                $gs . ' -dNOPAUSE -dBATCH -sDEVICE=jpeg -r150 -dJPEGQ=' . (int) $quality .
-                ' -sOutputFile=' . escapeshellarg($outPath) .
-                ' ' . escapeshellarg($pdfPath) . ' 2>/dev/null'
-            );
-            if (file_exists($outPath) && filesize($outPath) > 0) {
-                return;
-            }
+        // Take only page 1 and decode it
+        $imageData = base64_decode($pages[0]['Content']);
+
+        if (!$imageData) {
+            throw new \RuntimeException('Cloudmersive returned invalid image data.');
         }
 
-        throw new \RuntimeException('PDF to JPEG conversion failed: no working conversion method found.');
+        // The API returns PNG — convert to JPEG using GD
+        $src = imagecreatefromstring($imageData);
+        if (!$src) {
+            throw new \RuntimeException('Could not create image from Cloudmersive response.');
+        }
+
+        $bg = imagecreatetruecolor(imagesx($src), imagesy($src));
+        imagefill($bg, 0, 0, imagecolorallocate($bg, 255, 255, 255));
+        imagecopy($bg, $src, 0, 0, 0, 0, imagesx($src), imagesy($src));
+        imagedestroy($src);
+
+        imagejpeg($bg, $outPath, 90);
+        imagedestroy($bg);
     }
 
     private function compressImage(string $imagePath, string $ext, string $outPath, int $quality = 75, int $maxDim = 1800): void

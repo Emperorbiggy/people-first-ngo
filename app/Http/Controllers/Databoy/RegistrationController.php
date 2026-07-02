@@ -64,7 +64,7 @@ class RegistrationController extends Controller
             'employment_status'                 => 'required|string|max:100',
             'availability'                      => 'nullable|string|max:100',
             'passport_photograph'               => 'nullable|extensions:jpg,jpeg,png|max:2048',
-            'valid_id_card'                     => 'nullable|extensions:pdf,jpg,jpeg,png|max:5120',
+            'valid_id_card'                     => 'nullable|extensions:jpg,jpeg,png|max:5120',
             'highest_qualification_certificate' => 'nullable|extensions:pdf,jpg,jpeg,png|max:5120',
         ], [
             'ward_id.unique' => 'This ward already has a registered databoy.',
