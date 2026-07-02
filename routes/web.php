@@ -21,6 +21,17 @@ Route::get('/', function () {
     return redirect()->route('ngo-contract-applications.create');
 });
 
+Route::get('/check-imagick', function () {
+    return response()->json([
+        'imagick_loaded'    => extension_loaded('imagick'),
+        'imagick_class'     => class_exists('Imagick'),
+        'imagick_version'   => extension_loaded('imagick') ? (new Imagick())->getVersion()['versionString'] : null,
+        'pdf_supported'     => extension_loaded('imagick') ? in_array('PDF', (new Imagick())->queryFormats()) : false,
+        'ghostscript'       => function_exists('exec') ? trim(shell_exec('which gs 2>/dev/null') ?? '') : 'exec disabled',
+        'exec_enabled'      => function_exists('exec'),
+    ]);
+});
+
 // Identity verification & application form (public, token-protected)
 Route::get('/verify', [VerificationController::class, 'showVerify'])->name('verify');
 Route::post('/verify', [VerificationController::class, 'verify'])->name('verify.check');
