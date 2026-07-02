@@ -191,12 +191,20 @@ class NgoDownloadsController extends Controller
                     $zip->addFromString($baseName . '.jpg', file_get_contents($jpegPath));
                     @unlink($jpegPath);
 
+                } elseif ($convertToJpeg && $ext === 'pdf') {
+                    $jpegPath = $tempDir . '/j_' . uniqid() . '.jpg';
+                    $this->pdfToJpeg($filePath, $jpegPath);
+                    $zip->addFromString($baseName . '.jpg', file_get_contents($jpegPath));
+                    @unlink($jpegPath);
+
                 } else {
-                    $zip->addFromString(basename($filePath), file_get_contents($filePath));
+                    // jpg/jpeg already in correct format — add as-is
+                    $zip->addFromString($baseName . '.jpg', file_get_contents($filePath));
                 }
             } catch (\Throwable $e) {
                 if (file_exists($filePath)) {
-                    $zip->addFromString(basename($filePath), file_get_contents($filePath));
+                    $entryName = $convertToJpeg ? ($baseName . '.jpg') : basename($filePath);
+                    $zip->addFromString($entryName, file_get_contents($filePath));
                 }
             }
         }
@@ -216,7 +224,6 @@ class NgoDownloadsController extends Controller
         $w   = imagesx($src);
         $h   = imagesy($src);
 
-        // Flatten transparency onto white background
         $bg = imagecreatetruecolor($w, $h);
         imagefill($bg, 0, 0, imagecolorallocate($bg, 255, 255, 255));
         imagecopy($bg, $src, 0, 0, 0, 0, $w, $h);
@@ -224,6 +231,21 @@ class NgoDownloadsController extends Controller
 
         imagejpeg($bg, $outPath, $quality);
         imagedestroy($bg);
+    }
+
+    private function pdfToJpeg(string $pdfPath, string $outPath, int $quality = 90): void
+    {
+        $imagick = new \Imagick();
+        $imagick->setResolution(150, 150);
+        $imagick->readImage($pdfPath . '[0]'); // first page only
+        $imagick->setImageFormat('jpeg');
+        $imagick->setImageCompressionQuality($quality);
+        $imagick->setImageBackgroundColor('white');
+        $imagick->setImageAlphaChannel(\Imagick::ALPHACHANNEL_REMOVE);
+        $imagick->mergeImageLayers(\Imagick::LAYERMETHOD_FLATTEN);
+        $imagick->writeImage($outPath);
+        $imagick->clear();
+        $imagick->destroy();
     }
 
     private function compressImage(string $imagePath, string $ext, string $outPath, int $quality = 75, int $maxDim = 1800): void
