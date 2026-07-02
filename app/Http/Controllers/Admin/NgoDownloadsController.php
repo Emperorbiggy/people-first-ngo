@@ -202,9 +202,9 @@ class NgoDownloadsController extends Controller
                     $zip->addFromString($baseName . '.jpg', file_get_contents($filePath));
                 }
             } catch (\Throwable $e) {
+                // Conversion failed — add original file with its real extension so it can still be opened
                 if (file_exists($filePath)) {
-                    $entryName = $convertToJpeg ? ($baseName . '.jpg') : basename($filePath);
-                    $zip->addFromString($entryName, file_get_contents($filePath));
+                    $zip->addFromString(basename($filePath), file_get_contents($filePath));
                 }
             }
         }
@@ -237,13 +237,23 @@ class NgoDownloadsController extends Controller
     {
         $imagick = new \Imagick();
         $imagick->setResolution(150, 150);
-        $imagick->readImage($pdfPath . '[0]'); // first page only
+        $imagick->readImage($pdfPath . '[0]');
+
+        // Flatten onto white background before format change
+        $imagick->setImageBackgroundColor('white');
+        $imagick->setImageAlphaChannel(\Imagick::ALPHACHANNEL_FLATTEN);
+
+        // PDFs are often CMYK — convert to sRGB so JPEG viewers can open the file
+        if ($imagick->getImageColorspace() !== \Imagick::COLORSPACE_SRGB) {
+            $imagick->transformImageColorspace(\Imagick::COLORSPACE_SRGB);
+        }
+
         $imagick->setImageFormat('jpeg');
         $imagick->setImageCompressionQuality($quality);
-        $imagick->setImageBackgroundColor('white');
-        $imagick->setImageAlphaChannel(\Imagick::ALPHACHANNEL_REMOVE);
-        $imagick->mergeImageLayers(\Imagick::LAYERMETHOD_FLATTEN);
-        $imagick->writeImage($outPath);
+
+        // getImageBlob() is more reliable than writeImage() for format conversion
+        file_put_contents($outPath, $imagick->getImageBlob());
+
         $imagick->clear();
         $imagick->destroy();
     }
