@@ -40,7 +40,8 @@ class NgoDownloadsController extends Controller
             'passport_photograph_path',
             'ngo-passports.zip',
             convertToPdf: false,
-            compress: false
+            compress: false,
+            convertToJpeg: true
         );
     }
 
@@ -51,7 +52,8 @@ class NgoDownloadsController extends Controller
             'valid_id_card_path',
             'ngo-id-cards.zip',
             convertToPdf: false,
-            compress: false
+            compress: false,
+            convertToJpeg: true
         );
     }
 
@@ -75,7 +77,8 @@ class NgoDownloadsController extends Controller
             'passport_photograph_path',
             'databoy-passports.zip',
             convertToPdf: false,
-            compress: false
+            compress: false,
+            convertToJpeg: true
         );
     }
 
@@ -86,7 +89,8 @@ class NgoDownloadsController extends Controller
             'valid_id_card_path',
             'databoy-id-cards.zip',
             convertToPdf: false,
-            compress: false
+            compress: false,
+            convertToJpeg: true
         );
     }
 
@@ -110,7 +114,8 @@ class NgoDownloadsController extends Controller
             'passport_photograph_path',
             'databoy-app-passports.zip',
             convertToPdf: false,
-            compress: false
+            compress: false,
+            convertToJpeg: true
         );
     }
 
@@ -121,7 +126,8 @@ class NgoDownloadsController extends Controller
             'valid_id_card_path',
             'databoy-app-id-cards.zip',
             convertToPdf: false,
-            compress: false
+            compress: false,
+            convertToJpeg: true
         );
     }
 
@@ -138,7 +144,7 @@ class NgoDownloadsController extends Controller
 
     // ── Shared helpers ───────────────────────────────────────────────────────
 
-    private function buildZip($applications, string $column, string $zipName, bool $convertToPdf, bool $compress)
+    private function buildZip($applications, string $column, string $zipName, bool $convertToPdf, bool $compress, bool $convertToJpeg = false)
     {
         set_time_limit(300);
         ignore_user_abort(true);
@@ -155,7 +161,7 @@ class NgoDownloadsController extends Controller
         $zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
 
         foreach ($applications as $app) {
-            $filePath = storage_path('app/public/' . $app->{$column});
+            $filePath = storage_path('app/public/' . ltrim($app->{$column}, '/'));
             if (!file_exists($filePath)) continue;
 
             $ext      = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
@@ -178,6 +184,13 @@ class NgoDownloadsController extends Controller
                     $this->imageToPdf($sourceForPdf, $sourceExt, $pdfPath);
                     $zip->addFromString($baseName . '.pdf', file_get_contents($pdfPath));
                     @unlink($pdfPath);
+
+                } elseif ($convertToJpeg && $ext === 'png') {
+                    $jpegPath = $tempDir . '/j_' . uniqid() . '.jpg';
+                    $this->pngToJpeg($filePath, $jpegPath);
+                    $zip->addFromString($baseName . '.jpg', file_get_contents($jpegPath));
+                    @unlink($jpegPath);
+
                 } else {
                     $zip->addFromString(basename($filePath), file_get_contents($filePath));
                 }
@@ -190,12 +203,27 @@ class NgoDownloadsController extends Controller
 
         $zip->close();
 
-        // Clean up any leftover compressed-source temp files
         foreach ($tempFiles as $tmp) {
             @unlink($tmp);
         }
 
         return response()->download($zipPath, $zipName)->deleteFileAfterSend(true);
+    }
+
+    private function pngToJpeg(string $pngPath, string $outPath, int $quality = 90): void
+    {
+        $src = imagecreatefrompng($pngPath);
+        $w   = imagesx($src);
+        $h   = imagesy($src);
+
+        // Flatten transparency onto white background
+        $bg = imagecreatetruecolor($w, $h);
+        imagefill($bg, 0, 0, imagecolorallocate($bg, 255, 255, 255));
+        imagecopy($bg, $src, 0, 0, 0, 0, $w, $h);
+        imagedestroy($src);
+
+        imagejpeg($bg, $outPath, $quality);
+        imagedestroy($bg);
     }
 
     private function compressImage(string $imagePath, string $ext, string $outPath, int $quality = 75, int $maxDim = 1800): void
