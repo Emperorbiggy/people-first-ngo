@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import { router, usePage, Link } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 
+const MAX_SELECTION = 100;
+
 function formatNaira(value) {
     const n = Number(value);
     if (!n) return '₦0';
@@ -14,14 +16,19 @@ export default function DataboyPayment({ bulkTransferAmount, databoys = [] }) {
     const [paying, setPaying] = useState(false);
 
     const amount = Number(bulkTransferAmount) || 0;
-    const allSelected = databoys.length > 0 && selected.length === databoys.length;
+    const capReached = selected.length >= MAX_SELECTION;
+    const allSelected = databoys.length > 0 && selected.length === Math.min(databoys.length, MAX_SELECTION);
 
     const toggleAll = () => {
-        setSelected(allSelected ? [] : databoys.map((d) => d.id));
+        setSelected(allSelected ? [] : databoys.slice(0, MAX_SELECTION).map((d) => d.id));
     };
 
     const toggleOne = (id) => {
-        setSelected((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+        setSelected((prev) => {
+            if (prev.includes(id)) return prev.filter((x) => x !== id);
+            if (prev.length >= MAX_SELECTION) return prev;
+            return [...prev, id];
+        });
     };
 
     const total = useMemo(() => amount * selected.length, [amount, selected.length]);
@@ -84,7 +91,10 @@ export default function DataboyPayment({ bulkTransferAmount, databoys = [] }) {
                             <p className="text-lg font-bold text-gray-800">{formatNaira(amount)}</p>
                         </div>
                         <div className="text-right">
-                            <p className="text-xs text-gray-500">{selected.length} selected</p>
+                            <p className="text-xs text-gray-500">
+                                {selected.length} / {MAX_SELECTION} selected
+                                {capReached && <span className="text-amber-600 font-medium"> — max reached</span>}
+                            </p>
                             <p className="text-lg font-bold text-indigo-600">{formatNaira(total)}</p>
                         </div>
                     </div>
@@ -95,7 +105,9 @@ export default function DataboyPayment({ bulkTransferAmount, databoys = [] }) {
                     <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
                         <div>
                             <h3 className="font-semibold text-gray-800">Eligible Databoys</h3>
-                            <p className="text-xs text-gray-400 mt-0.5">{databoys.length} awaiting payment</p>
+                            <p className="text-xs text-gray-400 mt-0.5">
+                                {databoys.length} awaiting payment · select up to {MAX_SELECTION} at a time
+                            </p>
                         </div>
                         <button
                             type="button"
@@ -126,11 +138,14 @@ export default function DataboyPayment({ bulkTransferAmount, databoys = [] }) {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-50">
-                                    {databoys.map((db) => (
+                                    {databoys.map((db) => {
+                                        const isChecked = selected.includes(db.id);
+                                        return (
                                         <tr key={db.id} className="hover:bg-indigo-50/30 transition-colors">
                                             <td className="px-5 py-3">
-                                                <input type="checkbox" checked={selected.includes(db.id)} onChange={() => toggleOne(db.id)}
-                                                    className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                                                <input type="checkbox" checked={isChecked} onChange={() => toggleOne(db.id)}
+                                                    disabled={!isChecked && capReached}
+                                                    className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:opacity-30" />
                                             </td>
                                             <td className="px-5 py-3 text-sm font-medium text-gray-800 whitespace-nowrap">{db.full_name}</td>
                                             <td className="px-5 py-3 text-sm text-gray-600 whitespace-nowrap">{db.bank_name}</td>
@@ -138,7 +153,8 @@ export default function DataboyPayment({ bulkTransferAmount, databoys = [] }) {
                                             <td className="px-5 py-3 text-sm text-gray-600 whitespace-nowrap">{db.bank_code}</td>
                                             <td className="px-5 py-3 text-sm text-gray-600 whitespace-nowrap">{db.bank_account_name}</td>
                                         </tr>
-                                    ))}
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                         </div>
