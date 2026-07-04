@@ -4,10 +4,13 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Databoy;
+use App\Models\DataboyApplication;
 use App\Models\DataboyPayment;
+use App\Models\PollingUnit;
 use App\Models\Setting;
 use App\Services\PaystackService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class DataboyPaymentController extends Controller
@@ -192,7 +195,41 @@ class DataboyPaymentController extends Controller
             ->where('bank_code', '!=', '')
             ->whereNotNull('account_number')
             ->where('account_number', '!=', '')
-            ->whereDoesntHave('payments');
+            ->whereDoesntHave('payments')
+            ->whereIn('id', $this->fullyRegisteredDataboyIds());
+    }
+
+    /**
+     * Databoys who have registered at least 2 applicants in every polling unit
+     * of their assigned ward — mirrors DataboyAnalyticsController's completion logic.
+     */
+    private function fullyRegisteredDataboyIds(): array
+    {
+        $wardPuCounts = PollingUnit::select('ward_id', DB::raw('count(*) as total'))
+            ->groupBy('ward_id')
+            ->pluck('total', 'ward_id');
+
+        $appGroups = DataboyApplication::select('registered_by', 'polling_unit_id', DB::raw('count(*) as cnt'))
+            ->groupBy('registered_by', 'polling_unit_id')
+            ->get()
+            ->groupBy('registered_by');
+
+        return Databoy::whereNotNull('ward_id')
+            ->get(['id', 'ward_id'])
+            ->filter(function ($db) use ($wardPuCounts, $appGroups) {
+                $totalPUs = $wardPuCounts[$db->ward_id] ?? 0;
+
+                if ($totalPUs === 0) {
+                    return false;
+                }
+
+                $myApps       = $appGroups->get($db->id, collect());
+                $completedPUs = $myApps->filter(fn ($r) => $r->cnt >= 2)->count();
+
+                return $completedPUs === $totalPUs;
+            })
+            ->pluck('id')
+            ->all();
     }
 
     private function generateReference(Databoy $databoy): string

@@ -122,6 +122,9 @@ export default function DataboyPayment({ bulkTransferAmount, databoys = [] }) {
                     {databoys.length === 0 ? (
                         <div className="py-16 text-center">
                             <p className="text-gray-400 text-sm">No databoys are currently eligible for payment.</p>
+                            <p className="text-gray-300 text-xs mt-1">
+                                Eligible databoys must have registered at least 2 applicants in every polling unit of their assigned ward and not have been paid before.
+                            </p>
                         </div>
                     ) : (
                         <div className="overflow-x-auto">
