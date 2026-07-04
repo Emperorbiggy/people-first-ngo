@@ -7,6 +7,7 @@ use App\Http\Controllers\VerificationController;
 use App\Http\Controllers\GeoImportController;
 use App\Http\Controllers\Admin\DataboyController as AdminDataboyController;
 use App\Http\Controllers\Admin\DataboyApplicationController as AdminDataboyApplicationController;
+use App\Http\Controllers\Admin\DataboyPaymentController as AdminDataboyPaymentController;
 use App\Http\Controllers\Admin\SettingsController as AdminSettingsController;
 use App\Http\Controllers\Admin\DataboyAnalyticsController as AdminDataboyAnalyticsController;
 use App\Http\Controllers\Admin\NgoDownloadsController as AdminNgoDownloadsController;
@@ -21,16 +22,6 @@ Route::get('/', function () {
     return redirect()->route('ngo-contract-applications.create');
 });
 
-Route::get('/check-imagick', function () {
-    return response()->json([
-        'imagick_loaded'    => extension_loaded('imagick'),
-        'imagick_class'     => class_exists('Imagick'),
-        'imagick_version'   => extension_loaded('imagick') ? (new Imagick())->getVersion()['versionString'] : null,
-        'pdf_supported'     => extension_loaded('imagick') ? in_array('PDF', (new Imagick())->queryFormats()) : false,
-        'ghostscript'       => function_exists('exec') ? trim(shell_exec('which gs 2>/dev/null') ?? '') : 'exec disabled',
-        'exec_enabled'      => function_exists('exec'),
-    ]);
-});
 
 // Identity verification & application form (public, token-protected)
 Route::get('/verify', [VerificationController::class, 'showVerify'])->name('verify');
@@ -65,6 +56,12 @@ Route::middleware('auth')->group(function () {
     Route::post('/admin/settings', [AdminSettingsController::class, 'update'])->name('admin.settings.update');
     Route::post('/admin/settings/rename-files', [AdminSettingsController::class, 'renameFiles'])->name('admin.settings.rename-files');
     Route::post('/admin/settings/compress-files', [AdminSettingsController::class, 'compressFiles'])->name('admin.settings.compress-files');
+    Route::post('/admin/settings/payment-gateway', [AdminSettingsController::class, 'updatePaymentGateway'])->name('admin.settings.payment-gateway');
+
+    // Databoy Payments
+    Route::get('/admin/databoy-payments', [AdminDataboyPaymentController::class, 'index'])->name('admin.databoy-payments');
+    Route::post('/admin/databoy-payments', [AdminDataboyPaymentController::class, 'pay'])->name('admin.databoy-payments.pay');
+    Route::get('/admin/databoy-payments/paid', [AdminDataboyPaymentController::class, 'paid'])->name('admin.databoy-payments.paid');
 
     // Downloads
     Route::get('/admin/ngo-downloads', [AdminNgoDownloadsController::class, 'index'])->name('admin.ngo-downloads');

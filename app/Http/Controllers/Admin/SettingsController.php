@@ -19,6 +19,12 @@ class SettingsController extends Controller
         return inertia('Admin/Settings', [
             'registrationOpen' => Setting::get('databoy_registration_open', '1') === '1',
             'accessEnabled'    => Setting::get('databoy_access_enabled', '1') === '1',
+
+            'paymentGateway'       => Setting::get('payment_gateway', 'paystack'),
+            'paystackPublicKey'    => Setting::get('paystack_public_key', ''),
+            'paystackSecretKeySet' => (bool) Setting::get('paystack_secret_key'),
+            'easigatewayAppKeySet' => (bool) Setting::get('easigateway_app_key'),
+            'bulkTransferAmount'   => Setting::get('bulk_transfer_amount', ''),
         ]);
     }
 
@@ -32,6 +38,37 @@ class SettingsController extends Controller
         Setting::set($request->key, $request->boolean('value') ? '1' : '0');
 
         return back()->with('success', 'Setting updated.');
+    }
+
+    public function updatePaymentGateway(Request $request)
+    {
+        $request->validate([
+            'gateway'              => 'required|in:paystack,easigateway',
+            'paystack_secret_key'  => 'nullable|string',
+            'paystack_public_key'  => 'nullable|string',
+            'easigateway_app_key'  => 'nullable|string',
+            'bulk_transfer_amount' => 'nullable|numeric|min:0',
+        ]);
+
+        Setting::set('payment_gateway', $request->gateway);
+
+        if ($request->filled('bulk_transfer_amount')) {
+            Setting::set('bulk_transfer_amount', $request->bulk_transfer_amount);
+        }
+
+        if ($request->filled('paystack_secret_key')) {
+            Setting::set('paystack_secret_key', $request->paystack_secret_key);
+        }
+
+        if ($request->filled('paystack_public_key')) {
+            Setting::set('paystack_public_key', $request->paystack_public_key);
+        }
+
+        if ($request->filled('easigateway_app_key')) {
+            Setting::set('easigateway_app_key', $request->easigateway_app_key);
+        }
+
+        return back()->with('success', 'Payment gateway settings updated.');
     }
 
     public function renameFiles()

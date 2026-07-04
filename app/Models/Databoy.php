@@ -30,4 +30,5 @@ class Databoy extends Authenticatable
     public function lga()     { return $this->belongsTo(Lga::class); }
     public function ward()    { return $this->belongsTo(Ward::class); }
     public function applications() { return $this->hasMany(DataboyApplication::class, 'registered_by'); }
+    public function payments()     { return $this->hasMany(DataboyPayment::class); }
 }

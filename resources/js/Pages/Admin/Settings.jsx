@@ -42,6 +42,155 @@ function SettingRow({ label, description, enabled, settingKey, statusOn, statusO
     );
 }
 
+function PaymentGatewaySection({ paymentGateway, paystackPublicKey, paystackSecretKeySet, easigatewayAppKeySet, bulkTransferAmount }) {
+    const [gateway, setGateway] = useState(paymentGateway || 'paystack');
+    const [secretKey, setSecretKey] = useState('');
+    const [publicKey, setPublicKey] = useState(paystackPublicKey || '');
+    const [appKey, setAppKey] = useState('');
+    const [transferAmount, setTransferAmount] = useState(bulkTransferAmount || '');
+    const [showSecret, setShowSecret] = useState(false);
+    const [showAppKey, setShowAppKey] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [savedFlags, setSavedFlags] = useState({ paystackSecretKeySet, easigatewayAppKeySet });
+
+    const save = () => {
+        setSaving(true);
+        router.post(route('admin.settings.payment-gateway'), {
+            gateway,
+            paystack_secret_key: secretKey,
+            paystack_public_key: publicKey,
+            easigateway_app_key: appKey,
+            bulk_transfer_amount: transferAmount,
+        }, {
+            preserveScroll: true,
+            onSuccess: () => {
+                setSavedFlags({
+                    paystackSecretKeySet: savedFlags.paystackSecretKeySet || secretKey.length > 0,
+                    easigatewayAppKeySet: savedFlags.easigatewayAppKeySet || appKey.length > 0,
+                });
+                setSecretKey('');
+                setAppKey('');
+            },
+            onFinish: () => setSaving(false),
+        });
+    };
+
+    const gateways = [
+        { key: 'paystack', label: 'Paystack', description: 'Card payments and bulk bank transfers via Paystack.' },
+        { key: 'easigateway', label: 'Easigateway', description: 'Payments and payouts via Easigateway.' },
+    ];
+
+    return (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
+            <div>
+                <p className="font-semibold text-gray-800">Payment Gateway</p>
+                <p className="text-xs text-gray-500 mt-0.5">Choose which gateway processes payments and transfers.</p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {gateways.map((g) => (
+                    <button
+                        key={g.key}
+                        type="button"
+                        onClick={() => setGateway(g.key)}
+                        className={`text-left rounded-xl border p-4 transition ${
+                            gateway === g.key
+                                ? 'border-indigo-500 bg-indigo-50 ring-1 ring-indigo-500'
+                                : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                    >
+                        <p className="font-semibold text-sm text-gray-800">{g.label}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">{g.description}</p>
+                    </button>
+                ))}
+            </div>
+
+            {gateway === 'paystack' && (
+                <div className="space-y-3 pt-2 border-t border-gray-100">
+                    <div>
+                        <label className="text-xs font-medium text-gray-600">Secret Key</label>
+                        <div className="relative mt-1">
+                            <input
+                                type={showSecret ? 'text' : 'password'}
+                                value={secretKey}
+                                onChange={(e) => setSecretKey(e.target.value)}
+                                placeholder={savedFlags.paystackSecretKeySet ? 'A key is already saved — leave blank to keep it' : 'sk_live_...'}
+                                className="w-full rounded-xl border border-gray-200 px-3 py-2 pr-16 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowSecret(!showSecret)}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400 hover:text-gray-600"
+                            >
+                                {showSecret ? 'Hide' : 'Show'}
+                            </button>
+                        </div>
+                    </div>
+                    <div>
+                        <label className="text-xs font-medium text-gray-600">Public Key</label>
+                        <input
+                            type="text"
+                            value={publicKey}
+                            onChange={(e) => setPublicKey(e.target.value)}
+                            placeholder="pk_live_..."
+                            className="w-full mt-1 rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        />
+                    </div>
+                    <div>
+                        <label className="text-xs font-medium text-gray-600">Bulk Transfer Amount</label>
+                        <div className="relative mt-1">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">₦</span>
+                            <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={transferAmount}
+                                onChange={(e) => setTransferAmount(e.target.value)}
+                                placeholder="0.00"
+                                className="w-full rounded-xl border border-gray-200 pl-7 pr-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                            />
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">Amount paid to each recipient when a bulk transfer is run.</p>
+                    </div>
+                </div>
+            )}
+
+            {gateway === 'easigateway' && (
+                <div className="space-y-3 pt-2 border-t border-gray-100">
+                    <div>
+                        <label className="text-xs font-medium text-gray-600">App Key</label>
+                        <div className="relative mt-1">
+                            <input
+                                type={showAppKey ? 'text' : 'password'}
+                                value={appKey}
+                                onChange={(e) => setAppKey(e.target.value)}
+                                placeholder={savedFlags.easigatewayAppKeySet ? 'A key is already saved — leave blank to keep it' : 'Enter app key'}
+                                className="w-full rounded-xl border border-gray-200 px-3 py-2 pr-16 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowAppKey(!showAppKey)}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400 hover:text-gray-600"
+                            >
+                                {showAppKey ? 'Hide' : 'Show'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <button
+                type="button"
+                onClick={save}
+                disabled={saving}
+                className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-semibold rounded-xl text-sm transition"
+            >
+                {saving ? 'Saving…' : 'Save Payment Gateway Settings'}
+            </button>
+        </div>
+    );
+}
+
 function FileMaintenanceCard() {
     const [status, setStatus] = useState('idle');
     const [result, setResult] = useState(null);
@@ -301,7 +450,15 @@ function CompressFilesCard() {
     );
 }
 
-export default function Settings({ registrationOpen, accessEnabled }) {
+export default function Settings({
+    registrationOpen,
+    accessEnabled,
+    paymentGateway,
+    paystackPublicKey,
+    paystackSecretKeySet,
+    easigatewayAppKeySet,
+    bulkTransferAmount,
+}) {
     const { flash } = usePage().props;
 
     return (
@@ -339,6 +496,14 @@ export default function Settings({ registrationOpen, accessEnabled }) {
                     statusOff="Access is DISABLED — all databoys are blocked from creating applications."
                     colorOn="green"
                     colorOff="red"
+                />
+
+                <PaymentGatewaySection
+                    paymentGateway={paymentGateway}
+                    paystackPublicKey={paystackPublicKey}
+                    paystackSecretKeySet={paystackSecretKeySet}
+                    easigatewayAppKeySet={easigatewayAppKeySet}
+                    bulkTransferAmount={bulkTransferAmount}
                 />
 
                 <FileMaintenanceCard />
