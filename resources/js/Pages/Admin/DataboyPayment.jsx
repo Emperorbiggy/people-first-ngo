@@ -14,6 +14,7 @@ export default function DataboyPayment({ bulkTransferAmount, databoys = [] }) {
     const { flash, errors } = usePage().props;
     const [selected, setSelected] = useState([]);
     const [paying, setPaying] = useState(false);
+    const [retryingId, setRetryingId] = useState(null);
 
     const amount = Number(bulkTransferAmount) || 0;
     const capReached = selected.length >= MAX_SELECTION;
@@ -40,6 +41,15 @@ export default function DataboyPayment({ bulkTransferAmount, databoys = [] }) {
             preserveScroll: true,
             onSuccess: () => setSelected([]),
             onFinish: () => setPaying(false),
+        });
+    };
+
+    const retryOne = (id) => {
+        setRetryingId(id);
+        router.post(route('admin.databoy-payments.pay'), { databoy_ids: [id] }, {
+            preserveScroll: true,
+            onSuccess: () => setSelected((prev) => prev.filter((x) => x !== id)),
+            onFinish: () => setRetryingId(null),
         });
     };
 
@@ -157,12 +167,15 @@ export default function DataboyPayment({ bulkTransferAmount, databoys = [] }) {
                                             <td className="px-5 py-3 text-sm text-gray-600 whitespace-nowrap">{db.bank_account_name}</td>
                                             <td className="px-5 py-3 whitespace-nowrap">
                                                 {db.previous_failure ? (
-                                                    <span
-                                                        className="inline-flex px-2 py-0.5 rounded-lg text-xs font-medium border bg-amber-50 border-amber-200 text-amber-700"
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => retryOne(db.id)}
+                                                        disabled={retryingId === db.id || amount <= 0}
                                                         title={db.previous_failure}
+                                                        className="inline-flex px-2 py-0.5 rounded-lg text-xs font-medium border bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100 disabled:opacity-50 transition"
                                                     >
-                                                        Retry
-                                                    </span>
+                                                        {retryingId === db.id ? 'Retrying…' : 'Retry'}
+                                                    </button>
                                                 ) : (
                                                     <span className="inline-flex px-2 py-0.5 rounded-lg text-xs font-medium border bg-gray-50 border-gray-200 text-gray-500">
                                                         New
