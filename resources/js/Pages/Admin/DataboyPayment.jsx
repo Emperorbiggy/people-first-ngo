@@ -135,7 +135,7 @@ export default function DataboyPayment({ bulkTransferAmount, databoys = [] }) {
                                             <input type="checkbox" checked={allSelected} onChange={toggleAll}
                                                 className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
                                         </th>
-                                        {['Name', 'Bank Name', 'Account Number', 'Bank Code', 'Account Name'].map((h) => (
+                                        {['Name', 'Bank Name', 'Account Number', 'Bank Code', 'Account Name', 'Status'].map((h) => (
                                             <th key={h} className="px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
                                         ))}
                                     </tr>
@@ -155,6 +155,20 @@ export default function DataboyPayment({ bulkTransferAmount, databoys = [] }) {
                                             <td className="px-5 py-3 text-sm text-gray-600 whitespace-nowrap">{db.account_number}</td>
                                             <td className="px-5 py-3 text-sm text-gray-600 whitespace-nowrap">{db.bank_code}</td>
                                             <td className="px-5 py-3 text-sm text-gray-600 whitespace-nowrap">{db.bank_account_name}</td>
+                                            <td className="px-5 py-3 whitespace-nowrap">
+                                                {db.previous_failure ? (
+                                                    <span
+                                                        className="inline-flex px-2 py-0.5 rounded-lg text-xs font-medium border bg-amber-50 border-amber-200 text-amber-700"
+                                                        title={db.previous_failure}
+                                                    >
+                                                        Retry
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex px-2 py-0.5 rounded-lg text-xs font-medium border bg-gray-50 border-gray-200 text-gray-500">
+                                                        New
+                                                    </span>
+                                                )}
+                                            </td>
                                         </tr>
                                         );
                                     })}

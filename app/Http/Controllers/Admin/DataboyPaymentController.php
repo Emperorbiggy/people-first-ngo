@@ -18,8 +18,18 @@ class DataboyPaymentController extends Controller
     public function index()
     {
         $databoys = $this->eligibleDataboysQuery()
+            ->with(['payments' => fn ($q) => $q->where('status', 'failed')->latest()])
             ->orderBy('full_name')
-            ->get(['id', 'full_name', 'bank_name', 'bank_code', 'account_number', 'bank_account_name']);
+            ->get(['id', 'full_name', 'bank_name', 'bank_code', 'account_number', 'bank_account_name'])
+            ->map(fn ($db) => [
+                'id'                => $db->id,
+                'full_name'         => $db->full_name,
+                'bank_name'         => $db->bank_name,
+                'bank_code'         => $db->bank_code,
+                'account_number'    => $db->account_number,
+                'bank_account_name' => $db->bank_account_name,
+                'previous_failure'  => optional($db->payments->first())->message,
+            ]);
 
         return inertia('Admin/DataboyPayment', [
             'bulkTransferAmount' => Setting::get('bulk_transfer_amount', ''),
@@ -195,7 +205,10 @@ class DataboyPaymentController extends Controller
             ->where('bank_code', '!=', '')
             ->whereNotNull('account_number')
             ->where('account_number', '!=', '')
-            ->whereDoesntHave('payments')
+            // A databoy with a non-failed (i.e. successful) payment has already been
+            // paid and must never be paid again. One whose only attempts failed is
+            // still eligible so it can be retried.
+            ->whereDoesntHave('payments', fn ($q) => $q->where('status', '!=', 'failed'))
             ->whereIn('id', $this->fullyRegisteredDataboyIds());
     }
 
