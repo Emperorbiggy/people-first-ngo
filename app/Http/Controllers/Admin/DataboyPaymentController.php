@@ -77,12 +77,20 @@ class DataboyPaymentController extends Controller
         $paid     = 0;
         $failed   = 0;
         $chunkErrors = [];
+        $firstRecipientCall = true;
 
         foreach ($databoys->chunk(100) as $chunk) {
             $transfers   = [];
             $referenceMap = [];
 
             foreach ($chunk as $databoy) {
+                // Pace recipient-creation calls so we don't burst past Paystack's
+                // rate limit when paying a large batch in one go.
+                if (!$firstRecipientCall) {
+                    usleep(200000);
+                }
+                $firstRecipientCall = false;
+
                 $recipient = $paystack->createRecipient([
                     'name'           => $databoy->bank_account_name,
                     'account_number' => $databoy->account_number,

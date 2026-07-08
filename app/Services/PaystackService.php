@@ -27,6 +27,32 @@ class PaystackService
     }
 
     /**
+     * POST with exponential backoff retry on 429 (rate limit) responses.
+     */
+    private function postWithRetry(string $method, string $url, array $payload)
+    {
+        $maxAttempts = 3;
+        $delayMs     = 300;
+
+        for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+            $response = Http::withHeaders([
+                'Authorization' => 'Bearer ' . $this->secretKey,
+            ])->post($url, $payload);
+
+            $this->logResponse($method, $response);
+
+            if ($response->status() !== 429 || $attempt === $maxAttempts) {
+                return $response;
+            }
+
+            usleep($delayMs * 1000);
+            $delayMs *= 2;
+        }
+
+        return $response;
+    }
+
+    /**
      * Fetch banks from Paystack API
      */
     public function fetchBanks()
@@ -122,17 +148,13 @@ class PaystackService
     public function createRecipient(array $data)
     {
         try {
-            $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $this->secretKey,
-            ])->post($this->baseUrl . '/transferrecipient', [
+            $response = $this->postWithRetry('createRecipient', $this->baseUrl . '/transferrecipient', [
                 'type' => 'nuban',
                 'name' => $data['name'],
                 'account_number' => $data['account_number'],
                 'bank_code' => $data['bank_code'],
                 'currency' => 'NGN',
             ]);
-
-            $this->logResponse('createRecipient', $response);
 
             if ($response->successful()) {
                 return [
@@ -160,14 +182,10 @@ class PaystackService
     public function initiateBulkTransfer(array $transfers)
     {
         try {
-            $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $this->secretKey,
-            ])->post($this->baseUrl . '/transfer/bulk', [
+            $response = $this->postWithRetry('initiateBulkTransfer', $this->baseUrl . '/transfer/bulk', [
                 'source' => 'balance',
                 'transfers' => $transfers,
             ]);
-
-            $this->logResponse('initiateBulkTransfer', $response);
 
             if ($response->successful()) {
                 return [
