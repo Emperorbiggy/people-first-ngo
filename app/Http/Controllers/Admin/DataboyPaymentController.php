@@ -193,6 +193,12 @@ class DataboyPaymentController extends Controller
         return DataboyPayment::with('databoy:id,full_name')
             ->latest()
             ->get(['id', 'databoy_id', 'amount', 'bank_name', 'bank_code', 'account_number', 'account_name', 'status', 'message', 'created_at'])
+            // A databoy can have multiple attempts (e.g. an earlier failed one
+            // followed by a later success) — only the most recent attempt per
+            // databoy reflects their current, true payment status.
+            ->groupBy('databoy_id')
+            ->map(fn ($attempts) => $attempts->first())
+            ->values()
             ->map(fn ($payment) => [
                 'id'             => $payment->id,
                 'full_name'      => $payment->databoy->full_name ?? '—',
