@@ -84,6 +84,7 @@ Route::middleware('auth')->group(function () {
 
     // Admin Databoy overview
     Route::get('/admin/databoy', [AdminDataboyController::class, 'index'])->name('admin.databoy');
+    Route::get('/admin/databoy-wards', [AdminDataboyController::class, 'wardAssignments'])->name('admin.databoy-wards');
     Route::post('/admin/databoy/{databoy}/toggle', [AdminDataboyController::class, 'toggle'])->name('admin.databoy.toggle');
     Route::post('/admin/databoy/{databoy}/release', [AdminDataboyController::class, 'release'])->name('admin.databoy.release');
     Route::post('/admin/databoy/{databoy}/assign', [AdminDataboyController::class, 'assign'])->name('admin.databoy.assign');

@@ -47,6 +47,17 @@ class DataboyController extends Controller
         return inertia('Admin/Databoy', compact('stats', 'lgaCoverage', 'databoys', 'lgas'));
     }
 
+    public function wardAssignments()
+    {
+        $databoys = Databoy::with(['lga:id,name', 'ward:id,name'])
+            ->orderBy('full_name')
+            ->get(['id', 'full_name', 'lga_id', 'ward_id']);
+
+        $lgas = Lga::orderBy('name')->get(['id', 'name']);
+
+        return inertia('Admin/DataboyWardAssignment', compact('databoys', 'lgas'));
+    }
+
     public function toggle(Databoy $databoy)
     {
         $databoy->update(['is_active' => !$databoy->is_active]);
