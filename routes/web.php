@@ -134,6 +134,7 @@ Route::prefix('databoy')->name('databoy.')->group(function () {
         Route::get('/applications', [DataboyApplicationController::class, 'index'])->name('applications.index');
         Route::get('/applications/create', [DataboyApplicationController::class, 'create'])->name('applications.create');
         Route::post('/applications', [DataboyApplicationController::class, 'store'])->name('applications.store');
+        Route::put('/applications/{databoyApplication}/polling-unit', [DataboyApplicationController::class, 'updatePollingUnit'])->name('applications.update-polling-unit');
     });
 });
 

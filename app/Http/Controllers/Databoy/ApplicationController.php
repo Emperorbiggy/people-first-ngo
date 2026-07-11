@@ -23,7 +23,14 @@ class ApplicationController extends Controller
             ->latest()
             ->get();
 
-        return inertia('Databoy/Applications/Index', ['applications' => $applications]);
+        $pollingUnits = $databoy->ward_id
+            ? PollingUnit::where('ward_id', $databoy->ward_id)->orderBy('name')->get(['id', 'name'])
+            : collect();
+
+        return inertia('Databoy/Applications/Index', [
+            'applications' => $applications,
+            'pollingUnits' => $pollingUnits,
+        ]);
     }
 
     public function create()
@@ -128,6 +135,27 @@ class ApplicationController extends Controller
 
         return redirect()->route('databoy.applications.index')
             ->with('success', 'Application submitted successfully.');
+    }
+
+    public function updatePollingUnit(Request $request, DataboyApplication $databoyApplication)
+    {
+        $databoy = Auth::guard('databoy')->user();
+
+        abort_if($databoyApplication->registered_by !== $databoy->id, 403);
+
+        $validated = $request->validate([
+            'polling_unit_id' => 'required|exists:polling_units,id',
+        ]);
+
+        $pollingUnit = PollingUnit::find($validated['polling_unit_id']);
+
+        if (!$pollingUnit || $pollingUnit->ward_id !== $databoy->ward_id) {
+            return back()->withErrors(['polling_unit_id' => 'That polling unit is not in your assigned ward.']);
+        }
+
+        $databoyApplication->update(['polling_unit_id' => $validated['polling_unit_id']]);
+
+        return back()->with('success', "Polling unit updated for {$databoyApplication->full_name}.");
     }
 
     private function storeFile($file, string $name, string $type): string

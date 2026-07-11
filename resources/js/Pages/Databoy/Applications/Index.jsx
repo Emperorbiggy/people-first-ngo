@@ -1,9 +1,71 @@
 import { useState } from 'react';
-import { Link } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import DataboyLayout from '@/Layouts/DataboyLayout';
 
-export default function Index({ applications }) {
+function EditPollingUnitModal({ application, pollingUnits, onClose }) {
+    const [pollingUnitId, setPollingUnitId] = useState(application.polling_unit?.id ?? '');
+    const [saving, setSaving] = useState(false);
+    const [error, setError]   = useState('');
+
+    const handleSave = () => {
+        if (!pollingUnitId) { setError('Please select a polling unit.'); return; }
+        setSaving(true);
+        router.put(route('databoy.applications.update-polling-unit', application.id), { polling_unit_id: pollingUnitId }, {
+            onSuccess: () => onClose(),
+            onError: (e) => { setError(Object.values(e)[0] ?? 'Failed to update.'); setSaving(false); },
+        });
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+            <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                    <h3 className="font-bold text-gray-800">Edit Polling Unit</h3>
+                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <p className="text-sm text-gray-500">
+                    Correcting the polling unit for <span className="font-semibold text-gray-700">{application.full_name}</span>
+                </p>
+
+                {error && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>}
+
+                <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">Polling Unit</label>
+                    <select value={pollingUnitId} onChange={(e) => setPollingUnitId(e.target.value)}
+                        className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <option value="">Select polling unit…</option>
+                        {pollingUnits.map((pu) => <option key={pu.id} value={pu.id}>{pu.name}</option>)}
+                    </select>
+                    {pollingUnits.length === 0 && (
+                        <p className="mt-1 text-xs text-amber-600">No polling units found for your assigned ward.</p>
+                    )}
+                </div>
+
+                <div className="flex gap-3 pt-1">
+                    <button onClick={onClose}
+                        className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50 transition">
+                        Cancel
+                    </button>
+                    <button onClick={handleSave} disabled={saving || !pollingUnitId}
+                        className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-semibold rounded-xl text-sm transition">
+                        {saving ? 'Saving…' : 'Save'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+export default function Index({ applications, pollingUnits = [] }) {
+    const { flash } = usePage().props;
     const [search, setSearch] = useState('');
+    const [editingApp, setEditingApp] = useState(null);
 
     const filtered = applications.filter((a) => {
         const q = search.toLowerCase();
@@ -18,6 +80,14 @@ export default function Index({ applications }) {
 
     return (
         <DataboyLayout title="My Applications">
+            {editingApp && (
+                <EditPollingUnitModal
+                    application={editingApp}
+                    pollingUnits={pollingUnits}
+                    onClose={() => setEditingApp(null)}
+                />
+            )}
+
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                 <div>
                     <h1 className="text-xl font-bold text-gray-800">My Applications</h1>
@@ -33,6 +103,12 @@ export default function Index({ applications }) {
                     Add Application
                 </Link>
             </div>
+
+            {flash?.success && (
+                <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 text-sm text-green-700 font-medium mb-5">
+                    {flash.success}
+                </div>
+            )}
 
             {/* Search */}
             <div className="relative mb-5">
@@ -62,7 +138,7 @@ export default function Index({ applications }) {
                         <table className="min-w-full divide-y divide-gray-100">
                             <thead className="bg-gray-50">
                                 <tr>
-                                    {['#', 'Name', 'Phone', 'State', 'LGA', 'Ward', 'Polling Unit', 'Date'].map((h) => (
+                                    {['#', 'Name', 'Phone', 'State', 'LGA', 'Ward', 'Polling Unit', 'Date', 'Actions'].map((h) => (
                                         <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">
                                             {h}
                                         </th>
@@ -88,6 +164,15 @@ export default function Index({ applications }) {
                                         <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{app.polling_unit?.name ?? '—'}</td>
                                         <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">
                                             {new Date(app.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                        </td>
+                                        <td className="px-4 py-3 whitespace-nowrap">
+                                            <button
+                                                type="button"
+                                                onClick={() => setEditingApp(app)}
+                                                className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition"
+                                            >
+                                                Edit PU
+                                            </button>
                                         </td>
                                     </tr>
                                 ))}
