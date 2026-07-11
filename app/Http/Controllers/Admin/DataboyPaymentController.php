@@ -52,6 +52,40 @@ class DataboyPaymentController extends Controller
         return inertia('Admin/PaidDataboys', compact('history', 'stats'));
     }
 
+    public function analytics()
+    {
+        $rows = DataboyPayment::with('databoy:id,full_name')
+            ->orderBy('created_at')
+            ->get(['id', 'databoy_id', 'amount', 'status', 'created_at']);
+
+        $perDataboy = $rows->groupBy('databoy_id')->map(function ($attempts) {
+            $latest = $attempts->last();
+
+            return [
+                'databoy_id'    => $latest->databoy_id,
+                'full_name'     => $latest->databoy->full_name ?? '—',
+                'attempts'      => $attempts->count(),
+                'latest_status' => $latest->status,
+                'latest_date'   => $latest->created_at,
+                'amount'        => $latest->amount,
+            ];
+        })->values();
+
+        $stats = [
+            'total_databoys' => $perDataboy->count(),
+            'total_attempts' => $rows->count(),
+            'total_success'  => $perDataboy->where('latest_status', 'success')->count(),
+            'total_retried'  => $perDataboy->where('attempts', '>', 1)->count(),
+            'total_failed'   => $perDataboy->where('latest_status', 'failed')->count(),
+            'amount_paid'    => $perDataboy->where('latest_status', 'success')->sum('amount'),
+        ];
+
+        return inertia('Admin/DataboyPaymentAnalytics', [
+            'stats'    => $stats,
+            'databoys' => $perDataboy->sortBy('full_name')->values(),
+        ]);
+    }
+
     public function pay(Request $request)
     {
         $request->validate([

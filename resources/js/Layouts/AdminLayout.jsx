@@ -113,6 +113,16 @@ const NAV = [
         ),
     },
     {
+        label: 'Payment Analytics',
+        href: 'admin.databoy-payments.analytics',
+        icon: (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                    d="M11 4a7 7 0 100 14 7 7 0 000-14zm0 0v7l4.95 4.95M21 21l-4.35-4.35" />
+            </svg>
+        ),
+    },
+    {
         label: 'Downloads',
         href: 'admin.ngo-downloads',
         icon: (

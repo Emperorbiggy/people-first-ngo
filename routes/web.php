@@ -62,6 +62,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/admin/databoy-payments', [AdminDataboyPaymentController::class, 'index'])->name('admin.databoy-payments');
     Route::post('/admin/databoy-payments', [AdminDataboyPaymentController::class, 'pay'])->name('admin.databoy-payments.pay');
     Route::get('/admin/databoy-payments/paid', [AdminDataboyPaymentController::class, 'paid'])->name('admin.databoy-payments.paid');
+    Route::get('/admin/databoy-payments/analytics', [AdminDataboyPaymentController::class, 'analytics'])->name('admin.databoy-payments.analytics');
 
     // Downloads
     Route::get('/admin/ngo-downloads', [AdminNgoDownloadsController::class, 'index'])->name('admin.ngo-downloads');
