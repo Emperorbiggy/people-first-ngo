@@ -17,15 +17,19 @@ class DataboyApplication extends Model
         'current_occupation', 'work_grade_level',
         'has_voter_card',
         'passport_photograph_path', 'valid_id_card_path', 'highest_qualification_certificate_path',
+        'is_accredited', 'accredited_at', 'accredited_by',
     ];
 
     protected $casts = [
         'has_voter_card' => 'boolean',
         'age'            => 'integer',
+        'is_accredited'  => 'boolean',
+        'accredited_at'  => 'datetime',
     ];
 
     public function databoy()     { return $this->belongsTo(Databoy::class, 'registered_by'); }
     public function lga()         { return $this->belongsTo(Lga::class); }
     public function ward()        { return $this->belongsTo(Ward::class); }
     public function pollingUnit() { return $this->belongsTo(PollingUnit::class); }
+    public function accreditedBy() { return $this->belongsTo(User::class, 'accredited_by'); }
 }

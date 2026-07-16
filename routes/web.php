@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\DataboyPaymentController as AdminDataboyPaymentCo
 use App\Http\Controllers\Admin\SettingsController as AdminSettingsController;
 use App\Http\Controllers\Admin\DataboyAnalyticsController as AdminDataboyAnalyticsController;
 use App\Http\Controllers\Admin\NgoDownloadsController as AdminNgoDownloadsController;
+use App\Http\Controllers\Admin\AccreditationController as AdminAccreditationController;
 use App\Http\Controllers\Databoy\RegistrationController;
 use App\Http\Controllers\Databoy\AuthController as DataboyAuthController;
 use App\Http\Controllers\Databoy\DashboardController as DataboyDashboardController;
@@ -96,6 +97,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/admin/databoy-applications/export/zip',   [AdminDataboyApplicationController::class, 'exportZip'])->name('admin.databoy-applications.export.zip');
     Route::get('/admin/databoy-applications/{databoyApplication}', [AdminDataboyApplicationController::class, 'show'])->name('admin.databoy-applications.show');
     Route::get('/admin/databoy-applications', [AdminDataboyApplicationController::class, 'index'])->name('admin.databoy-applications.index');
+
+    // Admin Accreditation
+    Route::get('/admin/accreditation', [AdminAccreditationController::class, 'index'])->name('admin.accreditation');
+    Route::post('/admin/accreditation/{databoyApplication}', [AdminAccreditationController::class, 'accredit'])->name('admin.accreditation.accredit');
+    Route::get('/admin/accredited', [AdminAccreditationController::class, 'list'])->name('admin.accredited');
 
     // Geo Import
     Route::get('/geo-import', [GeoImportController::class, 'showPage'])->name('geo.import');
