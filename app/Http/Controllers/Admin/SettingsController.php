@@ -24,7 +24,8 @@ class SettingsController extends Controller
             'paystackPublicKey'    => Setting::get('paystack_public_key', ''),
             'paystackSecretKeySet' => (bool) Setting::get('paystack_secret_key'),
             'easigatewayAppKeySet' => (bool) Setting::get('easigateway_app_key'),
-            'bulkTransferAmount'   => Setting::get('bulk_transfer_amount', ''),
+            'bulkTransferAmount'      => Setting::get('bulk_transfer_amount', ''),
+            'applicantTransferAmount' => Setting::get('applicant_transfer_amount', ''),
         ]);
     }
 
@@ -43,17 +44,22 @@ class SettingsController extends Controller
     public function updatePaymentGateway(Request $request)
     {
         $request->validate([
-            'gateway'              => 'required|in:paystack,easigateway',
-            'paystack_secret_key'  => 'nullable|string',
-            'paystack_public_key'  => 'nullable|string',
-            'easigateway_app_key'  => 'nullable|string',
-            'bulk_transfer_amount' => 'nullable|numeric|min:0',
+            'gateway'                 => 'required|in:paystack,easigateway',
+            'paystack_secret_key'     => 'nullable|string',
+            'paystack_public_key'     => 'nullable|string',
+            'easigateway_app_key'     => 'nullable|string',
+            'bulk_transfer_amount'    => 'nullable|numeric|min:0',
+            'applicant_transfer_amount' => 'nullable|numeric|min:0',
         ]);
 
         Setting::set('payment_gateway', $request->gateway);
 
         if ($request->filled('bulk_transfer_amount')) {
             Setting::set('bulk_transfer_amount', $request->bulk_transfer_amount);
+        }
+
+        if ($request->filled('applicant_transfer_amount')) {
+            Setting::set('applicant_transfer_amount', $request->applicant_transfer_amount);
         }
 
         if ($request->filled('paystack_secret_key')) {

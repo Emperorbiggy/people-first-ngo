@@ -12,6 +12,9 @@ use App\Http\Controllers\Admin\SettingsController as AdminSettingsController;
 use App\Http\Controllers\Admin\DataboyAnalyticsController as AdminDataboyAnalyticsController;
 use App\Http\Controllers\Admin\NgoDownloadsController as AdminNgoDownloadsController;
 use App\Http\Controllers\Admin\AccreditationController as AdminAccreditationController;
+use App\Http\Controllers\Admin\ApplicantRecipientController as AdminApplicantRecipientController;
+use App\Http\Controllers\Admin\ApplicantPaymentController as AdminApplicantPaymentController;
+use App\Http\Controllers\Admin\QueueMonitorController as AdminQueueMonitorController;
 use App\Http\Controllers\Databoy\RegistrationController;
 use App\Http\Controllers\Databoy\AuthController as DataboyAuthController;
 use App\Http\Controllers\Databoy\DashboardController as DataboyDashboardController;
@@ -102,6 +105,21 @@ Route::middleware('auth')->group(function () {
     Route::get('/admin/accreditation', [AdminAccreditationController::class, 'index'])->name('admin.accreditation');
     Route::post('/admin/accreditation/{databoyApplication}', [AdminAccreditationController::class, 'accredit'])->name('admin.accreditation.accredit');
     Route::get('/admin/accredited', [AdminAccreditationController::class, 'list'])->name('admin.accredited');
+
+    // Applicant Recipients
+    Route::get('/admin/applicant-recipients', [AdminApplicantRecipientController::class, 'index'])->name('admin.applicant-recipients');
+    Route::post('/admin/applicant-recipients', [AdminApplicantRecipientController::class, 'create'])->name('admin.applicant-recipients.create');
+
+    // Applicant Payments
+    Route::get('/admin/applicant-payments', [AdminApplicantPaymentController::class, 'index'])->name('admin.applicant-payments');
+    Route::post('/admin/applicant-payments', [AdminApplicantPaymentController::class, 'pay'])->name('admin.applicant-payments.pay');
+    Route::get('/admin/applicant-payments/paid', [AdminApplicantPaymentController::class, 'paid'])->name('admin.applicant-payments.paid');
+
+    // Queue Monitor
+    Route::get('/admin/queue-monitor', [AdminQueueMonitorController::class, 'index'])->name('admin.queue-monitor');
+    Route::post('/admin/queue-monitor/retry-all', [AdminQueueMonitorController::class, 'retryAll'])->name('admin.queue-monitor.retry-all');
+    Route::post('/admin/queue-monitor/{uuid}/retry', [AdminQueueMonitorController::class, 'retry'])->name('admin.queue-monitor.retry');
+    Route::post('/admin/queue-monitor/{uuid}/forget', [AdminQueueMonitorController::class, 'forget'])->name('admin.queue-monitor.forget');
 
     // Geo Import
     Route::get('/geo-import', [GeoImportController::class, 'showPage'])->name('geo.import');

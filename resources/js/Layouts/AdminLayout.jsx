@@ -104,6 +104,36 @@ const NAV = [
         ),
     },
     {
+        label: 'Applicant Recipients',
+        href: 'admin.applicant-recipients',
+        icon: (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 8v6m3-3h-6" />
+            </svg>
+        ),
+    },
+    {
+        label: 'Applicant Payments',
+        href: 'admin.applicant-payments',
+        icon: (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                    d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+        ),
+    },
+    {
+        label: 'Paid Applicants',
+        href: 'admin.applicant-payments.paid',
+        icon: (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+        ),
+    },
+    {
         label: 'Databoy Payment',
         href: 'admin.databoy-payments',
         icon: (
@@ -149,6 +179,16 @@ const NAV = [
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
                     d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+        ),
+    },
+    {
+        label: 'Job Queue',
+        href: 'admin.queue-monitor',
+        icon: (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                    d="M4 6h16M4 10h16M4 14h10M4 18h10m6-4l2 2-2 2" />
             </svg>
         ),
     },

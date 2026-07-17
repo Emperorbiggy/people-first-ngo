@@ -42,12 +42,13 @@ function SettingRow({ label, description, enabled, settingKey, statusOn, statusO
     );
 }
 
-function PaymentGatewaySection({ paymentGateway, paystackPublicKey, paystackSecretKeySet, easigatewayAppKeySet, bulkTransferAmount }) {
+function PaymentGatewaySection({ paymentGateway, paystackPublicKey, paystackSecretKeySet, easigatewayAppKeySet, bulkTransferAmount, applicantTransferAmount }) {
     const [gateway, setGateway] = useState(paymentGateway || 'paystack');
     const [secretKey, setSecretKey] = useState('');
     const [publicKey, setPublicKey] = useState(paystackPublicKey || '');
     const [appKey, setAppKey] = useState('');
     const [transferAmount, setTransferAmount] = useState(bulkTransferAmount || '');
+    const [applicantAmount, setApplicantAmount] = useState(applicantTransferAmount || '');
     const [showSecret, setShowSecret] = useState(false);
     const [showAppKey, setShowAppKey] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -61,6 +62,7 @@ function PaymentGatewaySection({ paymentGateway, paystackPublicKey, paystackSecr
             paystack_public_key: publicKey,
             easigateway_app_key: appKey,
             bulk_transfer_amount: transferAmount,
+            applicant_transfer_amount: applicantAmount,
         }, {
             preserveScroll: true,
             onSuccess: () => {
@@ -150,7 +152,23 @@ function PaymentGatewaySection({ paymentGateway, paystackPublicKey, paystackSecr
                                 className="w-full rounded-xl border border-gray-200 pl-7 pr-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
                             />
                         </div>
-                        <p className="text-xs text-gray-500 mt-1">Amount paid to each recipient when a bulk transfer is run.</p>
+                        <p className="text-xs text-gray-500 mt-1">Amount paid to each databoy when a bulk transfer is run.</p>
+                    </div>
+                    <div>
+                        <label className="text-xs font-medium text-gray-600">Applicant Transfer Amount</label>
+                        <div className="relative mt-1">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">₦</span>
+                            <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={applicantAmount}
+                                onChange={(e) => setApplicantAmount(e.target.value)}
+                                placeholder="0.00"
+                                className="w-full rounded-xl border border-gray-200 pl-7 pr-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                            />
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">Amount paid to each applicant when an applicant bulk transfer is run.</p>
                     </div>
                 </div>
             )}
@@ -458,6 +476,7 @@ export default function Settings({
     paystackSecretKeySet,
     easigatewayAppKeySet,
     bulkTransferAmount,
+    applicantTransferAmount,
 }) {
     const { flash } = usePage().props;
 
@@ -504,6 +523,7 @@ export default function Settings({
                     paystackSecretKeySet={paystackSecretKeySet}
                     easigatewayAppKeySet={easigatewayAppKeySet}
                     bulkTransferAmount={bulkTransferAmount}
+                    applicantTransferAmount={applicantTransferAmount}
                 />
 
                 <FileMaintenanceCard />

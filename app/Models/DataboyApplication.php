@@ -32,4 +32,6 @@ class DataboyApplication extends Model
     public function ward()        { return $this->belongsTo(Ward::class); }
     public function pollingUnit() { return $this->belongsTo(PollingUnit::class); }
     public function accreditedBy() { return $this->belongsTo(User::class, 'accredited_by'); }
+    public function recipient()   { return $this->hasOne(DataboyApplicantRecipient::class, 'databoy_application_id'); }
+    public function payments()    { return $this->hasMany(ApplicantPayment::class, 'databoy_application_id'); }
 }
