@@ -27,11 +27,20 @@ export default function QueueMonitor({ stats = {}, pending = [], failed = [] }) 
     const [autoRefresh, setAutoRefresh] = useState(true);
     const [busyId, setBusyId] = useState(null);
     const [retryingAll, setRetryingAll] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
+    const [lastRefreshed, setLastRefreshed] = useState(new Date());
 
     useEffect(() => {
         if (!autoRefresh) return;
         const interval = setInterval(() => {
-            router.reload({ only: ['stats', 'pending', 'failed'] });
+            setRefreshing(true);
+            router.reload({
+                only: ['stats', 'pending', 'failed'],
+                onFinish: () => {
+                    setRefreshing(false);
+                    setLastRefreshed(new Date());
+                },
+            });
         }, 5000);
         return () => clearInterval(interval);
     }, [autoRefresh]);
@@ -73,6 +82,11 @@ export default function QueueMonitor({ stats = {}, pending = [], failed = [] }) 
                         <input type="checkbox" checked={autoRefresh} onChange={(e) => setAutoRefresh(e.target.checked)}
                             className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
                         Auto-refresh every 5s
+                        {autoRefresh && (
+                            <span className={refreshing ? 'text-indigo-500 font-medium' : 'text-gray-400'}>
+                                · {refreshing ? 'refreshing…' : `last checked ${lastRefreshed.toLocaleTimeString()}`}
+                            </span>
+                        )}
                     </label>
                 </div>
 
