@@ -520,6 +520,7 @@ function CompressFilesCard() {
 export default function Settings({
     registrationOpen,
     accessEnabled,
+    accreditationTimeRestrictionEnabled,
     paymentGateway,
     paystackPublicKey,
     paystackSecretKeySet,
@@ -563,6 +564,17 @@ export default function Settings({
                     enabled={accessEnabled}
                     statusOn="Access is ENABLED — databoys can create applications."
                     statusOff="Access is DISABLED — all databoys are blocked from creating applications."
+                    colorOn="green"
+                    colorOff="red"
+                />
+
+                <SettingRow
+                    label="Accreditation Time Restriction"
+                    description="Controls whether check-in/check-out for databoy accreditation is limited to the 9:00 AM–12:00 PM and 3:00 PM–6:00 PM windows."
+                    settingKey="accreditation_time_restriction_enabled"
+                    enabled={accreditationTimeRestrictionEnabled}
+                    statusOn="Restriction is ENABLED — check-in/check-out only allowed in the 9–12 and 3–6 windows, and checkout must land in the same window as check-in."
+                    statusOff="Restriction is DISABLED — databoys can check in and check out at any time."
                     colorOn="green"
                     colorOff="red"
                 />

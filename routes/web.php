@@ -179,7 +179,8 @@ Route::prefix('databoy')->name('databoy.')->group(function () {
         Route::put('/applications/{databoyApplication}/polling-unit', [DataboyApplicationController::class, 'updatePollingUnit'])->name('applications.update-polling-unit');
 
         Route::get('/accreditation', [DataboyAccreditationController::class, 'index'])->name('accreditation.index');
-        Route::post('/accreditation/{databoyApplication}', [DataboyAccreditationController::class, 'accredit'])->name('accreditation.accredit');
+        Route::post('/accreditation/{databoyApplication}/check-in', [DataboyAccreditationController::class, 'checkIn'])->name('accreditation.check-in');
+        Route::post('/accreditation/{databoyApplication}/check-out', [DataboyAccreditationController::class, 'checkOut'])->name('accreditation.check-out');
     });
 });
 

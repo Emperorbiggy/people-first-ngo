@@ -18,6 +18,7 @@ class DataboyApplication extends Model
         'has_voter_card',
         'passport_photograph_path', 'valid_id_card_path', 'highest_qualification_certificate_path',
         'is_accredited', 'accredited_at', 'accredited_by', 'accredited_by_databoy_id',
+        'accreditation_role', 'check_in_photo_path', 'checked_in_at', 'check_out_photo_path', 'checked_out_at',
     ];
 
     protected $casts = [
@@ -25,6 +26,8 @@ class DataboyApplication extends Model
         'age'            => 'integer',
         'is_accredited'  => 'boolean',
         'accredited_at'  => 'datetime',
+        'checked_in_at'  => 'datetime',
+        'checked_out_at' => 'datetime',
     ];
 
     public function databoy()     { return $this->belongsTo(Databoy::class, 'registered_by'); }

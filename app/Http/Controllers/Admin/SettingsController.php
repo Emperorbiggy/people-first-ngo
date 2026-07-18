@@ -19,6 +19,7 @@ class SettingsController extends Controller
         return inertia('Admin/Settings', [
             'registrationOpen' => Setting::get('databoy_registration_open', '1') === '1',
             'accessEnabled'    => Setting::get('databoy_access_enabled', '1') === '1',
+            'accreditationTimeRestrictionEnabled' => Setting::get('accreditation_time_restriction_enabled', '1') === '1',
 
             'paymentGateway'       => Setting::get('payment_gateway', 'paystack'),
             'paystackPublicKey'    => Setting::get('paystack_public_key', ''),
@@ -33,7 +34,7 @@ class SettingsController extends Controller
     public function update(Request $request)
     {
         $request->validate([
-            'key'   => 'required|in:databoy_registration_open,databoy_access_enabled',
+            'key'   => 'required|in:databoy_registration_open,databoy_access_enabled,accreditation_time_restriction_enabled',
             'value' => 'required|boolean',
         ]);
 
