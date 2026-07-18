@@ -46,6 +46,7 @@ export default function DataboyLayout({ title, children }) {
                         {navLink('databoy.dashboard', 'Dashboard')}
                         {navLink('databoy.applications.index', 'My Applications')}
                         {navLink('databoy.applications.create', '+ Add Application')}
+                        {navLink('databoy.accreditation.index', 'Accreditation')}
                     </div>
 
                     <div className="hidden sm:flex items-center gap-3">
@@ -78,6 +79,7 @@ export default function DataboyLayout({ title, children }) {
                         {navLink('databoy.dashboard', 'Dashboard')}
                         {navLink('databoy.applications.index', 'My Applications')}
                         {navLink('databoy.applications.create', '+ Add Application')}
+                        {navLink('databoy.accreditation.index', 'Accreditation')}
                         <div className="pt-2 border-t border-indigo-700 mt-2">
                             <p className="text-xs text-indigo-400 px-4 mb-1">{databoy?.full_name}</p>
                             <Link

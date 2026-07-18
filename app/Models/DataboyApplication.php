@@ -17,7 +17,7 @@ class DataboyApplication extends Model
         'current_occupation', 'work_grade_level',
         'has_voter_card',
         'passport_photograph_path', 'valid_id_card_path', 'highest_qualification_certificate_path',
-        'is_accredited', 'accredited_at', 'accredited_by',
+        'is_accredited', 'accredited_at', 'accredited_by', 'accredited_by_databoy_id',
     ];
 
     protected $casts = [
@@ -32,6 +32,7 @@ class DataboyApplication extends Model
     public function ward()        { return $this->belongsTo(Ward::class); }
     public function pollingUnit() { return $this->belongsTo(PollingUnit::class); }
     public function accreditedBy() { return $this->belongsTo(User::class, 'accredited_by'); }
+    public function accreditedByDataboy() { return $this->belongsTo(Databoy::class, 'accredited_by_databoy_id'); }
     public function recipient()   { return $this->hasOne(DataboyApplicantRecipient::class, 'databoy_application_id'); }
     public function payments()    { return $this->hasMany(ApplicantPayment::class, 'databoy_application_id'); }
 }

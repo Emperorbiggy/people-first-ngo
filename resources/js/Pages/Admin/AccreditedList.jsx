@@ -86,7 +86,16 @@ export default function AccreditedList({ applications = [] }) {
                                                 </span>
                                             </td>
                                             <td className="px-5 py-3 text-sm text-gray-600 whitespace-nowrap">{app.ward?.name ?? '—'}</td>
-                                            <td className="px-5 py-3 text-sm text-gray-600 whitespace-nowrap">{app.accredited_by?.name ?? '—'}</td>
+                                            <td className="px-5 py-3 text-sm text-gray-600 whitespace-nowrap">
+                                                {app.accreditor_name}
+                                                {app.accreditor_type && (
+                                                    <span className={`ml-1.5 inline-flex px-1.5 py-0.5 text-[10px] font-medium rounded ${
+                                                        app.accreditor_type === 'Admin' ? 'bg-purple-50 text-purple-600' : 'bg-teal-50 text-teal-600'
+                                                    }`}>
+                                                        {app.accreditor_type}
+                                                    </span>
+                                                )}
+                                            </td>
                                             <td className="px-5 py-3 text-xs text-gray-400 whitespace-nowrap">
                                                 {app.accredited_at
                                                     ? new Date(app.accredited_at).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })

@@ -15,10 +15,14 @@ use App\Http\Controllers\Admin\AccreditationController as AdminAccreditationCont
 use App\Http\Controllers\Admin\ApplicantRecipientController as AdminApplicantRecipientController;
 use App\Http\Controllers\Admin\ApplicantPaymentController as AdminApplicantPaymentController;
 use App\Http\Controllers\Admin\QueueMonitorController as AdminQueueMonitorController;
+use App\Http\Controllers\Admin\EasigatewayFundingController as AdminEasigatewayFundingController;
+use App\Http\Controllers\Admin\AirtimeRecipientController as AdminAirtimeRecipientController;
+use App\Http\Controllers\Admin\AirtimeController as AdminAirtimeController;
 use App\Http\Controllers\Databoy\RegistrationController;
 use App\Http\Controllers\Databoy\AuthController as DataboyAuthController;
 use App\Http\Controllers\Databoy\DashboardController as DataboyDashboardController;
 use App\Http\Controllers\Databoy\ApplicationController as DataboyApplicationController;
+use App\Http\Controllers\Databoy\AccreditationController as DataboyAccreditationController;
 use App\Models\Country;
 use Illuminate\Support\Facades\Route;
 
@@ -121,6 +125,20 @@ Route::middleware('auth')->group(function () {
     Route::post('/admin/queue-monitor/{uuid}/retry', [AdminQueueMonitorController::class, 'retry'])->name('admin.queue-monitor.retry');
     Route::post('/admin/queue-monitor/{uuid}/forget', [AdminQueueMonitorController::class, 'forget'])->name('admin.queue-monitor.forget');
 
+    // EasiGateway Wallet Funding
+    Route::get('/admin/easigateway-funding', [AdminEasigatewayFundingController::class, 'index'])->name('admin.easigateway-funding');
+    Route::post('/admin/easigateway-funding', [AdminEasigatewayFundingController::class, 'create'])->name('admin.easigateway-funding.create');
+    Route::post('/admin/easigateway-funding/{funding}/verify', [AdminEasigatewayFundingController::class, 'verify'])->name('admin.easigateway-funding.verify');
+
+    // Airtime Recipients
+    Route::get('/admin/airtime-recipients', [AdminAirtimeRecipientController::class, 'index'])->name('admin.airtime-recipients');
+    Route::post('/admin/airtime-recipients', [AdminAirtimeRecipientController::class, 'create'])->name('admin.airtime-recipients.create');
+
+    // Airtime
+    Route::get('/admin/airtime', [AdminAirtimeController::class, 'index'])->name('admin.airtime');
+    Route::post('/admin/airtime', [AdminAirtimeController::class, 'send'])->name('admin.airtime.send');
+    Route::get('/admin/airtime/history', [AdminAirtimeController::class, 'history'])->name('admin.airtime.history');
+
     // Geo Import
     Route::get('/geo-import', [GeoImportController::class, 'showPage'])->name('geo.import');
     Route::get('/geo/countries', [GeoImportController::class, 'countries'])->name('geo.countries');
@@ -159,6 +177,9 @@ Route::prefix('databoy')->name('databoy.')->group(function () {
         Route::get('/applications/create', [DataboyApplicationController::class, 'create'])->name('applications.create');
         Route::post('/applications', [DataboyApplicationController::class, 'store'])->name('applications.store');
         Route::put('/applications/{databoyApplication}/polling-unit', [DataboyApplicationController::class, 'updatePollingUnit'])->name('applications.update-polling-unit');
+
+        Route::get('/accreditation', [DataboyAccreditationController::class, 'index'])->name('accreditation.index');
+        Route::post('/accreditation/{databoyApplication}', [DataboyAccreditationController::class, 'accredit'])->name('accreditation.accredit');
     });
 });
 

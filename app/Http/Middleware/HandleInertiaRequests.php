@@ -37,8 +37,9 @@ class HandleInertiaRequests extends Middleware
             ],
             'databoy' => optional(Auth::guard('databoy')->user())->load('ward', 'lga'),
             'flash'   => [
-                'success' => session('success'),
-                'error'   => session('error'),
+                'success'         => session('success'),
+                'error'           => session('error'),
+                'checkoutFunding' => session('checkoutFunding'),
             ],
         ];
     }

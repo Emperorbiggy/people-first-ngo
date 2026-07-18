@@ -209,6 +209,55 @@ function PaymentGatewaySection({ paymentGateway, paystackPublicKey, paystackSecr
     );
 }
 
+function AirtimeSettingsSection({ airtimeAmount, paymentGateway }) {
+    const [amount, setAmount] = useState(airtimeAmount || '');
+    const [saving, setSaving] = useState(false);
+
+    const save = () => {
+        setSaving(true);
+        router.post(route('admin.settings.payment-gateway'), {
+            gateway: paymentGateway || 'paystack',
+            airtime_amount: amount,
+        }, {
+            preserveScroll: true,
+            onFinish: () => setSaving(false),
+        });
+    };
+
+    return (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
+            <div>
+                <p className="font-semibold text-gray-800">Airtime (EasiGateway)</p>
+                <p className="text-xs text-gray-500 mt-0.5">Amount of airtime sent to each databoy's registered network number.</p>
+            </div>
+            <div>
+                <label className="text-xs font-medium text-gray-600">Airtime Amount</label>
+                <div className="relative mt-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">₦</span>
+                    <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={amount}
+                        onChange={(e) => setAmount(e.target.value)}
+                        placeholder="0.00"
+                        className="w-full rounded-xl border border-gray-200 pl-7 pr-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                </div>
+                <p className="text-xs text-gray-500 mt-1">Airtime credentials (API key, URL) are configured via .env, not here.</p>
+            </div>
+            <button
+                type="button"
+                onClick={save}
+                disabled={saving}
+                className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-semibold rounded-xl text-sm transition"
+            >
+                {saving ? 'Saving…' : 'Save Airtime Amount'}
+            </button>
+        </div>
+    );
+}
+
 function FileMaintenanceCard() {
     const [status, setStatus] = useState('idle');
     const [result, setResult] = useState(null);
@@ -477,6 +526,7 @@ export default function Settings({
     easigatewayAppKeySet,
     bulkTransferAmount,
     applicantTransferAmount,
+    airtimeAmount,
 }) {
     const { flash } = usePage().props;
 
@@ -524,6 +574,11 @@ export default function Settings({
                     easigatewayAppKeySet={easigatewayAppKeySet}
                     bulkTransferAmount={bulkTransferAmount}
                     applicantTransferAmount={applicantTransferAmount}
+                />
+
+                <AirtimeSettingsSection
+                    airtimeAmount={airtimeAmount}
+                    paymentGateway={paymentGateway}
                 />
 
                 <FileMaintenanceCard />

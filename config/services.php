@@ -34,6 +34,12 @@ return [
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],
     ],
+    
+    'easigateway' => [
+        'url'        => env('EASIGATEWAY_APP_URL', 'https://easigateway-api.onrender.com/api/v1'),
+        'key'        => env('EASIGATEWAY_API_KEY'),
+        'service_id' => env('EASIGATEWAY_SERVICE_ID'),
+    ],
 
     'paystack' => [
         'secret_key' => env('PAYSTACK_SECRET_KEY'),

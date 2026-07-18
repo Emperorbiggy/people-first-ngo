@@ -26,6 +26,7 @@ class SettingsController extends Controller
             'easigatewayAppKeySet' => (bool) Setting::get('easigateway_app_key'),
             'bulkTransferAmount'      => Setting::get('bulk_transfer_amount', ''),
             'applicantTransferAmount' => Setting::get('applicant_transfer_amount', ''),
+            'airtimeAmount'           => Setting::get('airtime_amount', ''),
         ]);
     }
 
@@ -50,6 +51,7 @@ class SettingsController extends Controller
             'easigateway_app_key'     => 'nullable|string',
             'bulk_transfer_amount'    => 'nullable|numeric|min:0',
             'applicant_transfer_amount' => 'nullable|numeric|min:0',
+            'airtime_amount'          => 'nullable|numeric|min:0',
         ]);
 
         Setting::set('payment_gateway', $request->gateway);
@@ -60,6 +62,10 @@ class SettingsController extends Controller
 
         if ($request->filled('applicant_transfer_amount')) {
             Setting::set('applicant_transfer_amount', $request->applicant_transfer_amount);
+        }
+
+        if ($request->filled('airtime_amount')) {
+            Setting::set('airtime_amount', $request->airtime_amount);
         }
 
         if ($request->filled('paystack_secret_key')) {
