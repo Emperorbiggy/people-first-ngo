@@ -252,7 +252,6 @@ export default function EasigatewayFunding({ balance = 0, fundings = [], transac
                 <div className="bg-gradient-to-br from-indigo-600 to-indigo-800 rounded-2xl shadow-sm p-6 text-white">
                     <p className="text-xs text-indigo-200">Current Wallet Balance (tracked internally)</p>
                     <p className="text-3xl font-bold mt-1">{formatNaira(balance)}</p>
-                    <p className="text-xs text-indigo-200 mt-2">This is our own running ledger of verified fundings minus airtime spend — not a live read from EasiGateway.</p>
                 </div>
 
                 <FundForm />
