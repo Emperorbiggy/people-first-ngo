@@ -209,6 +209,41 @@ class EasiGatewayService
     }
 
     /**
+     * Purchase a data bundle via EasiGateway.
+     * @return array{status: string, message: string, data: mixed}
+     */
+    public function purchaseData(string $phone, string $serviceCategoryId, string $bundleCode, int $amount): array
+    {
+        $url     = "{$this->baseUrl}/vas/pay/data";
+        $payload = [
+            'amount'            => $amount,
+            'serviceCategoryId' => $serviceCategoryId,
+            'bundleCode'        => $bundleCode,
+            'phoneNumber'       => $phone,
+        ];
+
+        try {
+            $response = Http::withHeaders([
+                'accept'       => '*/*',
+                'x-api-key'    => $this->apiKey,
+                'Content-Type' => 'application/json',
+            ])->timeout(30)->post($url, $payload);
+
+            $body = $response->json() ?? [];
+            $this->log('purchaseData', 'POST', $url, $payload, $response->status(), $body);
+
+            if ($response->successful() && $this->isBodySuccess($body)) {
+                return ['status' => 'success', 'message' => 'Data bundle purchased via EasiGateway', 'data' => $body];
+            }
+
+            return ['status' => 'failed', 'message' => $body['message'] ?? 'Purchase failed', 'data' => $body];
+        } catch (\Throwable $e) {
+            $this->logException('purchaseData', 'POST', $url, $e);
+            return ['status' => 'failed', 'message' => $e->getMessage(), 'data' => null];
+        }
+    }
+
+    /**
      * Enquire account name for a given account number and bank code.
      * POST /api/transfers/name-enquiry
      * @return array{status: string, data: mixed}

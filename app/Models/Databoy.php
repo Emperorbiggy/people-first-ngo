@@ -33,4 +33,5 @@ class Databoy extends Authenticatable
     public function payments()     { return $this->hasMany(DataboyPayment::class); }
     public function airtimeRecipient()  { return $this->hasOne(AirtimeRecipient::class); }
     public function airtimePurchases()  { return $this->hasMany(AirtimePurchase::class); }
+    public function dataPurchases()     { return $this->hasMany(DataPurchase::class); }
 }

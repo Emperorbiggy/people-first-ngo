@@ -18,6 +18,7 @@ use App\Http\Controllers\Admin\QueueMonitorController as AdminQueueMonitorContro
 use App\Http\Controllers\Admin\TransportFareController as AdminTransportFareController;
 use App\Http\Controllers\Admin\AccreditationPaymentController as AdminAccreditationPaymentController;
 use App\Http\Controllers\Admin\DataPlanController as AdminDataPlanController;
+use App\Http\Controllers\Admin\DataPurchaseController as AdminDataPurchaseController;
 use App\Http\Controllers\Admin\EasigatewayFundingController as AdminEasigatewayFundingController;
 use App\Http\Controllers\Admin\AirtimeRecipientController as AdminAirtimeRecipientController;
 use App\Http\Controllers\Admin\AirtimeController as AdminAirtimeController;
@@ -139,6 +140,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/admin/data-plans', [AdminDataPlanController::class, 'index'])->name('admin.data-plans');
     Route::get('/admin/data-plans/{categoryId}/products', [AdminDataPlanController::class, 'products'])->name('admin.data-plans.products');
     Route::post('/admin/data-plans', [AdminDataPlanController::class, 'save'])->name('admin.data-plans.save');
+
+    // Data Purchase (buy configured data bundles for databoys)
+    Route::get('/admin/data-purchase', [AdminDataPurchaseController::class, 'index'])->name('admin.data-purchase');
+    Route::post('/admin/data-purchase', [AdminDataPurchaseController::class, 'send'])->name('admin.data-purchase.send');
+    Route::get('/admin/data-purchase/history', [AdminDataPurchaseController::class, 'history'])->name('admin.data-purchase.history');
 
     // EasiGateway Wallet Funding
     Route::get('/admin/easigateway-funding', [AdminEasigatewayFundingController::class, 'index'])->name('admin.easigateway-funding');
