@@ -34,4 +34,14 @@ class Databoy extends Authenticatable
     public function airtimeRecipient()  { return $this->hasOne(AirtimeRecipient::class); }
     public function airtimePurchases()  { return $this->hasMany(AirtimePurchase::class); }
     public function dataPurchases()     { return $this->hasMany(DataPurchase::class); }
+
+    /**
+     * Airtime/data purchases are only offered to databoys who have actually
+     * registered a meaningful number of applicants — a databoy who hasn't
+     * done the work yet shouldn't be topped up.
+     */
+    public function scopeWithMinApplications($query, int $min = 2)
+    {
+        return $query->has('applications', '>=', $min);
+    }
 }

@@ -124,7 +124,7 @@ class PayAccreditedApplicantJob implements ShouldQueue
         // Pace transfer calls so a burst of checkouts processed back-to-back by
         // the worker (e.g. catching up after a delayed cron run) doesn't fire
         // Paystack calls with zero gap between them.
-        usleep(200000);
+        usleep(1000000);
 
         $reference = $this->generateApplicantReference($application, 'accreditation');
 

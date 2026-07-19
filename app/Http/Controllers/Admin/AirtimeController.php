@@ -97,6 +97,7 @@ class AirtimeController extends Controller
     private function eligibleDataboysQuery()
     {
         return Databoy::whereHas('airtimeRecipient', fn ($q) => $q->where('status', 'success'))
-            ->whereDoesntHave('airtimePurchases', fn ($q) => $q->where('status', '!=', 'failed'));
+            ->whereDoesntHave('airtimePurchases', fn ($q) => $q->where('status', '!=', 'failed'))
+            ->withMinApplications(2);
     }
 }

@@ -17,7 +17,7 @@ class PurchaseAirtimeJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 1;
-    public int $timeout = 60;
+    public int $timeout = 120;
 
     public function __construct(public int $databoyId, public float $amount)
     {
@@ -51,6 +51,11 @@ class PurchaseAirtimeJob implements ShouldQueue
             ]);
             return;
         }
+
+        // Pace calls so a burst of queued jobs doesn't fire EasiGateway
+        // requests back-to-back with zero gap (EasiGateway runs on a
+        // Render.com instance that can be slow to respond under load).
+        usleep(1000000);
 
         $result = $easiGateway->purchase($recipient->phone_number, $recipient->service_category_id, (int) $this->amount);
 

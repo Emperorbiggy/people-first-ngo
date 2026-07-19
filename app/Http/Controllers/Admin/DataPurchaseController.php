@@ -100,6 +100,7 @@ class DataPurchaseController extends Controller
             ->whereNotNull('browsing_number')
             ->where('browsing_number', '!=', '')
             ->whereIn('browsing_network', DataPlan::pluck('network'))
-            ->whereDoesntHave('dataPurchases', fn ($q) => $q->where('status', '!=', 'failed'));
+            ->whereDoesntHave('dataPurchases', fn ($q) => $q->where('status', '!=', 'failed'))
+            ->withMinApplications(2);
     }
 }

@@ -16,7 +16,7 @@ class CreateApplicantRecipientJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 1;
-    public int $timeout = 60;
+    public int $timeout = 90;
 
     public function __construct(public int $databoyApplicationId)
     {
@@ -59,7 +59,7 @@ class CreateApplicantRecipientJob implements ShouldQueue
 
         // Pace recipient-creation calls so a large "create all" run doesn't
         // burst past Paystack's rate limit.
-        usleep(200000);
+        usleep(1000000);
 
         $recipient = $paystack->createRecipient([
             'name'           => $application->bank_account_name,

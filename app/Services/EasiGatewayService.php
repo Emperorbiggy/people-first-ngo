@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -30,12 +31,8 @@ class EasiGatewayService
         $url = "{$this->baseUrl}/vas/{$this->serviceId}/service-categories";
 
         try {
-            $response = Http::withHeaders([
-                'accept'    => '*/*',
-                'x-api-key' => $this->apiKey,
-            ])->timeout(30)->get($url);
-
-            $body = $response->json() ?? [];
+            $response = $this->request('GET', $url);
+            $body     = $response->json() ?? [];
             $this->log('getServiceCategories', 'GET', $url, null, $response->status(), $body);
 
             if ($response->successful() && isset($body['data'])) {
@@ -59,12 +56,8 @@ class EasiGatewayService
         $url = "{$this->baseUrl}/vas/{$this->dataServiceId}/service-categories";
 
         try {
-            $response = Http::withHeaders([
-                'accept'    => '*/*',
-                'x-api-key' => $this->apiKey,
-            ])->timeout(30)->get($url);
-
-            $body = $response->json() ?? [];
+            $response = $this->request('GET', $url);
+            $body     = $response->json() ?? [];
             $this->log('getDataServiceCategories', 'GET', $url, null, $response->status(), $body);
 
             if ($response->successful() && isset($body['data'])) {
@@ -87,12 +80,8 @@ class EasiGatewayService
         $url = "{$this->baseUrl}/vas/service-category/{$categoryId}/products";
 
         try {
-            $response = Http::withHeaders([
-                'accept'    => '*/*',
-                'x-api-key' => $this->apiKey,
-            ])->timeout(30)->get($url);
-
-            $body = $response->json() ?? [];
+            $response = $this->request('GET', $url);
+            $body     = $response->json() ?? [];
             $this->log('getServiceCategoryProducts', 'GET', $url, null, $response->status(), $body);
 
             if ($response->successful() && isset($body['data'])) {
@@ -122,13 +111,8 @@ class EasiGatewayService
         ];
 
         try {
-            $response = Http::withHeaders([
-                'accept'       => '*/*',
-                'x-api-key'    => $this->apiKey,
-                'Content-Type' => 'application/json',
-            ])->timeout(30)->post($url, $payload);
-
-            $body = $response->json() ?? [];
+            $response = $this->request('POST', $url, $payload);
+            $body     = $response->json() ?? [];
             $this->log('initiateCollection', 'POST', $url, $payload, $response->status(), $body);
 
             if ($response->successful()) {
@@ -142,7 +126,7 @@ class EasiGatewayService
             return ['status' => 'failed', 'message' => $body['message'] ?? 'Failed to create virtual account', 'data' => $body];
         } catch (\Throwable $e) {
             $this->logException('initiateCollection', 'POST', $url, $e);
-            return ['status' => 'failed', 'message' => $e->getMessage(), 'data' => null];
+            return ['status' => 'failed', 'message' => $this->friendlyMessage($e), 'data' => null];
         }
     }
 
@@ -155,12 +139,8 @@ class EasiGatewayService
         $url = "{$this->baseUrl}/collections/verify/{$reference}";
 
         try {
-            $response = Http::withHeaders([
-                'accept'    => '*/*',
-                'x-api-key' => $this->apiKey,
-            ])->timeout(30)->get($url);
-
-            $body = $response->json() ?? [];
+            $response = $this->request('GET', $url);
+            $body     = $response->json() ?? [];
             $this->log('verifyCollection', 'GET', $url, ['reference' => $reference], $response->status(), $body);
 
             if ($response->successful()) {
@@ -170,7 +150,7 @@ class EasiGatewayService
             return ['status' => 'failed', 'message' => $body['message'] ?? 'Verification failed', 'data' => $body];
         } catch (\Throwable $e) {
             $this->logException('verifyCollection', 'GET', $url, $e);
-            return ['status' => 'failed', 'message' => $e->getMessage(), 'data' => null];
+            return ['status' => 'failed', 'message' => $this->friendlyMessage($e), 'data' => null];
         }
     }
 
@@ -188,13 +168,8 @@ class EasiGatewayService
         ];
 
         try {
-            $response = Http::withHeaders([
-                'accept'       => '*/*',
-                'x-api-key'    => $this->apiKey,
-                'Content-Type' => 'application/json',
-            ])->timeout(30)->post($url, $payload);
-
-            $body = $response->json() ?? [];
+            $response = $this->request('POST', $url, $payload);
+            $body     = $response->json() ?? [];
             $this->log('purchase', 'POST', $url, $payload, $response->status(), $body);
 
             if ($response->successful() && $this->isBodySuccess($body)) {
@@ -204,7 +179,7 @@ class EasiGatewayService
             return ['status' => 'failed', 'message' => $body['message'] ?? 'Purchase failed', 'data' => $body];
         } catch (\Throwable $e) {
             $this->logException('purchase', 'POST', $url, $e);
-            return ['status' => 'failed', 'message' => $e->getMessage(), 'data' => null];
+            return ['status' => 'failed', 'message' => $this->friendlyMessage($e), 'data' => null];
         }
     }
 
@@ -223,13 +198,8 @@ class EasiGatewayService
         ];
 
         try {
-            $response = Http::withHeaders([
-                'accept'       => '*/*',
-                'x-api-key'    => $this->apiKey,
-                'Content-Type' => 'application/json',
-            ])->timeout(30)->post($url, $payload);
-
-            $body = $response->json() ?? [];
+            $response = $this->request('POST', $url, $payload);
+            $body     = $response->json() ?? [];
             $this->log('purchaseData', 'POST', $url, $payload, $response->status(), $body);
 
             if ($response->successful() && $this->isBodySuccess($body)) {
@@ -239,7 +209,7 @@ class EasiGatewayService
             return ['status' => 'failed', 'message' => $body['message'] ?? 'Purchase failed', 'data' => $body];
         } catch (\Throwable $e) {
             $this->logException('purchaseData', 'POST', $url, $e);
-            return ['status' => 'failed', 'message' => $e->getMessage(), 'data' => null];
+            return ['status' => 'failed', 'message' => $this->friendlyMessage($e), 'data' => null];
         }
     }
 
@@ -257,13 +227,8 @@ class EasiGatewayService
         ];
 
         try {
-            $response = Http::withHeaders([
-                'accept'       => '*/*',
-                'x-api-key'    => $this->apiKey,
-                'Content-Type' => 'application/json',
-            ])->timeout(30)->post($url, $payload);
-
-            $body = $response->json() ?? [];
+            $response = $this->request('POST', $url, $payload);
+            $body     = $response->json() ?? [];
 
             if ($response->successful() && ($body['status'] ?? false) === true) {
                 return ['status' => 'success', 'data' => $body['data'] ?? $body];
@@ -276,7 +241,7 @@ class EasiGatewayService
             return ['status' => 'failed', 'message' => $msg, 'data' => null];
         } catch (\Throwable $e) {
             $this->logException('nameEnquiry', 'POST', $url, $e);
-            return ['status' => 'failed', 'message' => $e->getMessage(), 'data' => null];
+            return ['status' => 'failed', 'message' => $this->friendlyMessage($e), 'data' => null];
         }
     }
 
@@ -303,6 +268,48 @@ class EasiGatewayService
         }
 
         return false;
+    }
+
+    /**
+     * Make the actual HTTP call, retrying once on connection/timeout errors
+     * (EasiGateway occasionally takes longer than our 30s timeout to respond;
+     * a single short-delay retry clears most of these transient failures
+     * without meaningfully slowing down the common, successful case).
+     */
+    private function request(string $verb, string $url, ?array $payload = null): Response
+    {
+        $headers = ['accept' => '*/*', 'x-api-key' => $this->apiKey];
+        if ($verb === 'POST') {
+            $headers['Content-Type'] = 'application/json';
+        }
+
+        $maxAttempts = 2;
+
+        for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+            try {
+                $request = Http::withHeaders($headers)->timeout(30);
+
+                return $verb === 'GET' ? $request->get($url) : $request->post($url, $payload ?? []);
+            } catch (ConnectionException $e) {
+                if ($attempt === $maxAttempts) {
+                    throw $e;
+                }
+                usleep(500000);
+            }
+        }
+    }
+
+    /**
+     * Translate raw transport-level exceptions (cURL timeouts, DNS failures,
+     * etc.) into something a non-technical admin can actually understand.
+     */
+    private function friendlyMessage(\Throwable $e): string
+    {
+        if ($e instanceof ConnectionException || stripos($e->getMessage(), 'timed out') !== false) {
+            return 'EasiGateway did not respond in time. Please try again.';
+        }
+
+        return 'Network error. Please try again.';
     }
 
     // ─── Logging helpers ────────────────────────────────────────────────────────

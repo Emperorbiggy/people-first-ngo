@@ -27,7 +27,7 @@ class PurchaseDataJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 1;
-    public int $timeout = 60;
+    public int $timeout = 120;
 
     public function __construct(public int $databoyId)
     {
@@ -88,8 +88,9 @@ class PurchaseDataJob implements ShouldQueue
         }
 
         // Pace calls so a burst of queued jobs doesn't fire EasiGateway
-        // requests back-to-back with zero gap.
-        usleep(200000);
+        // requests back-to-back with zero gap (EasiGateway runs on a
+        // Render.com instance that can be slow to respond under load).
+        usleep(1000000);
 
         $result = $easiGateway->purchaseData(
             $databoy->browsing_number,
