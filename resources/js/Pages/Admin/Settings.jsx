@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { router, usePage } from '@inertiajs/react';
+import { router, usePage, Link } from '@inertiajs/react';
 import axios from 'axios';
 import AdminLayout from '@/Layouts/AdminLayout';
 
@@ -254,6 +254,62 @@ function AirtimeSettingsSection({ airtimeAmount, paymentGateway }) {
             >
                 {saving ? 'Saving…' : 'Save Airtime Amount'}
             </button>
+        </div>
+    );
+}
+
+function AccreditationPaymentSection({ accreditationGeneralAmount, paymentGateway }) {
+    const [amount, setAmount] = useState(accreditationGeneralAmount || '');
+    const [saving, setSaving] = useState(false);
+
+    const save = () => {
+        setSaving(true);
+        router.post(route('admin.settings.payment-gateway'), {
+            gateway: paymentGateway || 'paystack',
+            accreditation_general_amount: amount,
+        }, {
+            preserveScroll: true,
+            onFinish: () => setSaving(false),
+        });
+    };
+
+    return (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
+            <div>
+                <p className="font-semibold text-gray-800">Accreditation Payment</p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                    Paid automatically to each applicant once checked out and accredited: this general amount plus their LGA's transport fare.
+                </p>
+            </div>
+            <div>
+                <label className="text-xs font-medium text-gray-600">General Accreditation Amount</label>
+                <div className="relative mt-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">₦</span>
+                    <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={amount}
+                        onChange={(e) => setAmount(e.target.value)}
+                        placeholder="0.00"
+                        className="w-full rounded-xl border border-gray-200 pl-7 pr-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                </div>
+            </div>
+            <button
+                type="button"
+                onClick={save}
+                disabled={saving}
+                className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-semibold rounded-xl text-sm transition"
+            >
+                {saving ? 'Saving…' : 'Save General Amount'}
+            </button>
+            <Link
+                href={route('admin.transport-fares')}
+                className="block text-center text-sm font-medium text-indigo-600 hover:text-indigo-800"
+            >
+                Set transport fare per LGA →
+            </Link>
         </div>
     );
 }
@@ -521,6 +577,7 @@ export default function Settings({
     registrationOpen,
     accessEnabled,
     accreditationTimeRestrictionEnabled,
+    accreditationPaymentEnabled,
     paymentGateway,
     paystackPublicKey,
     paystackSecretKeySet,
@@ -528,6 +585,7 @@ export default function Settings({
     bulkTransferAmount,
     applicantTransferAmount,
     airtimeAmount,
+    accreditationGeneralAmount,
 }) {
     const { flash } = usePage().props;
 
@@ -579,6 +637,17 @@ export default function Settings({
                     colorOff="red"
                 />
 
+                <SettingRow
+                    label="Accreditation Payment"
+                    description="Controls whether checking an applicant out automatically queues their accreditation payment."
+                    settingKey="accreditation_payment_enabled"
+                    enabled={accreditationPaymentEnabled}
+                    statusOn="Payment is ENABLED — checking an applicant out queues their accreditation payment as normal."
+                    statusOff="Payment is DISABLED — checking an applicant out still accredits them, but no payment is queued."
+                    colorOn="green"
+                    colorOff="red"
+                />
+
                 <PaymentGatewaySection
                     paymentGateway={paymentGateway}
                     paystackPublicKey={paystackPublicKey}
@@ -590,6 +659,11 @@ export default function Settings({
 
                 <AirtimeSettingsSection
                     airtimeAmount={airtimeAmount}
+                    paymentGateway={paymentGateway}
+                />
+
+                <AccreditationPaymentSection
+                    accreditationGeneralAmount={accreditationGeneralAmount}
                     paymentGateway={paymentGateway}
                 />
 

@@ -208,6 +208,40 @@ class PaystackService
     }
 
     /**
+     * Initiate a single transfer to one recipient.
+     */
+    public function initiateTransfer(string $recipientCode, int $amountKobo, string $reference, string $reason)
+    {
+        try {
+            $response = $this->postWithRetry('initiateTransfer', $this->baseUrl . '/transfer', [
+                'source'    => 'balance',
+                'amount'    => $amountKobo,
+                'recipient' => $recipientCode,
+                'reference' => $reference,
+                'reason'    => $reason,
+            ]);
+
+            if ($response->successful()) {
+                return [
+                    'status' => true,
+                    'data' => $response->json()['data']
+                ];
+            }
+
+            return [
+                'status' => false,
+                'message' => $response->json()['message'] ?? 'Unable to initiate transfer'
+            ];
+        } catch (\Exception $e) {
+            Log::error('Paystack initiateTransfer exception: ' . $e->getMessage());
+            return [
+                'status' => false,
+                'message' => 'Network error. Please try again.'
+            ];
+        }
+    }
+
+    /**
      * Finalize a transfer that requires an OTP
      */
     public function finalizeTransfer($transferCode, $otp)

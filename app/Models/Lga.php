@@ -10,4 +10,5 @@ class Lga extends Model
 
     public function state() { return $this->belongsTo(State::class); }
     public function wards() { return $this->hasMany(Ward::class); }
+    public function transportFare() { return $this->hasOne(LgaTransportFare::class); }
 }

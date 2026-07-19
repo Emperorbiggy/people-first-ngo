@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Databoy;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\PayAccreditedApplicantJob;
 use App\Models\DataboyApplication;
 use App\Models\Setting;
 use Carbon\Carbon;
@@ -20,8 +21,6 @@ class AccreditationController extends Controller
         ['start' => '15:00', 'end' => '18:00'],
     ];
 
-    private const ROLES = ['APO', 'Monitoring Officer'];
-
     public function index()
     {
         $databoy = Auth::guard('databoy')->user();
@@ -30,7 +29,7 @@ class AccreditationController extends Controller
             ->orderBy('full_name')
             ->get([
                 'id', 'full_name', 'calling_phone_number',
-                'accreditation_role', 'check_in_photo_path', 'checked_in_at',
+                'is_suitable', 'check_in_photo_path', 'checked_in_at',
                 'checked_out_at', 'is_accredited', 'accredited_at',
             ]);
 
@@ -46,28 +45,31 @@ class AccreditationController extends Controller
         abort_if($databoyApplication->registered_by !== $databoy->id, 403);
 
         if ($databoyApplication->checked_in_at) {
-            return back()->withErrors(['role' => 'This applicant is already checked in.']);
+            return back()->withErrors(['suitable' => 'This applicant is already checked in.']);
         }
 
         if ($this->timeRestrictionEnabled() && !$this->currentWindow(now())) {
-            return back()->withErrors(['role' => 'Check-in is only allowed between 9:00 AM–12:00 PM or 3:00 PM–6:00 PM.']);
+            return back()->withErrors(['suitable' => 'Check-in is only allowed between 9:00 AM–12:00 PM or 3:00 PM–6:00 PM.']);
         }
 
         $request->validate([
-            'role'  => 'required|in:' . implode(',', self::ROLES),
-            'photo' => 'required|image|max:5120',
+            'suitable' => 'required|boolean',
+            'photo'    => 'required|image|max:5120',
         ]);
 
         $filename = $this->photoFilename($databoyApplication->full_name, 'checkin');
         $path     = $request->file('photo')->storeAs('databoy-applications', $filename, 'public');
 
+        $isSuitable = $request->boolean('suitable');
+
         $databoyApplication->update([
-            'accreditation_role'  => $request->role,
+            'is_suitable'         => $isSuitable,
             'check_in_photo_path' => $path,
             'checked_in_at'       => now(),
         ]);
 
-        return back()->with('success', "{$databoyApplication->full_name} checked in as {$request->role}.");
+        $verdict = $isSuitable ? 'suitable for APO/Monitoring' : 'not suitable for APO/Monitoring';
+        return back()->with('success', "{$databoyApplication->full_name} checked in ({$verdict}).");
     }
 
     public function checkOut(Request $request, DataboyApplication $databoyApplication)
@@ -115,12 +117,24 @@ class AccreditationController extends Controller
             'accredited_by_databoy_id' => $databoy->id,
         ]);
 
-        return back()->with('success', "{$databoyApplication->full_name} checked out and has been accredited.");
+        if ($this->paymentEnabled()) {
+            PayAccreditedApplicantJob::dispatch($databoyApplication->id);
+            $suffix = ' Payment queued.';
+        } else {
+            $suffix = '';
+        }
+
+        return back()->with('success', "{$databoyApplication->full_name} checked out and has been accredited.{$suffix}");
     }
 
     private function timeRestrictionEnabled(): bool
     {
         return Setting::get('accreditation_time_restriction_enabled', '1') === '1';
+    }
+
+    private function paymentEnabled(): bool
+    {
+        return Setting::get('accreditation_payment_enabled', '1') === '1';
     }
 
     private function currentWindow(Carbon $at): ?array

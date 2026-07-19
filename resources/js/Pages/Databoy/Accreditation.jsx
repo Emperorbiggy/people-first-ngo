@@ -29,6 +29,11 @@ function formatTime(iso) {
     return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 }
 
+function suitabilityLabel(isSuitable) {
+    if (isSuitable === null || isSuitable === undefined) return '';
+    return isSuitable ? 'Suitable' : 'Not Suitable';
+}
+
 /**
  * Camera-only capture — no file upload option, per accreditation policy.
  */
@@ -145,14 +150,9 @@ function ModalShell({ title, subtitle, onClose, closable = true, children }) {
     );
 }
 
-const ROLES = [
-    { value: 'APO', label: 'Assistant Presiding Officer (APO)' },
-    { value: 'Monitoring Officer', label: 'Monitoring Officer' },
-];
-
 function CheckInModal({ application, onClose, timeRestrictionEnabled }) {
-    const [step, setStep] = useState('role'); // role | camera | preview
-    const [role, setRole] = useState('');
+    const [step, setStep] = useState('question'); // question | camera | preview
+    const [suitable, setSuitable] = useState(null);
     const [capturedFile, setCapturedFile] = useState(null);
     const [capturedImage, setCapturedImage] = useState(null);
     const [saving, setSaving] = useState(false);
@@ -161,8 +161,8 @@ function CheckInModal({ application, onClose, timeRestrictionEnabled }) {
     const window_ = currentWindow();
     const closedForCheckIn = timeRestrictionEnabled && !window_;
 
-    const chooseRole = (value) => {
-        setRole(value);
+    const answerSuitability = (value) => {
+        setSuitable(value);
         setStep('camera');
     };
 
@@ -181,7 +181,7 @@ function CheckInModal({ application, onClose, timeRestrictionEnabled }) {
     const submit = () => {
         setSaving(true);
         setError('');
-        router.post(route('databoy.accreditation.check-in', application.id), { role, photo: capturedFile }, {
+        router.post(route('databoy.accreditation.check-in', application.id), { suitable: suitable ? '1' : '0', photo: capturedFile }, {
             forceFormData: true,
             onSuccess: () => onClose(),
             onError: (e) => { setError(Object.values(e)[0] ?? 'Failed to check in.'); setSaving(false); },
@@ -197,26 +197,33 @@ function CheckInModal({ application, onClose, timeRestrictionEnabled }) {
             )}
             {error && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>}
 
-            {step === 'role' && (
+            {step === 'question' && (
                 <div className="space-y-3">
-                    <p className="text-sm text-gray-600">Select this person's role:</p>
-                    {ROLES.map((r) => (
+                    <p className="text-sm font-semibold text-gray-700 text-center">Is the person suitable for APO or for Monitoring?</p>
+                    <div className="flex gap-3">
                         <button
-                            key={r.value}
                             type="button"
-                            onClick={() => chooseRole(r.value)}
+                            onClick={() => answerSuitability(false)}
                             disabled={closedForCheckIn}
-                            className="w-full text-left px-4 py-3 border border-gray-200 rounded-xl hover:border-indigo-400 hover:bg-indigo-50 disabled:opacity-40 disabled:hover:bg-white transition"
+                            className="flex-1 py-3 border border-red-200 text-red-600 rounded-xl text-sm font-semibold hover:bg-red-50 disabled:opacity-40 transition"
                         >
-                            <span className="text-sm font-semibold text-gray-800">{r.label}</span>
+                            No
                         </button>
-                    ))}
+                        <button
+                            type="button"
+                            onClick={() => answerSuitability(true)}
+                            disabled={closedForCheckIn}
+                            className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white font-semibold rounded-xl text-sm transition"
+                        >
+                            Yes
+                        </button>
+                    </div>
                 </div>
             )}
 
             {step === 'camera' && (
                 <>
-                    <p className="text-sm text-gray-600">Take a photo of <strong>{application.full_name}</strong> ({role}) to check them in.</p>
+                    <p className="text-sm text-gray-600">Take a photo of <strong>{application.full_name}</strong> to check them in.</p>
                     <CameraCapture onCapture={handleCapture} />
                 </>
             )}
@@ -281,7 +288,7 @@ function CheckOutModal({ application, onClose, timeRestrictionEnabled }) {
     return (
         <ModalShell
             title={`Check Out: ${application.full_name}`}
-            subtitle={`Checked in as ${application.accreditation_role} at ${formatTime(application.checked_in_at)}`}
+            subtitle={`Checked in (${suitabilityLabel(application.is_suitable)}) at ${formatTime(application.checked_in_at)}`}
             onClose={onClose}
             closable={!saving}
         >
@@ -343,7 +350,7 @@ function StatusCell({ app }) {
         return (
             <div>
                 <span className="inline-flex px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-lg">Checked In</span>
-                <p className="text-xs text-gray-400 mt-1">{app.accreditation_role} · {formatTime(app.checked_in_at)}</p>
+                <p className="text-xs text-gray-400 mt-1">{suitabilityLabel(app.is_suitable)} · {formatTime(app.checked_in_at)}</p>
             </div>
         );
     }

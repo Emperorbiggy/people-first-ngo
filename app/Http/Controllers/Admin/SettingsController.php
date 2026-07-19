@@ -20,21 +20,23 @@ class SettingsController extends Controller
             'registrationOpen' => Setting::get('databoy_registration_open', '1') === '1',
             'accessEnabled'    => Setting::get('databoy_access_enabled', '1') === '1',
             'accreditationTimeRestrictionEnabled' => Setting::get('accreditation_time_restriction_enabled', '1') === '1',
+            'accreditationPaymentEnabled' => Setting::get('accreditation_payment_enabled', '1') === '1',
 
             'paymentGateway'       => Setting::get('payment_gateway', 'paystack'),
             'paystackPublicKey'    => Setting::get('paystack_public_key', ''),
             'paystackSecretKeySet' => (bool) Setting::get('paystack_secret_key'),
             'easigatewayAppKeySet' => (bool) Setting::get('easigateway_app_key'),
-            'bulkTransferAmount'      => Setting::get('bulk_transfer_amount', ''),
-            'applicantTransferAmount' => Setting::get('applicant_transfer_amount', ''),
-            'airtimeAmount'           => Setting::get('airtime_amount', ''),
+            'bulkTransferAmount'        => Setting::get('bulk_transfer_amount', ''),
+            'applicantTransferAmount'   => Setting::get('applicant_transfer_amount', ''),
+            'airtimeAmount'             => Setting::get('airtime_amount', ''),
+            'accreditationGeneralAmount' => Setting::get('accreditation_general_amount', ''),
         ]);
     }
 
     public function update(Request $request)
     {
         $request->validate([
-            'key'   => 'required|in:databoy_registration_open,databoy_access_enabled,accreditation_time_restriction_enabled',
+            'key'   => 'required|in:databoy_registration_open,databoy_access_enabled,accreditation_time_restriction_enabled,accreditation_payment_enabled',
             'value' => 'required|boolean',
         ]);
 
@@ -53,6 +55,7 @@ class SettingsController extends Controller
             'bulk_transfer_amount'    => 'nullable|numeric|min:0',
             'applicant_transfer_amount' => 'nullable|numeric|min:0',
             'airtime_amount'          => 'nullable|numeric|min:0',
+            'accreditation_general_amount' => 'nullable|numeric|min:0',
         ]);
 
         Setting::set('payment_gateway', $request->gateway);
@@ -67,6 +70,10 @@ class SettingsController extends Controller
 
         if ($request->filled('airtime_amount')) {
             Setting::set('airtime_amount', $request->airtime_amount);
+        }
+
+        if ($request->filled('accreditation_general_amount')) {
+            Setting::set('accreditation_general_amount', $request->accreditation_general_amount);
         }
 
         if ($request->filled('paystack_secret_key')) {

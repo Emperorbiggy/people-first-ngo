@@ -39,6 +39,8 @@ return [
         'url'        => env('EASIGATEWAY_APP_URL', 'https://easigateway-api.onrender.com/api/v1'),
         'key'        => env('EASIGATEWAY_API_KEY'),
         'service_id' => env('EASIGATEWAY_SERVICE_ID'),
+        'data_service_id' => env('EASIGATEWAY_DATA_SERVICE_ID'),
+
     ],
 
     'paystack' => [

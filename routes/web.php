@@ -15,6 +15,9 @@ use App\Http\Controllers\Admin\AccreditationController as AdminAccreditationCont
 use App\Http\Controllers\Admin\ApplicantRecipientController as AdminApplicantRecipientController;
 use App\Http\Controllers\Admin\ApplicantPaymentController as AdminApplicantPaymentController;
 use App\Http\Controllers\Admin\QueueMonitorController as AdminQueueMonitorController;
+use App\Http\Controllers\Admin\TransportFareController as AdminTransportFareController;
+use App\Http\Controllers\Admin\AccreditationPaymentController as AdminAccreditationPaymentController;
+use App\Http\Controllers\Admin\DataPlanController as AdminDataPlanController;
 use App\Http\Controllers\Admin\EasigatewayFundingController as AdminEasigatewayFundingController;
 use App\Http\Controllers\Admin\AirtimeRecipientController as AdminAirtimeRecipientController;
 use App\Http\Controllers\Admin\AirtimeController as AdminAirtimeController;
@@ -124,6 +127,18 @@ Route::middleware('auth')->group(function () {
     Route::post('/admin/queue-monitor/retry-all', [AdminQueueMonitorController::class, 'retryAll'])->name('admin.queue-monitor.retry-all');
     Route::post('/admin/queue-monitor/{uuid}/retry', [AdminQueueMonitorController::class, 'retry'])->name('admin.queue-monitor.retry');
     Route::post('/admin/queue-monitor/{uuid}/forget', [AdminQueueMonitorController::class, 'forget'])->name('admin.queue-monitor.forget');
+
+    // Transport Fares
+    Route::get('/admin/transport-fares', [AdminTransportFareController::class, 'index'])->name('admin.transport-fares');
+    Route::post('/admin/transport-fares', [AdminTransportFareController::class, 'update'])->name('admin.transport-fares.update');
+
+    // Accreditation Payments
+    Route::get('/admin/accreditation-payments', [AdminAccreditationPaymentController::class, 'index'])->name('admin.accreditation-payments');
+
+    // Data Plans (EasiGateway data bundles)
+    Route::get('/admin/data-plans', [AdminDataPlanController::class, 'index'])->name('admin.data-plans');
+    Route::get('/admin/data-plans/{categoryId}/products', [AdminDataPlanController::class, 'products'])->name('admin.data-plans.products');
+    Route::post('/admin/data-plans', [AdminDataPlanController::class, 'save'])->name('admin.data-plans.save');
 
     // EasiGateway Wallet Funding
     Route::get('/admin/easigateway-funding', [AdminEasigatewayFundingController::class, 'index'])->name('admin.easigateway-funding');

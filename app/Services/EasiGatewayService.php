@@ -11,12 +11,14 @@ class EasiGatewayService
     private string $baseUrl;
     private string $apiKey;
     private string $serviceId;
+    private string $dataServiceId;
 
     public function __construct()
     {
-        $this->baseUrl   = rtrim(config('services.easigateway.url'), '/');
-        $this->apiKey    = config('services.easigateway.key');
-        $this->serviceId = config('services.easigateway.service_id');
+        $this->baseUrl       = rtrim(config('services.easigateway.url'), '/');
+        $this->apiKey        = config('services.easigateway.key');
+        $this->serviceId     = config('services.easigateway.service_id');
+        $this->dataServiceId = config('services.easigateway.data_service_id');
     }
 
     /**
@@ -43,6 +45,63 @@ class EasiGatewayService
             return ['status' => 'failed', 'data' => []];
         } catch (\Throwable $e) {
             $this->logException('getServiceCategories', 'GET', $url, $e);
+            return ['status' => 'failed', 'data' => []];
+        }
+    }
+
+    /**
+     * Fetch available data (bundle) networks — service categories under the
+     * data service, not the airtime one.
+     * @return array{status: string, data: array}
+     */
+    public function getDataServiceCategories(): array
+    {
+        $url = "{$this->baseUrl}/vas/{$this->dataServiceId}/service-categories";
+
+        try {
+            $response = Http::withHeaders([
+                'accept'    => '*/*',
+                'x-api-key' => $this->apiKey,
+            ])->timeout(30)->get($url);
+
+            $body = $response->json() ?? [];
+            $this->log('getDataServiceCategories', 'GET', $url, null, $response->status(), $body);
+
+            if ($response->successful() && isset($body['data'])) {
+                return ['status' => 'success', 'data' => $body['data']];
+            }
+
+            return ['status' => 'failed', 'data' => []];
+        } catch (\Throwable $e) {
+            $this->logException('getDataServiceCategories', 'GET', $url, $e);
+            return ['status' => 'failed', 'data' => []];
+        }
+    }
+
+    /**
+     * Fetch the data plans / products available under a given service category.
+     * @return array{status: string, data: array}
+     */
+    public function getServiceCategoryProducts(string $categoryId): array
+    {
+        $url = "{$this->baseUrl}/vas/service-category/{$categoryId}/products";
+
+        try {
+            $response = Http::withHeaders([
+                'accept'    => '*/*',
+                'x-api-key' => $this->apiKey,
+            ])->timeout(30)->get($url);
+
+            $body = $response->json() ?? [];
+            $this->log('getServiceCategoryProducts', 'GET', $url, null, $response->status(), $body);
+
+            if ($response->successful() && isset($body['data'])) {
+                return ['status' => 'success', 'data' => $body['data']];
+            }
+
+            return ['status' => 'failed', 'data' => []];
+        } catch (\Throwable $e) {
+            $this->logException('getServiceCategoryProducts', 'GET', $url, $e);
             return ['status' => 'failed', 'data' => []];
         }
     }

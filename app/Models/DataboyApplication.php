@@ -18,13 +18,14 @@ class DataboyApplication extends Model
         'has_voter_card',
         'passport_photograph_path', 'valid_id_card_path', 'highest_qualification_certificate_path',
         'is_accredited', 'accredited_at', 'accredited_by', 'accredited_by_databoy_id',
-        'accreditation_role', 'check_in_photo_path', 'checked_in_at', 'check_out_photo_path', 'checked_out_at',
+        'is_suitable', 'check_in_photo_path', 'checked_in_at', 'check_out_photo_path', 'checked_out_at',
     ];
 
     protected $casts = [
         'has_voter_card' => 'boolean',
         'age'            => 'integer',
         'is_accredited'  => 'boolean',
+        'is_suitable'    => 'boolean',
         'accredited_at'  => 'datetime',
         'checked_in_at'  => 'datetime',
         'checked_out_at' => 'datetime',
@@ -38,4 +39,5 @@ class DataboyApplication extends Model
     public function accreditedByDataboy() { return $this->belongsTo(Databoy::class, 'accredited_by_databoy_id'); }
     public function recipient()   { return $this->hasOne(DataboyApplicantRecipient::class, 'databoy_application_id'); }
     public function payments()    { return $this->hasMany(ApplicantPayment::class, 'databoy_application_id'); }
+    public function accreditationPayments() { return $this->hasMany(AccreditationPayment::class, 'databoy_application_id'); }
 }
