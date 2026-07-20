@@ -9,14 +9,18 @@ class DataboyAccreditationPaymentController extends Controller
 {
     public function index()
     {
-        // Unlike the applicant/party-agent payment histories, this is not
-        // deduped to one row per databoy — a databoy legitimately gets one
-        // successful payment per day they did accreditation work, so every
-        // day's row is meaningful and shown.
+        // A databoy is only ever meant to be paid once per day — but a failed
+        // attempt is retryable, so repeated checkouts on a day where payment
+        // keeps failing (e.g. amount not configured) can leave several rows
+        // for the same databoy/day. Dedupe to one row per databoy per day:
+        // prefer the successful attempt if one exists, otherwise the latest.
         $history = DataboyAccreditationPayment::with('databoy:id,full_name')
             ->orderByDesc('payment_date')
             ->orderByDesc('created_at')
             ->get(['id', 'databoy_id', 'payment_date', 'amount', 'bank_name', 'bank_code', 'account_number', 'account_name', 'status', 'message', 'created_at'])
+            ->groupBy(fn ($payment) => $payment->databoy_id . '|' . $payment->payment_date->toDateString())
+            ->map(fn ($group) => $group->firstWhere('status', 'success') ?? $group->first())
+            ->values()
             ->map(fn ($payment) => [
                 'id'             => $payment->id,
                 'full_name'      => $payment->databoy->full_name ?? '—',
