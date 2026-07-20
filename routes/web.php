@@ -18,6 +18,7 @@ use App\Http\Controllers\Admin\PartyAgentRecipientController as AdminPartyAgentR
 use App\Http\Controllers\Admin\PartyAgentPaymentController as AdminPartyAgentPaymentController;
 use App\Http\Controllers\Admin\QueueMonitorController as AdminQueueMonitorController;
 use App\Http\Controllers\Admin\TransportFareController as AdminTransportFareController;
+use App\Http\Controllers\Admin\WardTimeOverrideController as AdminWardTimeOverrideController;
 use App\Http\Controllers\Admin\AccreditationPaymentController as AdminAccreditationPaymentController;
 use App\Http\Controllers\Admin\DataboyAccreditationPaymentController as AdminDataboyAccreditationPaymentController;
 use App\Http\Controllers\Admin\DataPlanController as AdminDataPlanController;
@@ -148,6 +149,11 @@ Route::middleware('auth')->group(function () {
     // Transport Fares
     Route::get('/admin/transport-fares', [AdminTransportFareController::class, 'index'])->name('admin.transport-fares');
     Route::post('/admin/transport-fares', [AdminTransportFareController::class, 'update'])->name('admin.transport-fares.update');
+
+    // Ward Time Overrides
+    Route::get('/admin/ward-time-overrides', [AdminWardTimeOverrideController::class, 'index'])->name('admin.ward-time-overrides');
+    Route::post('/admin/ward-time-overrides/{ward}', [AdminWardTimeOverrideController::class, 'store'])->name('admin.ward-time-overrides.store');
+    Route::delete('/admin/ward-time-overrides/{ward}', [AdminWardTimeOverrideController::class, 'destroy'])->name('admin.ward-time-overrides.destroy');
 
     // Accreditation Payments
     Route::get('/admin/accreditation-payments', [AdminAccreditationPaymentController::class, 'index'])->name('admin.accreditation-payments');

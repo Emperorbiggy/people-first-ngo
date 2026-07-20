@@ -8,6 +8,7 @@ use App\Jobs\PayDataboyAccreditationJob;
 use App\Models\DataboyApplication;
 use App\Models\Lga;
 use App\Models\Setting;
+use App\Models\WardTimeOverride;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -50,11 +51,13 @@ class AccreditationController extends Controller
                         'is_suitable', 'check_in_photo_path', 'checked_in_at',
                         'checked_out_at', 'is_accredited', 'accredited_at',
                     ])
+                    ->map(fn ($app) => $this->attachWindows($app))
                 : collect();
 
             return inertia('Databoy/Accreditation', [
                 'applications'           => $applications,
                 'timeRestrictionEnabled' => $this->timeRestrictionEnabled(),
+                'defaultWindows'         => $this->jsWindows(self::WINDOWS),
                 'role'                   => 'accreditation_boy',
                 'lgas'                   => Lga::orderBy('name')->get(['id', 'name']),
                 'selectedLgaId'          => $lgaId ? (int) $lgaId : null,
@@ -64,14 +67,16 @@ class AccreditationController extends Controller
         $applications = DataboyApplication::where('registered_by', $databoy->id)
             ->orderBy('full_name')
             ->get([
-                'id', 'full_name', 'calling_phone_number',
+                'id', 'full_name', 'calling_phone_number', 'ward_id',
                 'is_suitable', 'check_in_photo_path', 'checked_in_at',
                 'checked_out_at', 'is_accredited', 'accredited_at',
-            ]);
+            ])
+            ->map(fn ($app) => $this->attachWindows($app, $databoy->ward_id));
 
         return inertia('Databoy/Accreditation', [
             'applications'           => $applications,
             'timeRestrictionEnabled' => $this->timeRestrictionEnabled(),
+            'defaultWindows'         => $this->jsWindows($this->windowsForWard($databoy->ward_id, now())),
             'role'                   => 'databoy',
         ]);
     }
@@ -85,8 +90,9 @@ class AccreditationController extends Controller
             return back()->withErrors(['suitable' => 'This applicant is already checked in.']);
         }
 
-        if ($this->timeRestrictionEnabled() && !$this->checkinWindow(now())) {
-            return back()->withErrors(['suitable' => 'Check-in is only allowed between 7:00 AM–12:00 PM or 3:00 PM–5:00 PM.']);
+        if ($this->timeRestrictionEnabled() && !$this->checkinWindow(now(), $databoyApplication->ward_id)) {
+            $labels = collect($this->windowsForWard($databoyApplication->ward_id, now()))->pluck('checkin_label')->implode(' or ');
+            return back()->withErrors(['suitable' => "Check-in is only allowed between {$labels}."]);
         }
 
         $request->validate([
@@ -123,7 +129,7 @@ class AccreditationController extends Controller
         }
 
         if ($this->timeRestrictionEnabled()) {
-            $window  = $this->checkinWindow($databoyApplication->checked_in_at);
+            $window  = $this->checkinWindow($databoyApplication->checked_in_at, $databoyApplication->ward_id);
             $sameDay = $databoyApplication->checked_in_at->isSameDay(now());
 
             if (!$window || !$sameDay || !$this->withinCheckoutRange($window, now())) {
@@ -174,11 +180,11 @@ class AccreditationController extends Controller
         return Setting::get('accreditation_payment_enabled', '1') === '1';
     }
 
-    private function checkinWindow(Carbon $at): ?array
+    private function checkinWindow(Carbon $at, ?int $wardId = null): ?array
     {
         $time = $at->format('H:i');
 
-        foreach (self::WINDOWS as $window) {
+        foreach ($this->windowsForWard($wardId, $at) as $window) {
             if ($time >= $window['checkin_start'] && $time <= $window['checkin_end']) {
                 return $window;
             }
@@ -192,6 +198,64 @@ class AccreditationController extends Controller
         $time = $at->format('H:i');
 
         return $time >= $window['checkout_start'] && $time <= $window['checkout_end'];
+    }
+
+    /**
+     * A ward can have a one-off override for "today" (set by admin when a ward
+     * arrives late) which replaces the default two windows entirely.
+     */
+    private function windowsForWard(?int $wardId, Carbon $at): array
+    {
+        if ($wardId) {
+            $override = WardTimeOverride::where('ward_id', $wardId)
+                ->whereDate('override_date', $at->toDateString())
+                ->first();
+
+            if ($override) {
+                return [[
+                    'checkin_start'  => $override->checkin_start,
+                    'checkin_end'    => $override->checkin_end,
+                    'checkout_start' => $override->checkout_start,
+                    'checkout_end'   => $override->checkout_end,
+                    'checkin_label'  => $this->formatRange($override->checkin_start, $override->checkin_end),
+                    'checkout_label' => $this->formatRange($override->checkout_start, $override->checkout_end),
+                ]];
+            }
+        }
+
+        return self::WINDOWS;
+    }
+
+    private function formatRange(string $start, string $end): string
+    {
+        return Carbon::createFromFormat('H:i', $start)->format('g:i A') . '–' . Carbon::createFromFormat('H:i', $end)->format('g:i A');
+    }
+
+    private function attachWindows(DataboyApplication $app, ?int $fallbackWardId = null): DataboyApplication
+    {
+        $wardId = $app->ward_id ?? $fallbackWardId;
+        $app->windows = $this->jsWindows($this->windowsForWard($wardId, now()));
+
+        return $app;
+    }
+
+    private function jsWindows(array $windows): array
+    {
+        return array_map(fn ($w) => [
+            'checkinStart'  => $this->toMinutes($w['checkin_start']),
+            'checkinEnd'    => $this->toMinutes($w['checkin_end']),
+            'checkoutStart' => $this->toMinutes($w['checkout_start']),
+            'checkoutEnd'   => $this->toMinutes($w['checkout_end']),
+            'checkinLabel'  => $w['checkin_label'],
+            'checkoutLabel' => $w['checkout_label'],
+        ], $windows);
+    }
+
+    private function toMinutes(string $hm): int
+    {
+        [$h, $m] = explode(':', $hm);
+
+        return ((int) $h) * 60 + (int) $m;
     }
 
     private function photoFilename(string $fullName, string $type): string

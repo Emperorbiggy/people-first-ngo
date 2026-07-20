@@ -6,7 +6,9 @@ import DataboyLayout from '@/Layouts/DataboyLayout';
 // Check-in is only allowed inside a window's check-in range. Checkout for
 // that same check-in is only allowed inside the PAIRED checkout range (a
 // later, separate window), on the same calendar day as check-in.
-const WINDOWS = [
+// The applicable windows come from the server per-applicant (`app.windows`)
+// since a ward may have a one-off override for today.
+const FALLBACK_WINDOWS = [
     {
         checkinStart: 7 * 60, checkinEnd: 12 * 60,
         checkoutStart: 12 * 60, checkoutEnd: 15 * 60,
@@ -31,21 +33,21 @@ function minutesFromIso(iso) {
     return d.getHours() * 60 + d.getMinutes();
 }
 
-function currentCheckinWindow() {
+function currentCheckinWindow(windows) {
     const m = minutesNow();
-    return WINDOWS.find((w) => m >= w.checkinStart && m <= w.checkinEnd) ?? null;
+    return windows.find((w) => m >= w.checkinStart && m <= w.checkinEnd) ?? null;
 }
 
-function nextCheckinWindowLabel() {
+function nextCheckinWindowLabel(windows) {
     const m = minutesNow();
-    const upcoming = WINDOWS.find((w) => m < w.checkinStart);
-    return upcoming ? upcoming.checkinLabel : WINDOWS[0].checkinLabel + ' (tomorrow)';
+    const upcoming = windows.find((w) => m < w.checkinStart);
+    return upcoming ? upcoming.checkinLabel : windows[0].checkinLabel + ' (tomorrow)';
 }
 
-function windowForCheckinTime(iso) {
+function windowForCheckinTime(iso, windows) {
     if (!iso) return null;
     const m = minutesFromIso(iso);
-    return WINDOWS.find((w) => m >= w.checkinStart && m <= w.checkinEnd) ?? null;
+    return windows.find((w) => m >= w.checkinStart && m <= w.checkinEnd) ?? null;
 }
 
 function isSameDay(iso) {
@@ -187,7 +189,7 @@ function ModalShell({ title, subtitle, onClose, closable = true, children }) {
     );
 }
 
-function CheckInModal({ application, onClose, timeRestrictionEnabled }) {
+function CheckInModal({ application, onClose, timeRestrictionEnabled, windows }) {
     const [step, setStep] = useState('question'); // question | camera | preview
     const [suitable, setSuitable] = useState(null);
     const [capturedFile, setCapturedFile] = useState(null);
@@ -195,7 +197,7 @@ function CheckInModal({ application, onClose, timeRestrictionEnabled }) {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
 
-    const window_ = currentCheckinWindow();
+    const window_ = currentCheckinWindow(windows);
     const closedForCheckIn = timeRestrictionEnabled && !window_;
 
     const answerSuitability = (value) => {
@@ -229,7 +231,7 @@ function CheckInModal({ application, onClose, timeRestrictionEnabled }) {
         <ModalShell title={`Check In: ${application.full_name}`} onClose={onClose} closable={!saving}>
             {closedForCheckIn && (
                 <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800">
-                    Check-in is closed right now. It reopens at {nextCheckinWindowLabel()}.
+                    Check-in is closed right now. It reopens at {nextCheckinWindowLabel(windows)}.
                 </div>
             )}
             {error && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>}
@@ -286,14 +288,14 @@ function CheckInModal({ application, onClose, timeRestrictionEnabled }) {
     );
 }
 
-function CheckOutModal({ application, onClose, timeRestrictionEnabled }) {
+function CheckOutModal({ application, onClose, timeRestrictionEnabled, windows }) {
     const [step, setStep] = useState('camera'); // camera | confirm
     const [capturedFile, setCapturedFile] = useState(null);
     const [capturedImage, setCapturedImage] = useState(null);
     const [saving, setSaving] = useState(false);
     const [submitError, setSubmitError] = useState('');
 
-    const checkinWindow = windowForCheckinTime(application.checked_in_at);
+    const checkinWindow = windowForCheckinTime(application.checked_in_at, windows);
     const closedForCheckOut = timeRestrictionEnabled && (
         !checkinWindow || !isSameDay(application.checked_in_at) || !isWithinCheckoutRange(checkinWindow)
     );
@@ -398,13 +400,14 @@ function StatusCell({ app }) {
     return <span className="inline-flex px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-medium rounded-lg">Pending</span>;
 }
 
-export default function Accreditation({ applications = [], timeRestrictionEnabled = true, role = 'databoy', lgas = [], selectedLgaId = null }) {
+export default function Accreditation({ applications = [], timeRestrictionEnabled = true, role = 'databoy', lgas = [], selectedLgaId = null, defaultWindows = [] }) {
     const isAccreditationBoy = role === 'accreditation_boy';
     const [search, setSearch] = useState('');
     const [lgaId, setLgaId] = useState(selectedLgaId ?? '');
     const [checkingInApp, setCheckingInApp] = useState(null);
     const [checkingOutApp, setCheckingOutApp] = useState(null);
-    const window_ = currentCheckinWindow();
+    const windows = defaultWindows.length ? defaultWindows : FALLBACK_WINDOWS;
+    const window_ = currentCheckinWindow(windows);
 
     const filtered = search.trim()
         ? applications.filter((app) => {
@@ -429,10 +432,20 @@ export default function Accreditation({ applications = [], timeRestrictionEnable
     return (
         <DataboyLayout title="Accreditation">
             {checkingInApp && (
-                <CheckInModal application={checkingInApp} onClose={() => setCheckingInApp(null)} timeRestrictionEnabled={timeRestrictionEnabled} />
+                <CheckInModal
+                    application={checkingInApp}
+                    onClose={() => setCheckingInApp(null)}
+                    timeRestrictionEnabled={timeRestrictionEnabled}
+                    windows={checkingInApp.windows?.length ? checkingInApp.windows : windows}
+                />
             )}
             {checkingOutApp && (
-                <CheckOutModal application={checkingOutApp} onClose={() => setCheckingOutApp(null)} timeRestrictionEnabled={timeRestrictionEnabled} />
+                <CheckOutModal
+                    application={checkingOutApp}
+                    onClose={() => setCheckingOutApp(null)}
+                    timeRestrictionEnabled={timeRestrictionEnabled}
+                    windows={checkingOutApp.windows?.length ? checkingOutApp.windows : windows}
+                />
             )}
 
             <div className="mb-6">
@@ -464,7 +477,7 @@ export default function Accreditation({ applications = [], timeRestrictionEnable
                 }`}>
                     {window_
                         ? `Check-in is OPEN (${window_.checkinLabel}) — checkout for this window opens at ${window_.checkoutLabel}`
-                        : `Check-in is CLOSED — next window: ${nextCheckinWindowLabel()}`}
+                        : `Check-in is CLOSED — next window: ${nextCheckinWindowLabel(windows)}`}
                 </div>
             ) : (
                 <div className="rounded-xl px-4 py-3 text-sm font-medium mb-4 bg-gray-50 border border-gray-200 text-gray-600">
