@@ -118,6 +118,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/admin/accreditation', [AdminAccreditationController::class, 'index'])->name('admin.accreditation');
     Route::post('/admin/accreditation/{databoyApplication}', [AdminAccreditationController::class, 'accredit'])->name('admin.accreditation.accredit');
     Route::get('/admin/accredited', [AdminAccreditationController::class, 'list'])->name('admin.accredited');
+    Route::get('/admin/accreditation/ward-stats', [AdminAccreditationController::class, 'wardStats'])->name('admin.accreditation.ward-stats');
+    Route::get('/admin/accreditation/checked-in-stats', [AdminAccreditationController::class, 'checkedInStats'])->name('admin.accreditation.checked-in-stats');
 
     // Applicant Recipients
     Route::get('/admin/applicant-recipients', [AdminApplicantRecipientController::class, 'index'])->name('admin.applicant-recipients');

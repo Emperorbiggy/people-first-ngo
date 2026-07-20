@@ -2,13 +2,23 @@ import { useState } from 'react';
 import { router, usePage, Link } from '@inertiajs/react';
 import axios from 'axios';
 import AdminLayout from '@/Layouts/AdminLayout';
+import PasscodeModal from '@/Components/PasscodeModal';
+import usePasscodeGate from '@/hooks/usePasscodeGate';
 
 function SettingRow({ label, description, enabled, settingKey, statusOn, statusOff, colorOn = 'green', colorOff = 'red' }) {
     const [value, setValue] = useState(enabled);
+    const [saving, setSaving] = useState(false);
+    const passcodeGate = usePasscodeGate();
 
-    const toggle = (next) => {
-        setValue(next);
-        router.post(route('admin.settings.update'), { key: settingKey, value: next }, { preserveScroll: true });
+    const toggle = (passcode) => {
+        const next = !value;
+        setSaving(true);
+        router.post(route('admin.settings.update'), { key: settingKey, value: next, passcode }, {
+            preserveScroll: true,
+            onSuccess: () => { setValue(next); passcodeGate.close(); },
+            onError: (e) => passcodeGate.setError(e.passcode ?? 'Failed to update.'),
+            onFinish: () => setSaving(false),
+        });
     };
 
     const colors = {
@@ -25,8 +35,9 @@ function SettingRow({ label, description, enabled, settingKey, statusOn, statusO
                 </div>
                 <button
                     type="button"
-                    onClick={() => toggle(!value)}
-                    className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${
+                    onClick={() => passcodeGate.gate(toggle)}
+                    disabled={saving}
+                    className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none disabled:opacity-50 ${
                         value ? 'bg-indigo-600' : 'bg-gray-200'
                     }`}
                 >
@@ -38,6 +49,17 @@ function SettingRow({ label, description, enabled, settingKey, statusOn, statusO
             <div className={`rounded-xl px-4 py-2.5 text-sm font-medium border ${value ? colors[colorOn] : colors[colorOff]}`}>
                 {value ? statusOn : statusOff}
             </div>
+
+            {passcodeGate.open && (
+                <PasscodeModal
+                    title={`Confirm: ${label}`}
+                    subtitle="Enter the passcode to change this setting."
+                    onConfirm={passcodeGate.confirm}
+                    onClose={passcodeGate.close}
+                    error={passcodeGate.error}
+                    loading={saving}
+                />
+            )}
         </div>
     );
 }
@@ -53,8 +75,9 @@ function PaymentGatewaySection({ paymentGateway, paystackPublicKey, paystackSecr
     const [showAppKey, setShowAppKey] = useState(false);
     const [saving, setSaving] = useState(false);
     const [savedFlags, setSavedFlags] = useState({ paystackSecretKeySet, easigatewayAppKeySet });
+    const passcodeGate = usePasscodeGate();
 
-    const save = () => {
+    const save = (passcode) => {
         setSaving(true);
         router.post(route('admin.settings.payment-gateway'), {
             gateway,
@@ -63,6 +86,7 @@ function PaymentGatewaySection({ paymentGateway, paystackPublicKey, paystackSecr
             easigateway_app_key: appKey,
             bulk_transfer_amount: transferAmount,
             applicant_transfer_amount: applicantAmount,
+            passcode,
         }, {
             preserveScroll: true,
             onSuccess: () => {
@@ -72,7 +96,9 @@ function PaymentGatewaySection({ paymentGateway, paystackPublicKey, paystackSecr
                 });
                 setSecretKey('');
                 setAppKey('');
+                passcodeGate.close();
             },
+            onError: (e) => passcodeGate.setError(e.passcode ?? 'Failed to save.'),
             onFinish: () => setSaving(false),
         });
     };
@@ -199,12 +225,23 @@ function PaymentGatewaySection({ paymentGateway, paystackPublicKey, paystackSecr
 
             <button
                 type="button"
-                onClick={save}
+                onClick={() => passcodeGate.gate(save)}
                 disabled={saving}
                 className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-semibold rounded-xl text-sm transition"
             >
                 {saving ? 'Saving…' : 'Save Payment Gateway Settings'}
             </button>
+
+            {passcodeGate.open && (
+                <PasscodeModal
+                    title="Confirm Payment Gateway Settings"
+                    subtitle="Enter the passcode to save these changes."
+                    onConfirm={passcodeGate.confirm}
+                    onClose={passcodeGate.close}
+                    error={passcodeGate.error}
+                    loading={saving}
+                />
+            )}
         </div>
     );
 }
@@ -212,14 +249,18 @@ function PaymentGatewaySection({ paymentGateway, paystackPublicKey, paystackSecr
 function AirtimeSettingsSection({ airtimeAmount, paymentGateway }) {
     const [amount, setAmount] = useState(airtimeAmount || '');
     const [saving, setSaving] = useState(false);
+    const passcodeGate = usePasscodeGate();
 
-    const save = () => {
+    const save = (passcode) => {
         setSaving(true);
         router.post(route('admin.settings.payment-gateway'), {
             gateway: paymentGateway || 'paystack',
             airtime_amount: amount,
+            passcode,
         }, {
             preserveScroll: true,
+            onSuccess: () => passcodeGate.close(),
+            onError: (e) => passcodeGate.setError(e.passcode ?? 'Failed to save.'),
             onFinish: () => setSaving(false),
         });
     };
@@ -248,12 +289,23 @@ function AirtimeSettingsSection({ airtimeAmount, paymentGateway }) {
             </div>
             <button
                 type="button"
-                onClick={save}
+                onClick={() => passcodeGate.gate(save)}
                 disabled={saving}
                 className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-semibold rounded-xl text-sm transition"
             >
                 {saving ? 'Saving…' : 'Save Airtime Amount'}
             </button>
+
+            {passcodeGate.open && (
+                <PasscodeModal
+                    title="Confirm Airtime Amount"
+                    subtitle="Enter the passcode to save this change."
+                    onConfirm={passcodeGate.confirm}
+                    onClose={passcodeGate.close}
+                    error={passcodeGate.error}
+                    loading={saving}
+                />
+            )}
         </div>
     );
 }
@@ -263,16 +315,20 @@ function AccreditationPaymentSection({ accreditationGeneralAmount, accreditation
     const [databoyAmount, setDataboyAmount] = useState(accreditationDataboyAmount || '');
     const [partyAgentAmount, setPartyAgentAmount] = useState(partyAgentPaymentAmount || '');
     const [saving, setSaving] = useState(false);
+    const passcodeGate = usePasscodeGate();
 
-    const save = () => {
+    const save = (passcode) => {
         setSaving(true);
         router.post(route('admin.settings.payment-gateway'), {
             gateway: paymentGateway || 'paystack',
             accreditation_general_amount: applicantAmount,
             accreditation_databoy_amount: databoyAmount,
             party_agent_payment_amount: partyAgentAmount,
+            passcode,
         }, {
             preserveScroll: true,
+            onSuccess: () => passcodeGate.close(),
+            onError: (e) => passcodeGate.setError(e.passcode ?? 'Failed to save.'),
             onFinish: () => setSaving(false),
         });
     };
@@ -335,7 +391,7 @@ function AccreditationPaymentSection({ accreditationGeneralAmount, accreditation
             </div>
             <button
                 type="button"
-                onClick={save}
+                onClick={() => passcodeGate.gate(save)}
                 disabled={saving}
                 className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-semibold rounded-xl text-sm transition"
             >
@@ -347,6 +403,17 @@ function AccreditationPaymentSection({ accreditationGeneralAmount, accreditation
             >
                 Set transport fare per LGA →
             </Link>
+
+            {passcodeGate.open && (
+                <PasscodeModal
+                    title="Confirm Accreditation Amounts"
+                    subtitle="Enter the passcode to save these amounts."
+                    onConfirm={passcodeGate.confirm}
+                    onClose={passcodeGate.close}
+                    error={passcodeGate.error}
+                    loading={saving}
+                />
+            )}
         </div>
     );
 }
@@ -354,17 +421,25 @@ function AccreditationPaymentSection({ accreditationGeneralAmount, accreditation
 function FileMaintenanceCard() {
     const [status, setStatus] = useState('idle');
     const [result, setResult] = useState(null);
+    const passcodeGate = usePasscodeGate();
 
-    const run = async () => {
+    const run = async (passcode) => {
         setStatus('running');
         setResult(null);
         try {
-            const { data } = await axios.post(route('admin.settings.rename-files'));
+            const { data } = await axios.post(route('admin.settings.rename-files'), { passcode });
             setResult(data);
             setStatus('done');
+            passcodeGate.close();
         } catch (e) {
-            setResult({ error: e?.response?.data?.message ?? 'Something went wrong.' });
-            setStatus('error');
+            if (e?.response?.status === 422) {
+                passcodeGate.setError(e.response.data.message);
+                setStatus('idle');
+            } else {
+                setResult({ error: e?.response?.data?.message ?? 'Something went wrong.' });
+                setStatus('error');
+                passcodeGate.close();
+            }
         }
     };
 
@@ -439,7 +514,7 @@ function FileMaintenanceCard() {
 
             <button
                 type="button"
-                onClick={run}
+                onClick={() => passcodeGate.gate(run)}
                 disabled={status === 'running'}
                 className="w-full py-3 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white font-semibold rounded-xl text-sm transition"
             >
@@ -453,6 +528,17 @@ function FileMaintenanceCard() {
                     </span>
                 ) : status === 'done' ? 'Run Again' : 'Rename Existing Files'}
             </button>
+
+            {passcodeGate.open && (
+                <PasscodeModal
+                    title="Confirm File Rename"
+                    subtitle="Enter the passcode to rename existing files."
+                    onConfirm={passcodeGate.confirm}
+                    onClose={passcodeGate.close}
+                    error={passcodeGate.error}
+                    loading={status === 'running'}
+                />
+            )}
         </div>
     );
 }
@@ -462,8 +548,9 @@ function CompressFilesCard() {
     const [status, setStatus]           = useState('idle');
     const [progress, setProgress]       = useState({ done: 0, total: 0 });
     const [accumulated, setAccumulated] = useState({ compressed: 0, skipped: 0, errors: [], log: [], savedBytes: 0 });
+    const passcodeGate = usePasscodeGate();
 
-    const run = async () => {
+    const run = async (passcode) => {
         setStatus('running');
         setProgress({ done: 0, total: 0 });
         setAccumulated({ compressed: 0, skipped: 0, errors: [], log: [], savedBytes: 0 });
@@ -473,7 +560,7 @@ function CompressFilesCard() {
 
         try {
             while (true) {
-                const { data } = await axios.post(route('admin.settings.compress-files'), { offset, limit: LIMIT });
+                const { data } = await axios.post(route('admin.settings.compress-files'), { offset, limit: LIMIT, passcode });
 
                 totals.compressed += data.compressed;
                 totals.skipped    += data.skipped;
@@ -488,9 +575,16 @@ function CompressFilesCard() {
                 offset += LIMIT;
             }
             setStatus('done');
+            passcodeGate.close();
         } catch (e) {
-            setAccumulated((prev) => ({ ...prev, errors: [...prev.errors, e?.response?.data?.message ?? 'Request failed'] }));
-            setStatus('error');
+            if (e?.response?.status === 422) {
+                passcodeGate.setError(e.response.data.message);
+                setStatus('idle');
+            } else {
+                setAccumulated((prev) => ({ ...prev, errors: [...prev.errors, e?.response?.data?.message ?? 'Request failed'] }));
+                setStatus('error');
+                passcodeGate.close();
+            }
         }
     };
 
@@ -592,7 +686,7 @@ function CompressFilesCard() {
 
             <button
                 type="button"
-                onClick={run}
+                onClick={() => passcodeGate.gate(run)}
                 disabled={status === 'running'}
                 className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold rounded-xl text-sm transition"
             >
@@ -606,6 +700,17 @@ function CompressFilesCard() {
                     </span>
                 ) : status === 'done' ? 'Run Again' : 'Compress Images'}
             </button>
+
+            {passcodeGate.open && (
+                <PasscodeModal
+                    title="Confirm Image Compression"
+                    subtitle="Enter the passcode to compress uploaded images."
+                    onConfirm={passcodeGate.confirm}
+                    onClose={passcodeGate.close}
+                    error={passcodeGate.error}
+                    loading={status === 'running'}
+                />
+            )}
         </div>
     );
 }

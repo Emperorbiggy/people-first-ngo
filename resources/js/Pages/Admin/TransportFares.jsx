@@ -1,12 +1,15 @@
 import { useState } from 'react';
 import { router, usePage } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import PasscodeModal from '@/Components/PasscodeModal';
+import usePasscodeGate from '@/hooks/usePasscodeGate';
 
 export default function TransportFares({ lgas = [] }) {
     const { flash } = usePage().props;
     const [amounts, setAmounts] = useState(() => Object.fromEntries(lgas.map((l) => [l.id, l.amount])));
     const [search, setSearch] = useState('');
     const [saving, setSaving] = useState(false);
+    const passcodeGate = usePasscodeGate();
 
     const filtered = search.trim()
         ? lgas.filter((l) => {
@@ -17,11 +20,13 @@ export default function TransportFares({ lgas = [] }) {
 
     const setAmount = (id, value) => setAmounts((prev) => ({ ...prev, [id]: value }));
 
-    const save = () => {
+    const save = (passcode) => {
         setSaving(true);
         const fares = lgas.map((l) => ({ lga_id: l.id, amount: amounts[l.id] || 0 }));
-        router.post(route('admin.transport-fares.update'), { fares }, {
+        router.post(route('admin.transport-fares.update'), { fares, passcode }, {
             preserveScroll: true,
+            onSuccess: () => passcodeGate.close(),
+            onError: (e) => passcodeGate.setError(e.passcode ?? 'Failed to save.'),
             onFinish: () => setSaving(false),
         });
     };
@@ -104,7 +109,7 @@ export default function TransportFares({ lgas = [] }) {
                 {lgas.length > 0 && (
                     <button
                         type="button"
-                        onClick={save}
+                        onClick={() => passcodeGate.gate(save)}
                         disabled={saving}
                         className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-semibold rounded-xl text-sm transition"
                     >
@@ -113,6 +118,17 @@ export default function TransportFares({ lgas = [] }) {
                 )}
 
             </div>
+
+            {passcodeGate.open && (
+                <PasscodeModal
+                    title="Confirm Transport Fares"
+                    subtitle="Enter the passcode to save these transport fare changes."
+                    onConfirm={passcodeGate.confirm}
+                    onClose={passcodeGate.close}
+                    error={passcodeGate.error}
+                    loading={saving}
+                />
+            )}
         </AdminLayout>
     );
 }

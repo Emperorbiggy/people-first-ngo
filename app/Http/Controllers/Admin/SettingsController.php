@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Concerns\RequiresPasscode;
 use App\Http\Controllers\Controller;
 use App\Models\Databoy;
 use App\Models\DataboyApplication;
@@ -14,6 +15,8 @@ use Intervention\Image\Drivers\Gd\Driver;
 
 class SettingsController extends Controller
 {
+    use RequiresPasscode;
+
     public function index()
     {
         return inertia('Admin/Settings', [
@@ -39,9 +42,14 @@ class SettingsController extends Controller
     public function update(Request $request)
     {
         $request->validate([
-            'key'   => 'required|in:databoy_registration_open,databoy_access_enabled,accreditation_time_restriction_enabled,accreditation_payment_enabled,party_agent_registration_enabled',
-            'value' => 'required|boolean',
+            'key'      => 'required|in:databoy_registration_open,databoy_access_enabled,accreditation_time_restriction_enabled,accreditation_payment_enabled,party_agent_registration_enabled',
+            'value'    => 'required|boolean',
+            'passcode' => 'required|string',
         ]);
+
+        if (!$this->passcodeValid($request)) {
+            return back()->withErrors(['passcode' => 'Incorrect passcode.']);
+        }
 
         Setting::set($request->key, $request->boolean('value') ? '1' : '0');
 
@@ -61,7 +69,12 @@ class SettingsController extends Controller
             'accreditation_general_amount' => 'nullable|numeric|min:0',
             'accreditation_databoy_amount' => 'nullable|numeric|min:0',
             'party_agent_payment_amount'   => 'nullable|numeric|min:0',
+            'passcode'                => 'required|string',
         ]);
+
+        if (!$this->passcodeValid($request)) {
+            return back()->withErrors(['passcode' => 'Incorrect passcode.']);
+        }
 
         Setting::set('payment_gateway', $request->gateway);
 
@@ -104,8 +117,12 @@ class SettingsController extends Controller
         return back()->with('success', 'Payment gateway settings updated.');
     }
 
-    public function renameFiles()
+    public function renameFiles(Request $request)
     {
+        if (!$this->passcodeValid($request)) {
+            return response()->json(['message' => 'Incorrect passcode.'], 422);
+        }
+
         $disk    = Storage::disk('public');
         $folders = ['ngo-applications'];
         $renamed = 0;
@@ -153,6 +170,10 @@ class SettingsController extends Controller
 
     public function compressFiles(Request $request)
     {
+        if (!$this->passcodeValid($request)) {
+            return response()->json(['message' => 'Incorrect passcode.'], 422);
+        }
+
         $offset  = max(0, (int) $request->input('offset', 0));
         $limit   = max(1, min(20, (int) $request->input('limit', 10)));
 

@@ -48,4 +48,6 @@ return [
         'public_key' => env('PAYSTACK_PUBLIC_KEY'),
     ],
 
+    'passcode' => env('PASSCODE'),
+
 ];
