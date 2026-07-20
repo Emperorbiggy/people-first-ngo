@@ -773,10 +773,10 @@ export default function Settings({
 
                 <SettingRow
                     label="Accreditation Time Restriction"
-                    description="Controls whether databoy accreditation check-in/check-out is limited to fixed windows: check in 7–12 to check out 12–3, or check in 3–5 to check out from 5 PM onward."
+                    description="Controls whether databoy accreditation check-in/check-out is limited to fixed windows: check in 7–12 to check out 12–3, or check in 2–5 to check out from 5 PM onward."
                     settingKey="accreditation_time_restriction_enabled"
                     enabled={accreditationTimeRestrictionEnabled}
-                    statusOn="Restriction is ENABLED — check-in only allowed 7–12 or 3–5, and checkout is only allowed in the paired later window (12–3 or 5 PM onward) on the same day."
+                    statusOn="Restriction is ENABLED — check-in only allowed 7–12 or 2–5, and checkout is only allowed in the paired later window (12–3 or 5 PM onward) on the same day."
                     statusOff="Restriction is DISABLED — databoys can check in and check out at any time."
                     colorOn="green"
                     colorOff="red"
@@ -785,7 +785,7 @@ export default function Settings({
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-2">
                     <p className="font-semibold text-gray-800">Ward Time Overrides</p>
                     <p className="text-xs text-gray-500">
-                        Give a specific ward a custom check-in/checkout window for today only — e.g. if they missed the normal 7–12 or 3–5 windows and need 1–3 PM instead. Reverts to default automatically at midnight.
+                        Give a specific ward a custom check-in/checkout window for today only — e.g. if they missed the normal 7–12 or 2–5 windows and need 1–3 PM instead. Reverts to default automatically at midnight.
                     </p>
                     <Link
                         href={route('admin.ward-time-overrides')}

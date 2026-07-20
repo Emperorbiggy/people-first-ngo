@@ -32,7 +32,7 @@ function OverrideModal({ ward, onClose }) {
             <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
                 <div>
                     <h3 className="font-bold text-gray-800">Override Time — {ward.name}</h3>
-                    <p className="text-xs text-gray-500 mt-0.5">Applies today only ({ward.lga ?? 'no LGA'}). Automatically reverts to the default 7–12 / 3–5 windows tomorrow.</p>
+                    <p className="text-xs text-gray-500 mt-0.5">Applies today only ({ward.lga ?? 'no LGA'}). Automatically reverts to the default 7–12 / 2–5 windows tomorrow.</p>
                 </div>
 
                 {error && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>}
@@ -110,7 +110,7 @@ export default function WardTimeOverrides({ wards = [] }) {
                 <div>
                     <h1 className="text-xl font-bold text-gray-800">Ward Time Overrides</h1>
                     <p className="text-sm text-gray-500 mt-0.5">
-                        Give a ward a custom check-in/checkout window for today only — e.g. if they missed the normal 7–12 or 3–5 windows. Reverts to default automatically at midnight.
+                        Give a ward a custom check-in/checkout window for today only — e.g. if they missed the normal 7–12 or 2–5 windows. Reverts to default automatically at midnight.
                     </p>
                 </div>
 
@@ -165,7 +165,7 @@ export default function WardTimeOverrides({ wards = [] }) {
                                                         In: {formatTime(w.override.checkin_start)}–{formatTime(w.override.checkin_end)} · Out: {formatTime(w.override.checkout_start)}–{formatTime(w.override.checkout_end)}
                                                     </span>
                                                 ) : (
-                                                    <span className="text-xs text-gray-400">Default (7–12 / 3–5)</span>
+                                                    <span className="text-xs text-gray-400">Default (7–12 / 2–5)</span>
                                                 )}
                                             </td>
                                             <td className="px-5 py-3 whitespace-nowrap space-x-2">

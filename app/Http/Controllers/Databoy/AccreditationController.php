@@ -28,9 +28,9 @@ class AccreditationController extends Controller
             'checkout_label' => '12:00 PM–3:00 PM',
         ],
         [
-            'checkin_start'  => '15:00', 'checkin_end'  => '17:00',
+            'checkin_start'  => '14:00', 'checkin_end'  => '17:00',
             'checkout_start' => '17:00', 'checkout_end' => '23:59',
-            'checkin_label'  => '3:00 PM–5:00 PM',
+            'checkin_label'  => '2:00 PM–5:00 PM',
             'checkout_label' => '5:00 PM onward',
         ],
     ];

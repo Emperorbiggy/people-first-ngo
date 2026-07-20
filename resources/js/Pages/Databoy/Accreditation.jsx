@@ -16,9 +16,9 @@ const FALLBACK_WINDOWS = [
         checkoutLabel: '12:00 PM–3:00 PM',
     },
     {
-        checkinStart: 15 * 60, checkinEnd: 17 * 60,
+        checkinStart: 14 * 60, checkinEnd: 17 * 60,
         checkoutStart: 17 * 60, checkoutEnd: 23 * 60 + 59,
-        checkinLabel: '3:00 PM–5:00 PM',
+        checkinLabel: '2:00 PM–5:00 PM',
         checkoutLabel: '5:00 PM onward',
     },
 ];
