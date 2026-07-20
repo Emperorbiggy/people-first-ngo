@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Databoy;
 
 use App\Http\Controllers\Controller;
 use App\Jobs\PayAccreditedApplicantJob;
-use App\Jobs\PayDataboyAccreditationJob;
 use App\Models\DataboyApplication;
 use App\Models\Lga;
 use App\Models\Setting;
@@ -161,7 +160,6 @@ class AccreditationController extends Controller
 
         if ($this->paymentEnabled()) {
             PayAccreditedApplicantJob::dispatch($databoyApplication->id);
-            PayDataboyAccreditationJob::dispatch($databoy->id);
             $suffix = ' Payment queued.';
         } else {
             $suffix = '';

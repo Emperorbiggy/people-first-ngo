@@ -18,9 +18,10 @@ use Illuminate\Support\Str;
  * Pays a databoy for having done accreditation work today — once per
  * calendar day, no matter how many people they check out that day.
  *
- * Dispatched from Databoy\AccreditationController::checkOut() on every
- * checkout; the "already paid today" guard below (scoped to today's date)
- * is what actually enforces the once-a-day rule, not the dispatch site.
+ * Dispatched manually from Admin\DataboyAccreditationPaymentController::pay(),
+ * not automatically on checkout; the "already paid today" guard below
+ * (scoped to today's date) still enforces the once-a-day rule regardless
+ * of how many times this job is dispatched for the same databoy/day.
  */
 class PayDataboyAccreditationJob implements ShouldQueue
 {

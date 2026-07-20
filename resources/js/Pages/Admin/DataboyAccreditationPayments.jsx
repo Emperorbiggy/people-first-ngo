@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Link } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 
 function StatCard({ label, value, color }) {
@@ -49,9 +50,17 @@ export default function DataboyAccreditationPayments({ history = [], stats = {} 
         <AdminLayout title="Databoy Accreditation Payments">
             <div className="max-w-6xl mx-auto space-y-6">
 
-                <div>
-                    <h1 className="text-xl font-bold text-gray-800">Databoy Accreditation Payments</h1>
-                    <p className="text-sm text-gray-500 mt-0.5">Daily payments to databoys for accreditation work — one payment per databoy per day, the first time they check someone out that day.</p>
+                <div className="flex items-center justify-between gap-3">
+                    <div>
+                        <h1 className="text-xl font-bold text-gray-800">Databoy Accreditation Payments</h1>
+                        <p className="text-sm text-gray-500 mt-0.5">Daily payments to databoys for accreditation work, paid manually from the "Pay Today's Databoys" page — at most one payment per databoy per day.</p>
+                    </div>
+                    <Link
+                        href={route('admin.databoy-accreditation-payments.pending')}
+                        className="px-4 py-2 text-sm font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition whitespace-nowrap"
+                    >
+                        Pay Today's Databoys
+                    </Link>
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

@@ -371,7 +371,7 @@ function AccreditationPaymentSection({ accreditationGeneralAmount, accreditation
                         className="w-full rounded-xl border border-gray-200 pl-7 pr-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
                     />
                 </div>
-                <p className="text-xs text-gray-500 mt-1">Paid to the databoy once per day, the first time they check someone out that day.</p>
+                <p className="text-xs text-gray-500 mt-1">Not automatic — pay databoys who accredited someone today from the "Pay Today's Databoys" page, once per databoy per day.</p>
             </div>
             <div>
                 <label className="text-xs font-medium text-gray-600">Party Agent Payment</label>

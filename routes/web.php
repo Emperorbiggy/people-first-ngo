@@ -158,6 +158,8 @@ Route::middleware('auth')->group(function () {
     // Accreditation Payments
     Route::get('/admin/accreditation-payments', [AdminAccreditationPaymentController::class, 'index'])->name('admin.accreditation-payments');
     Route::get('/admin/databoy-accreditation-payments', [AdminDataboyAccreditationPaymentController::class, 'index'])->name('admin.databoy-accreditation-payments');
+    Route::get('/admin/databoy-accreditation-payments/pending', [AdminDataboyAccreditationPaymentController::class, 'pending'])->name('admin.databoy-accreditation-payments.pending');
+    Route::post('/admin/databoy-accreditation-payments/pay', [AdminDataboyAccreditationPaymentController::class, 'pay'])->name('admin.databoy-accreditation-payments.pay');
 
     // Data Plans (EasiGateway data bundles)
     Route::get('/admin/data-plans', [AdminDataPlanController::class, 'index'])->name('admin.data-plans');
