@@ -15,13 +15,14 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 /**
- * Pays a databoy for having done accreditation work today — once per
- * calendar day, no matter how many people they check out that day.
+ * Pays a databoy for having done accreditation work on a given day — once
+ * per calendar day, no matter how many people they check out that day.
  *
  * Dispatched manually from Admin\DataboyAccreditationPaymentController::pay(),
- * not automatically on checkout; the "already paid today" guard below
- * (scoped to today's date) still enforces the once-a-day rule regardless
- * of how many times this job is dispatched for the same databoy/day.
+ * not automatically on checkout, for whichever work day (today or an unpaid
+ * earlier day) the admin selects; the "already paid" guard below (scoped to
+ * that specific date) enforces the once-a-day rule regardless of how many
+ * times this job is dispatched for the same databoy/day.
  */
 class PayDataboyAccreditationJob implements ShouldQueue
 {
@@ -30,7 +31,7 @@ class PayDataboyAccreditationJob implements ShouldQueue
     public int $tries = 1;
     public int $timeout = 120;
 
-    public function __construct(public int $databoyId)
+    public function __construct(public int $databoyId, public ?string $paymentDate = null)
     {
     }
 
@@ -44,17 +45,17 @@ class PayDataboyAccreditationJob implements ShouldQueue
             return;
         }
 
-        $today = now()->toDateString();
+        $date = $this->paymentDate ?? now()->toDateString();
 
-        if ($this->alreadyPaidToday($databoy->id, $today)) {
-            $log("Aborted: already paid for {$today}.");
+        if ($this->alreadyPaidForDate($databoy->id, $date)) {
+            $log("Aborted: already paid for {$date}.");
             return;
         }
 
         $amount = (float) Setting::get('accreditation_databoy_amount', 0);
 
         if ($amount <= 0) {
-            $this->record($databoy, $today, 0, null, 'failed', 'Databoy accreditation amount not configured — set it in Settings.');
+            $this->record($databoy, $date, 0, null, 'failed', 'Databoy accreditation amount not configured — set it in Settings.');
             return;
         }
 
@@ -65,13 +66,13 @@ class PayDataboyAccreditationJob implements ShouldQueue
         }
 
         if (!$databoy->accreditationRecipient || $databoy->accreditationRecipient->status !== 'success') {
-            $this->record($databoy, $today, $amount, null, 'failed', $databoy->accreditationRecipient->message ?? 'Failed to create transfer recipient.');
+            $this->record($databoy, $date, $amount, null, 'failed', $databoy->accreditationRecipient->message ?? 'Failed to create transfer recipient.');
             return;
         }
 
         // Re-check right before the transfer — closes the race window between
         // the guard above and the (potentially slow) recipient-creation call.
-        if ($this->alreadyPaidToday($databoy->id, $today)) {
+        if ($this->alreadyPaidForDate($databoy->id, $date)) {
             $log('Aborted: paid by another process while this job was running (race-condition guard).');
             return;
         }
@@ -88,19 +89,19 @@ class PayDataboyAccreditationJob implements ShouldQueue
         );
 
         if (!$result['status']) {
-            $this->record($databoy, $today, $amount, null, 'failed', $result['message'] ?? 'Transfer failed.');
+            $this->record($databoy, $date, $amount, null, 'failed', $result['message'] ?? 'Transfer failed.');
             return;
         }
 
         $data   = $result['data'] ?? [];
         $status = ($data['status'] ?? null) === null || ($data['status'] ?? null) === 'pending' ? 'success' : $data['status'];
 
-        $this->record($databoy, $today, $amount, $data['transfer_code'] ?? null, $status, $data['reason'] ?? null, $data['reference'] ?? $reference);
+        $this->record($databoy, $date, $amount, $data['transfer_code'] ?? null, $status, $data['reason'] ?? null, $data['reference'] ?? $reference);
 
         $log('Finished.', ['status' => $status]);
     }
 
-    private function alreadyPaidToday(int $databoyId, string $date): bool
+    private function alreadyPaidForDate(int $databoyId, string $date): bool
     {
         return DataboyAccreditationPayment::where('databoy_id', $databoyId)
             ->where('payment_date', $date)

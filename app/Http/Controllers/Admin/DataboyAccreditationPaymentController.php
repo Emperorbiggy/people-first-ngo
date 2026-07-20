@@ -51,33 +51,46 @@ class DataboyAccreditationPaymentController extends Controller
 
     public function pending()
     {
-        $today = now()->toDateString();
-        $ids   = $this->eligibleDataboyIdsToday($today);
+        $pending = $this->pendingWorkDates();
 
-        $databoys = Databoy::whereIn('id', $ids)
-            ->with(['accreditationPayments' => fn ($q) => $q->where('payment_date', $today)->where('status', 'failed')->latest()])
-            ->orderBy('full_name')
+        $databoys = Databoy::whereIn('id', $pending->pluck('databoy_id')->unique())
             ->get(['id', 'full_name', 'bank_name', 'account_number', 'bank_account_name'])
-            ->map(fn ($databoy) => [
-                'id'                => $databoy->id,
-                'full_name'         => $databoy->full_name,
-                'bank_name'         => $databoy->bank_name,
-                'account_number'    => $databoy->account_number,
-                'bank_account_name' => $databoy->bank_account_name,
-                'previous_failure'  => optional($databoy->accreditationPayments->first())->message,
-            ]);
+            ->keyBy('id');
+
+        $failureMessages = DataboyAccreditationPayment::whereIn('databoy_id', $databoys->keys())
+            ->where('status', 'failed')
+            ->orderByDesc('created_at')
+            ->get(['databoy_id', 'payment_date', 'message'])
+            ->groupBy(fn ($p) => $p->databoy_id . '|' . $p->payment_date->toDateString())
+            ->map(fn ($group) => $group->first()->message);
+
+        $items = $pending->map(function ($row) use ($databoys, $failureMessages) {
+            $databoy = $databoys->get($row->databoy_id);
+            $key     = $row->databoy_id . '|' . $row->work_date;
+
+            return [
+                'databoy_id'        => $row->databoy_id,
+                'work_date'         => $row->work_date,
+                'full_name'         => $databoy->full_name ?? '—',
+                'bank_name'         => $databoy->bank_name ?? null,
+                'account_number'    => $databoy->account_number ?? null,
+                'bank_account_name' => $databoy->bank_account_name ?? null,
+                'previous_failure'  => $failureMessages->get($key),
+            ];
+        })->sortBy('work_date')->values();
 
         return inertia('Admin/DataboyAccreditationPending', [
             'accreditationDataboyAmount' => Setting::get('accreditation_databoy_amount', ''),
-            'databoys'                   => $databoys,
+            'items'                      => $items,
         ]);
     }
 
     public function pay(Request $request)
     {
         $request->validate([
-            'databoy_ids'   => 'required|array',
-            'databoy_ids.*' => 'exists:databoys,id',
+            'items'             => 'required|array',
+            'items.*.databoy_id' => 'required|integer|exists:databoys,id',
+            'items.*.work_date'  => 'required|date',
         ]);
 
         $amount = (float) Setting::get('accreditation_databoy_amount', 0);
@@ -86,35 +99,51 @@ class DataboyAccreditationPaymentController extends Controller
             return back()->withErrors(['amount' => 'Set the Databoy Payment amount in Settings before paying.']);
         }
 
-        $ids = $this->eligibleDataboyIdsToday(now()->toDateString())
-            ->intersect($request->databoy_ids);
+        $eligible = $this->pendingWorkDates()
+            ->map(fn ($row) => $row->databoy_id . '|' . $row->work_date)
+            ->flip();
 
-        if ($ids->isEmpty()) {
-            return back()->with('error', "No eligible databoys were selected — they may have already been paid for today.");
+        $queued = 0;
+
+        foreach ($request->items as $item) {
+            $key = $item['databoy_id'] . '|' . $item['work_date'];
+
+            if (!isset($eligible[$key])) {
+                continue;
+            }
+
+            PayDataboyAccreditationJob::dispatch((int) $item['databoy_id'], $item['work_date']);
+            $queued++;
         }
 
-        foreach ($ids as $id) {
-            PayDataboyAccreditationJob::dispatch($id);
+        if ($queued === 0) {
+            return back()->with('error', 'No eligible databoy/day records were selected — they may have already been paid.');
         }
 
-        return back()->with('success', "Queued today's accreditation payment for {$ids->count()} databoy(s).");
+        return back()->with('success', "Queued payment for {$queued} databoy/day record(s).");
     }
 
     /**
-     * Databoys who accredited (checked someone out) today but don't yet have
-     * a non-failed accreditation payment recorded for today.
+     * Every (databoy, work day) pair where the databoy accredited someone
+     * (checked someone out) that day but doesn't yet have a non-failed
+     * accreditation payment recorded for that specific day — covers today
+     * as well as any earlier unpaid day.
      */
-    private function eligibleDataboyIdsToday(string $today)
+    private function pendingWorkDates()
     {
-        $workedToday = DataboyApplication::whereDate('checked_out_at', $today)
+        $worked = DataboyApplication::whereNotNull('checked_out_at')
             ->whereNotNull('accredited_by_databoy_id')
+            ->selectRaw('accredited_by_databoy_id as databoy_id, DATE(checked_out_at) as work_date')
             ->distinct()
-            ->pluck('accredited_by_databoy_id');
+            ->get();
 
-        $alreadyPaidToday = DataboyAccreditationPayment::where('payment_date', $today)
-            ->where('status', '!=', 'failed')
-            ->pluck('databoy_id');
+        $paidPairs = DataboyAccreditationPayment::where('status', '!=', 'failed')
+            ->get(['databoy_id', 'payment_date'])
+            ->map(fn ($p) => $p->databoy_id . '|' . $p->payment_date->toDateString())
+            ->flip();
 
-        return $workedToday->diff($alreadyPaidToday);
+        return $worked->reject(
+            fn ($row) => isset($paidPairs[$row->databoy_id . '|' . $row->work_date])
+        )->values();
     }
 }
