@@ -86,4 +86,9 @@ class SendApplicantPaymentBatchJob implements ShouldQueue
     {
         return ApplicantPayment::class;
     }
+
+    protected function paymentForeignKey(): string
+    {
+        return 'databoy_application_id';
+    }
 }

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Head, Link, usePage } from '@inertiajs/react';
 
 export default function DataboyLayout({ title, children }) {
-    const { databoy, flash } = usePage().props;
+    const { databoy, flash, partyAgentRegistrationEnabled } = usePage().props;
     const [menuOpen, setMenuOpen] = useState(false);
 
     const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
@@ -46,6 +46,8 @@ export default function DataboyLayout({ title, children }) {
                         {navLink('databoy.dashboard', 'Dashboard')}
                         {navLink('databoy.applications.index', 'My Applications')}
                         {navLink('databoy.applications.create', '+ Add Application')}
+                        {partyAgentRegistrationEnabled && navLink('databoy.party-agents.index', 'Party Agents')}
+                        {partyAgentRegistrationEnabled && navLink('databoy.party-agents.create', '+ Add Party Agent')}
                         {navLink('databoy.accreditation.index', 'Accreditation')}
                     </div>
 
@@ -79,6 +81,8 @@ export default function DataboyLayout({ title, children }) {
                         {navLink('databoy.dashboard', 'Dashboard')}
                         {navLink('databoy.applications.index', 'My Applications')}
                         {navLink('databoy.applications.create', '+ Add Application')}
+                        {partyAgentRegistrationEnabled && navLink('databoy.party-agents.index', 'Party Agents')}
+                        {partyAgentRegistrationEnabled && navLink('databoy.party-agents.create', '+ Add Party Agent')}
                         {navLink('databoy.accreditation.index', 'Accreditation')}
                         <div className="pt-2 border-t border-indigo-700 mt-2">
                             <p className="text-xs text-indigo-400 px-4 mb-1">{databoy?.full_name}</p>

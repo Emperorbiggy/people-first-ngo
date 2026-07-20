@@ -178,4 +178,9 @@ class PayAccreditedApplicantJob implements ShouldQueue
     {
         return AccreditationPayment::class;
     }
+
+    protected function paymentForeignKey(): string
+    {
+        return 'databoy_application_id';
+    }
 }

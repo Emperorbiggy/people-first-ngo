@@ -16,10 +16,16 @@ class EasiGatewayService
 
     public function __construct()
     {
-        $this->baseUrl       = rtrim(config('services.easigateway.url'), '/');
-        $this->apiKey        = config('services.easigateway.key');
-        $this->serviceId     = config('services.easigateway.service_id');
-        $this->dataServiceId = config('services.easigateway.data_service_id');
+        // Cast defensively: a missing .env value on any given server (env
+        // files aren't committed/synced) would otherwise throw a TypeError
+        // trying to assign null to these non-nullable string properties,
+        // crashing every request that touches this service. An empty string
+        // instead just makes the affected API call fail cleanly (handled
+        // below), while everything unrelated to EasiGateway keeps working.
+        $this->baseUrl       = rtrim((string) config('services.easigateway.url'), '/');
+        $this->apiKey        = (string) config('services.easigateway.key');
+        $this->serviceId     = (string) config('services.easigateway.service_id');
+        $this->dataServiceId = (string) config('services.easigateway.data_service_id');
     }
 
     /**

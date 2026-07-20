@@ -3,9 +3,22 @@ import { createPortal } from 'react-dom';
 import { router } from '@inertiajs/react';
 import DataboyLayout from '@/Layouts/DataboyLayout';
 
+// Check-in is only allowed inside a window's check-in range. Checkout for
+// that same check-in is only allowed inside the PAIRED checkout range (a
+// later, separate window), on the same calendar day as check-in.
 const WINDOWS = [
-    { startMin: 9 * 60, endMin: 12 * 60, label: '9:00 AM–12:00 PM' },
-    { startMin: 15 * 60, endMin: 18 * 60, label: '3:00 PM–6:00 PM' },
+    {
+        checkinStart: 8 * 60, checkinEnd: 12 * 60,
+        checkoutStart: 12 * 60, checkoutEnd: 15 * 60,
+        checkinLabel: '8:00 AM–12:00 PM',
+        checkoutLabel: '12:00 PM–3:00 PM',
+    },
+    {
+        checkinStart: 15 * 60, checkinEnd: 17 * 60,
+        checkoutStart: 17 * 60, checkoutEnd: 23 * 60 + 59,
+        checkinLabel: '3:00 PM–5:00 PM',
+        checkoutLabel: '5:00 PM onward',
+    },
 ];
 
 function minutesNow() {
@@ -13,15 +26,39 @@ function minutesNow() {
     return d.getHours() * 60 + d.getMinutes();
 }
 
-function currentWindow() {
-    const m = minutesNow();
-    return WINDOWS.find((w) => m >= w.startMin && m <= w.endMin) ?? null;
+function minutesFromIso(iso) {
+    const d = new Date(iso);
+    return d.getHours() * 60 + d.getMinutes();
 }
 
-function nextWindowLabel() {
+function currentCheckinWindow() {
     const m = minutesNow();
-    const upcoming = WINDOWS.find((w) => m < w.startMin);
-    return upcoming ? upcoming.label : WINDOWS[0].label + ' (tomorrow)';
+    return WINDOWS.find((w) => m >= w.checkinStart && m <= w.checkinEnd) ?? null;
+}
+
+function nextCheckinWindowLabel() {
+    const m = minutesNow();
+    const upcoming = WINDOWS.find((w) => m < w.checkinStart);
+    return upcoming ? upcoming.checkinLabel : WINDOWS[0].checkinLabel + ' (tomorrow)';
+}
+
+function windowForCheckinTime(iso) {
+    if (!iso) return null;
+    const m = minutesFromIso(iso);
+    return WINDOWS.find((w) => m >= w.checkinStart && m <= w.checkinEnd) ?? null;
+}
+
+function isSameDay(iso) {
+    if (!iso) return false;
+    const a = new Date(iso);
+    const b = new Date();
+    return a.toDateString() === b.toDateString();
+}
+
+function isWithinCheckoutRange(window) {
+    if (!window) return false;
+    const m = minutesNow();
+    return m >= window.checkoutStart && m <= window.checkoutEnd;
 }
 
 function formatTime(iso) {
@@ -158,7 +195,7 @@ function CheckInModal({ application, onClose, timeRestrictionEnabled }) {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
 
-    const window_ = currentWindow();
+    const window_ = currentCheckinWindow();
     const closedForCheckIn = timeRestrictionEnabled && !window_;
 
     const answerSuitability = (value) => {
@@ -192,7 +229,7 @@ function CheckInModal({ application, onClose, timeRestrictionEnabled }) {
         <ModalShell title={`Check In: ${application.full_name}`} onClose={onClose} closable={!saving}>
             {closedForCheckIn && (
                 <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800">
-                    Check-in is closed right now. It reopens at {nextWindowLabel()}.
+                    Check-in is closed right now. It reopens at {nextCheckinWindowLabel()}.
                 </div>
             )}
             {error && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>}
@@ -256,8 +293,10 @@ function CheckOutModal({ application, onClose, timeRestrictionEnabled }) {
     const [saving, setSaving] = useState(false);
     const [submitError, setSubmitError] = useState('');
 
-    const window_ = currentWindow();
-    const closedForCheckOut = timeRestrictionEnabled && !window_;
+    const checkinWindow = windowForCheckinTime(application.checked_in_at);
+    const closedForCheckOut = timeRestrictionEnabled && (
+        !checkinWindow || !isSameDay(application.checked_in_at) || !isWithinCheckoutRange(checkinWindow)
+    );
     const checkInPhotoUrl = `/storage/${application.check_in_photo_path}`;
 
     const handleCapture = (file, dataUrl) => {
@@ -294,7 +333,9 @@ function CheckOutModal({ application, onClose, timeRestrictionEnabled }) {
         >
             {closedForCheckOut && (
                 <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800">
-                    Checkout is closed right now — it must happen in the same window as check-in.
+                    {checkinWindow
+                        ? `Checkout is only allowed between ${checkinWindow.checkoutLabel} (based on the check-in time), on the same day.`
+                        : 'Checkout window could not be determined from the check-in time.'}
                 </div>
             )}
             {submitError && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{submitError}</p>}
@@ -361,7 +402,7 @@ export default function Accreditation({ applications = [], timeRestrictionEnable
     const [search, setSearch] = useState('');
     const [checkingInApp, setCheckingInApp] = useState(null);
     const [checkingOutApp, setCheckingOutApp] = useState(null);
-    const window_ = currentWindow();
+    const window_ = currentCheckinWindow();
 
     const filtered = search.trim()
         ? applications.filter((app) => {
@@ -392,8 +433,8 @@ export default function Accreditation({ applications = [], timeRestrictionEnable
                     window_ ? 'bg-green-50 border border-green-200 text-green-700' : 'bg-amber-50 border border-amber-200 text-amber-700'
                 }`}>
                     {window_
-                        ? `Check-in/check-out is OPEN (${window_.label})`
-                        : `Check-in/check-out is CLOSED — next window: ${nextWindowLabel()}`}
+                        ? `Check-in is OPEN (${window_.checkinLabel}) — checkout for this window opens at ${window_.checkoutLabel}`
+                        : `Check-in is CLOSED — next window: ${nextCheckinWindowLabel()}`}
                 </div>
             ) : (
                 <div className="rounded-xl px-4 py-3 text-sm font-medium mb-4 bg-gray-50 border border-gray-200 text-gray-600">

@@ -21,6 +21,7 @@ class SettingsController extends Controller
             'accessEnabled'    => Setting::get('databoy_access_enabled', '1') === '1',
             'accreditationTimeRestrictionEnabled' => Setting::get('accreditation_time_restriction_enabled', '1') === '1',
             'accreditationPaymentEnabled' => Setting::get('accreditation_payment_enabled', '1') === '1',
+            'partyAgentRegistrationEnabled' => Setting::get('party_agent_registration_enabled', '1') === '1',
 
             'paymentGateway'       => Setting::get('payment_gateway', 'paystack'),
             'paystackPublicKey'    => Setting::get('paystack_public_key', ''),
@@ -30,13 +31,15 @@ class SettingsController extends Controller
             'applicantTransferAmount'   => Setting::get('applicant_transfer_amount', ''),
             'airtimeAmount'             => Setting::get('airtime_amount', ''),
             'accreditationGeneralAmount' => Setting::get('accreditation_general_amount', ''),
+            'accreditationDataboyAmount' => Setting::get('accreditation_databoy_amount', ''),
+            'partyAgentPaymentAmount'    => Setting::get('party_agent_payment_amount', ''),
         ]);
     }
 
     public function update(Request $request)
     {
         $request->validate([
-            'key'   => 'required|in:databoy_registration_open,databoy_access_enabled,accreditation_time_restriction_enabled,accreditation_payment_enabled',
+            'key'   => 'required|in:databoy_registration_open,databoy_access_enabled,accreditation_time_restriction_enabled,accreditation_payment_enabled,party_agent_registration_enabled',
             'value' => 'required|boolean',
         ]);
 
@@ -56,6 +59,8 @@ class SettingsController extends Controller
             'applicant_transfer_amount' => 'nullable|numeric|min:0',
             'airtime_amount'          => 'nullable|numeric|min:0',
             'accreditation_general_amount' => 'nullable|numeric|min:0',
+            'accreditation_databoy_amount' => 'nullable|numeric|min:0',
+            'party_agent_payment_amount'   => 'nullable|numeric|min:0',
         ]);
 
         Setting::set('payment_gateway', $request->gateway);
@@ -74,6 +79,14 @@ class SettingsController extends Controller
 
         if ($request->filled('accreditation_general_amount')) {
             Setting::set('accreditation_general_amount', $request->accreditation_general_amount);
+        }
+
+        if ($request->filled('accreditation_databoy_amount')) {
+            Setting::set('accreditation_databoy_amount', $request->accreditation_databoy_amount);
+        }
+
+        if ($request->filled('party_agent_payment_amount')) {
+            Setting::set('party_agent_payment_amount', $request->party_agent_payment_amount);
         }
 
         if ($request->filled('paystack_secret_key')) {

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { router, usePage, Link } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import TargetTypeToggle from '@/Components/TargetTypeToggle';
 
 function formatNaira(value) {
     const n = Number(value);
@@ -8,13 +9,20 @@ function formatNaira(value) {
     return '₦' + n.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-export default function DataPurchase({ balance = 0, databoys = [] }) {
+export default function DataPurchase({ type = 'databoy', balance = 0, databoys = [] }) {
     const { flash } = usePage().props;
     const [selected, setSelected] = useState([]);
     const [sending, setSending] = useState(false);
     const [retryingId, setRetryingId] = useState(null);
 
+    const label = type === 'party_agent' ? 'party agent' : 'databoy';
     const allSelected = databoys.length > 0 && selected.length === databoys.length;
+
+    const changeType = (newType) => {
+        if (newType === type) return;
+        setSelected([]);
+        router.get(route('admin.data-purchase'), { type: newType }, { preserveScroll: true });
+    };
 
     const toggleAll = () => {
         setSelected(allSelected ? [] : databoys.map((d) => d.id));
@@ -32,7 +40,7 @@ export default function DataPurchase({ balance = 0, databoys = [] }) {
     const send = () => {
         if (selected.length === 0) return;
         setSending(true);
-        router.post(route('admin.data-purchase.send'), { databoy_ids: selected }, {
+        router.post(route('admin.data-purchase.send'), { databoy_ids: selected, type }, {
             preserveScroll: true,
             onSuccess: () => setSelected([]),
             onFinish: () => setSending(false),
@@ -41,7 +49,7 @@ export default function DataPurchase({ balance = 0, databoys = [] }) {
 
     const retryOne = (id) => {
         setRetryingId(id);
-        router.post(route('admin.data-purchase.send'), { databoy_ids: [id] }, {
+        router.post(route('admin.data-purchase.send'), { databoy_ids: [id], type }, {
             preserveScroll: true,
             onSuccess: () => setSelected((prev) => prev.filter((x) => x !== id)),
             onFinish: () => setRetryingId(null),
@@ -52,17 +60,20 @@ export default function DataPurchase({ balance = 0, databoys = [] }) {
         <AdminLayout title="Purchase Data">
             <div className="max-w-6xl mx-auto space-y-6">
 
-                <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
                     <div>
                         <h1 className="text-xl font-bold text-gray-800">Purchase Data</h1>
-                        <p className="text-sm text-gray-500 mt-0.5">Buys each databoy's configured data plan one at a time via EasiGateway — each finishes before the next starts.</p>
+                        <p className="text-sm text-gray-500 mt-0.5">Buys each {label}'s configured data plan one at a time via EasiGateway — each finishes before the next starts.</p>
                     </div>
-                    <Link
-                        href={route('admin.data-purchase.history')}
-                        className="px-4 py-2 text-sm font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition whitespace-nowrap"
-                    >
-                        View Data Purchase History
-                    </Link>
+                    <div className="flex items-center gap-3">
+                        <TargetTypeToggle type={type} onChange={changeType} />
+                        <Link
+                            href={route('admin.data-purchase.history', { type })}
+                            className="px-4 py-2 text-sm font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition whitespace-nowrap"
+                        >
+                            View Data Purchase History
+                        </Link>
+                    </div>
                 </div>
 
                 {flash?.success && (
@@ -91,9 +102,9 @@ export default function DataPurchase({ balance = 0, databoys = [] }) {
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                     <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
                         <div>
-                            <h3 className="font-semibold text-gray-800">Eligible Databoys</h3>
+                            <h3 className="font-semibold text-gray-800">Eligible {type === 'party_agent' ? 'Party Agents' : 'Databoys'}</h3>
                             <p className="text-xs text-gray-400 mt-0.5">
-                                {databoys.length} awaiting data · only databoys whose network has a configured plan are listed
+                                {databoys.length} awaiting data · only {label}s whose network has a configured plan are listed
                             </p>
                         </div>
                         <button
@@ -108,9 +119,9 @@ export default function DataPurchase({ balance = 0, databoys = [] }) {
 
                     {databoys.length === 0 ? (
                         <div className="py-16 text-center">
-                            <p className="text-gray-400 text-sm">No databoys are currently eligible for data.</p>
+                            <p className="text-gray-400 text-sm">No {label}s are currently eligible for data.</p>
                             <p className="text-gray-300 text-xs mt-1">
-                                A databoy needs a browsing network/number, a configured plan for that network (see Data Plans), and no prior successful purchase.
+                                A {label} needs a browsing network/number, a configured plan for that network (see Data Plans), and no prior successful purchase.
                             </p>
                         </div>
                     ) : (

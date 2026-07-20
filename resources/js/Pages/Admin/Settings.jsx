@@ -258,15 +258,19 @@ function AirtimeSettingsSection({ airtimeAmount, paymentGateway }) {
     );
 }
 
-function AccreditationPaymentSection({ accreditationGeneralAmount, paymentGateway }) {
-    const [amount, setAmount] = useState(accreditationGeneralAmount || '');
+function AccreditationPaymentSection({ accreditationGeneralAmount, accreditationDataboyAmount, partyAgentPaymentAmount, paymentGateway }) {
+    const [applicantAmount, setApplicantAmount] = useState(accreditationGeneralAmount || '');
+    const [databoyAmount, setDataboyAmount] = useState(accreditationDataboyAmount || '');
+    const [partyAgentAmount, setPartyAgentAmount] = useState(partyAgentPaymentAmount || '');
     const [saving, setSaving] = useState(false);
 
     const save = () => {
         setSaving(true);
         router.post(route('admin.settings.payment-gateway'), {
             gateway: paymentGateway || 'paystack',
-            accreditation_general_amount: amount,
+            accreditation_general_amount: applicantAmount,
+            accreditation_databoy_amount: databoyAmount,
+            party_agent_payment_amount: partyAgentAmount,
         }, {
             preserveScroll: true,
             onFinish: () => setSaving(false),
@@ -278,23 +282,56 @@ function AccreditationPaymentSection({ accreditationGeneralAmount, paymentGatewa
             <div>
                 <p className="font-semibold text-gray-800">Accreditation Payment</p>
                 <p className="text-xs text-gray-500 mt-0.5">
-                    Paid automatically to each applicant once checked out and accredited: this general amount plus their LGA's transport fare.
+                    Amounts paid automatically once a databoy checks someone out and accredits them.
                 </p>
             </div>
             <div>
-                <label className="text-xs font-medium text-gray-600">General Accreditation Amount</label>
+                <label className="text-xs font-medium text-gray-600">Applicant Payment</label>
                 <div className="relative mt-1">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">₦</span>
                     <input
                         type="number"
                         min="0"
                         step="0.01"
-                        value={amount}
-                        onChange={(e) => setAmount(e.target.value)}
+                        value={applicantAmount}
+                        onChange={(e) => setApplicantAmount(e.target.value)}
                         placeholder="0.00"
                         className="w-full rounded-xl border border-gray-200 pl-7 pr-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
                     />
                 </div>
+                <p className="text-xs text-gray-500 mt-1">Paid to the applicant, plus their LGA's transport fare.</p>
+            </div>
+            <div>
+                <label className="text-xs font-medium text-gray-600">Databoy Payment</label>
+                <div className="relative mt-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">₦</span>
+                    <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={databoyAmount}
+                        onChange={(e) => setDataboyAmount(e.target.value)}
+                        placeholder="0.00"
+                        className="w-full rounded-xl border border-gray-200 pl-7 pr-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                </div>
+                <p className="text-xs text-gray-500 mt-1">Paid to the databoy once per day, the first time they check someone out that day.</p>
+            </div>
+            <div>
+                <label className="text-xs font-medium text-gray-600">Party Agent Payment</label>
+                <div className="relative mt-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">₦</span>
+                    <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={partyAgentAmount}
+                        onChange={(e) => setPartyAgentAmount(e.target.value)}
+                        placeholder="0.00"
+                        className="w-full rounded-xl border border-gray-200 pl-7 pr-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                </div>
+                <p className="text-xs text-gray-500 mt-1">One-time amount used on the Party Agent Payment page — not automatic.</p>
             </div>
             <button
                 type="button"
@@ -302,7 +339,7 @@ function AccreditationPaymentSection({ accreditationGeneralAmount, paymentGatewa
                 disabled={saving}
                 className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-semibold rounded-xl text-sm transition"
             >
-                {saving ? 'Saving…' : 'Save General Amount'}
+                {saving ? 'Saving…' : 'Save Amounts'}
             </button>
             <Link
                 href={route('admin.transport-fares')}
@@ -578,6 +615,7 @@ export default function Settings({
     accessEnabled,
     accreditationTimeRestrictionEnabled,
     accreditationPaymentEnabled,
+    partyAgentRegistrationEnabled,
     paymentGateway,
     paystackPublicKey,
     paystackSecretKeySet,
@@ -586,6 +624,8 @@ export default function Settings({
     applicantTransferAmount,
     airtimeAmount,
     accreditationGeneralAmount,
+    accreditationDataboyAmount,
+    partyAgentPaymentAmount,
 }) {
     const { flash } = usePage().props;
 
@@ -628,10 +668,10 @@ export default function Settings({
 
                 <SettingRow
                     label="Accreditation Time Restriction"
-                    description="Controls whether check-in/check-out for databoy accreditation is limited to the 9:00 AM–12:00 PM and 3:00 PM–6:00 PM windows."
+                    description="Controls whether databoy accreditation check-in/check-out is limited to fixed windows: check in 8–12 to check out 12–3, or check in 3–5 to check out from 5 PM onward."
                     settingKey="accreditation_time_restriction_enabled"
                     enabled={accreditationTimeRestrictionEnabled}
-                    statusOn="Restriction is ENABLED — check-in/check-out only allowed in the 9–12 and 3–6 windows, and checkout must land in the same window as check-in."
+                    statusOn="Restriction is ENABLED — check-in only allowed 8–12 or 3–5, and checkout is only allowed in the paired later window (12–3 or 5 PM onward) on the same day."
                     statusOff="Restriction is DISABLED — databoys can check in and check out at any time."
                     colorOn="green"
                     colorOff="red"
@@ -644,6 +684,17 @@ export default function Settings({
                     enabled={accreditationPaymentEnabled}
                     statusOn="Payment is ENABLED — checking an applicant out queues their accreditation payment as normal."
                     statusOff="Payment is DISABLED — checking an applicant out still accredits them, but no payment is queued."
+                    colorOn="green"
+                    colorOff="red"
+                />
+
+                <SettingRow
+                    label="Party Agent Registration"
+                    description="Controls whether databoys can register new party agents from their portal."
+                    settingKey="party_agent_registration_enabled"
+                    enabled={partyAgentRegistrationEnabled}
+                    statusOn="Registration is ENABLED — databoys can register party agents."
+                    statusOff="Registration is DISABLED — the Party Agents option is hidden from databoys."
                     colorOn="green"
                     colorOff="red"
                 />
@@ -664,6 +715,8 @@ export default function Settings({
 
                 <AccreditationPaymentSection
                     accreditationGeneralAmount={accreditationGeneralAmount}
+                    accreditationDataboyAmount={accreditationDataboyAmount}
+                    partyAgentPaymentAmount={partyAgentPaymentAmount}
                     paymentGateway={paymentGateway}
                 />
 

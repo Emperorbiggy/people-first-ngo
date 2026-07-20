@@ -14,9 +14,12 @@ use App\Http\Controllers\Admin\NgoDownloadsController as AdminNgoDownloadsContro
 use App\Http\Controllers\Admin\AccreditationController as AdminAccreditationController;
 use App\Http\Controllers\Admin\ApplicantRecipientController as AdminApplicantRecipientController;
 use App\Http\Controllers\Admin\ApplicantPaymentController as AdminApplicantPaymentController;
+use App\Http\Controllers\Admin\PartyAgentRecipientController as AdminPartyAgentRecipientController;
+use App\Http\Controllers\Admin\PartyAgentPaymentController as AdminPartyAgentPaymentController;
 use App\Http\Controllers\Admin\QueueMonitorController as AdminQueueMonitorController;
 use App\Http\Controllers\Admin\TransportFareController as AdminTransportFareController;
 use App\Http\Controllers\Admin\AccreditationPaymentController as AdminAccreditationPaymentController;
+use App\Http\Controllers\Admin\DataboyAccreditationPaymentController as AdminDataboyAccreditationPaymentController;
 use App\Http\Controllers\Admin\DataPlanController as AdminDataPlanController;
 use App\Http\Controllers\Admin\DataPurchaseController as AdminDataPurchaseController;
 use App\Http\Controllers\Admin\EasigatewayFundingController as AdminEasigatewayFundingController;
@@ -26,6 +29,7 @@ use App\Http\Controllers\Databoy\RegistrationController;
 use App\Http\Controllers\Databoy\AuthController as DataboyAuthController;
 use App\Http\Controllers\Databoy\DashboardController as DataboyDashboardController;
 use App\Http\Controllers\Databoy\ApplicationController as DataboyApplicationController;
+use App\Http\Controllers\Databoy\PartyAgentController as DataboyPartyAgentController;
 use App\Http\Controllers\Databoy\AccreditationController as DataboyAccreditationController;
 use App\Models\Country;
 use Illuminate\Support\Facades\Route;
@@ -123,6 +127,15 @@ Route::middleware('auth')->group(function () {
     Route::post('/admin/applicant-payments', [AdminApplicantPaymentController::class, 'pay'])->name('admin.applicant-payments.pay');
     Route::get('/admin/applicant-payments/paid', [AdminApplicantPaymentController::class, 'paid'])->name('admin.applicant-payments.paid');
 
+    // Party Agent Recipients
+    Route::get('/admin/party-agent-recipients', [AdminPartyAgentRecipientController::class, 'index'])->name('admin.party-agent-recipients');
+    Route::post('/admin/party-agent-recipients', [AdminPartyAgentRecipientController::class, 'create'])->name('admin.party-agent-recipients.create');
+
+    // Party Agent Payments
+    Route::get('/admin/party-agent-payments', [AdminPartyAgentPaymentController::class, 'index'])->name('admin.party-agent-payments');
+    Route::post('/admin/party-agent-payments', [AdminPartyAgentPaymentController::class, 'pay'])->name('admin.party-agent-payments.pay');
+    Route::get('/admin/party-agent-payments/paid', [AdminPartyAgentPaymentController::class, 'paid'])->name('admin.party-agent-payments.paid');
+
     // Queue Monitor
     Route::get('/admin/queue-monitor', [AdminQueueMonitorController::class, 'index'])->name('admin.queue-monitor');
     Route::post('/admin/queue-monitor/retry-all', [AdminQueueMonitorController::class, 'retryAll'])->name('admin.queue-monitor.retry-all');
@@ -135,6 +148,7 @@ Route::middleware('auth')->group(function () {
 
     // Accreditation Payments
     Route::get('/admin/accreditation-payments', [AdminAccreditationPaymentController::class, 'index'])->name('admin.accreditation-payments');
+    Route::get('/admin/databoy-accreditation-payments', [AdminDataboyAccreditationPaymentController::class, 'index'])->name('admin.databoy-accreditation-payments');
 
     // Data Plans (EasiGateway data bundles)
     Route::get('/admin/data-plans', [AdminDataPlanController::class, 'index'])->name('admin.data-plans');
@@ -202,6 +216,14 @@ Route::prefix('databoy')->name('databoy.')->group(function () {
         Route::get('/accreditation', [DataboyAccreditationController::class, 'index'])->name('accreditation.index');
         Route::post('/accreditation/{databoyApplication}/check-in', [DataboyAccreditationController::class, 'checkIn'])->name('accreditation.check-in');
         Route::post('/accreditation/{databoyApplication}/check-out', [DataboyAccreditationController::class, 'checkOut'])->name('accreditation.check-out');
+
+        // Party agent's LGA/ward come from the databoy's own assignment (like applications);
+        // only polling unit is an actual cascading lookup.
+        Route::get('/party-agents/api/polling-units/{ward}', [DataboyPartyAgentController::class, 'getPollingUnits'])->name('party-agents.api.polling-units');
+
+        Route::get('/party-agents', [DataboyPartyAgentController::class, 'index'])->name('party-agents.index');
+        Route::get('/party-agents/create', [DataboyPartyAgentController::class, 'create'])->name('party-agents.create');
+        Route::post('/party-agents', [DataboyPartyAgentController::class, 'store'])->name('party-agents.store');
     });
 });
 

@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Middleware;
@@ -36,6 +37,9 @@ class HandleInertiaRequests extends Middleware
                 'user' => $request->user(),
             ],
             'databoy' => optional(Auth::guard('databoy')->user())->load('ward', 'lga'),
+            'partyAgentRegistrationEnabled' => Auth::guard('databoy')->check()
+                ? Setting::get('party_agent_registration_enabled', '1') === '1'
+                : true,
             'flash'   => [
                 'success'         => session('success'),
                 'error'           => session('error'),

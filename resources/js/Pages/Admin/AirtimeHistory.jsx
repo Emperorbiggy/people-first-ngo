@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
+import { router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import TargetTypeToggle from '@/Components/TargetTypeToggle';
 
 function StatCard({ label, value, color }) {
     return (
@@ -30,9 +32,14 @@ function formatNaira(value) {
     return '₦' + n.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-export default function AirtimeHistory({ history = [], stats = {} }) {
+export default function AirtimeHistory({ type = 'databoy', history = [], stats = {} }) {
     const [search, setSearch]   = useState('');
     const [status, setStatus]   = useState('all');
+
+    const changeType = (newType) => {
+        if (newType === type) return;
+        router.get(route('admin.airtime.history'), { type: newType }, { preserveScroll: true });
+    };
 
     const filtered = useMemo(() => {
         return history.filter((h) => {
@@ -48,9 +55,12 @@ export default function AirtimeHistory({ history = [], stats = {} }) {
         <AdminLayout title="Airtime History">
             <div className="max-w-6xl mx-auto space-y-6">
 
-                <div>
-                    <h1 className="text-xl font-bold text-gray-800">Airtime History</h1>
-                    <p className="text-sm text-gray-500 mt-0.5">All airtime purchase attempts processed via EasiGateway.</p>
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <div>
+                        <h1 className="text-xl font-bold text-gray-800">Airtime History</h1>
+                        <p className="text-sm text-gray-500 mt-0.5">All airtime purchase attempts processed via EasiGateway.</p>
+                    </div>
+                    <TargetTypeToggle type={type} onChange={changeType} />
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

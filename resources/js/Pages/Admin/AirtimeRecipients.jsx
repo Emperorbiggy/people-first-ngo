@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { router, usePage, Link } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import TargetTypeToggle from '@/Components/TargetTypeToggle';
 
 const STATUS_STYLES = {
     success: 'bg-green-50 border-green-200 text-green-700',
@@ -21,10 +22,12 @@ function StatusBadge({ status, message }) {
     );
 }
 
-export default function AirtimeRecipients({ databoys = [] }) {
+export default function AirtimeRecipients({ type = 'databoy', databoys = [] }) {
     const { flash } = usePage().props;
     const [search, setSearch] = useState('');
     const [creating, setCreating] = useState(false);
+
+    const label = type === 'party_agent' ? 'party agent' : 'databoy';
 
     const filtered = useMemo(() => {
         if (!search.trim()) return databoys;
@@ -38,9 +41,14 @@ export default function AirtimeRecipients({ databoys = [] }) {
 
     const pendingCount = databoys.filter((d) => d.recipient_status !== 'success').length;
 
+    const changeType = (newType) => {
+        if (newType === type) return;
+        router.get(route('admin.airtime-recipients'), { type: newType }, { preserveScroll: true });
+    };
+
     const createAll = () => {
         setCreating(true);
-        router.post(route('admin.airtime-recipients.create'), {}, {
+        router.post(route('admin.airtime-recipients.create'), { type }, {
             preserveScroll: true,
             onFinish: () => setCreating(false),
         });
@@ -50,17 +58,20 @@ export default function AirtimeRecipients({ databoys = [] }) {
         <AdminLayout title="Airtime Recipients">
             <div className="max-w-5xl mx-auto space-y-6">
 
-                <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
                     <div>
                         <h1 className="text-xl font-bold text-gray-800">Airtime Recipients</h1>
-                        <p className="text-sm text-gray-500 mt-0.5">Match each databoy's network to an EasiGateway service category before sending airtime.</p>
+                        <p className="text-sm text-gray-500 mt-0.5">Match each {label}'s network to an EasiGateway service category before sending airtime.</p>
                     </div>
-                    <Link
-                        href={route('admin.airtime')}
-                        className="px-4 py-2 text-sm font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition whitespace-nowrap"
-                    >
-                        Go to Send Airtime
-                    </Link>
+                    <div className="flex items-center gap-3">
+                        <TargetTypeToggle type={type} onChange={changeType} />
+                        <Link
+                            href={route('admin.airtime', { type })}
+                            className="px-4 py-2 text-sm font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition whitespace-nowrap"
+                        >
+                            Go to Send Airtime
+                        </Link>
+                    </div>
                 </div>
 
                 {flash?.success && (
@@ -78,7 +89,7 @@ export default function AirtimeRecipients({ databoys = [] }) {
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 flex items-center justify-between">
                     <div>
                         <p className="text-xs text-gray-500">Pending recipient creation</p>
-                        <p className="text-lg font-bold text-gray-800">{pendingCount} databoy{pendingCount !== 1 ? 's' : ''}</p>
+                        <p className="text-lg font-bold text-gray-800">{pendingCount} {label}{pendingCount !== 1 ? 's' : ''}</p>
                     </div>
                     <button
                         type="button"
@@ -91,13 +102,13 @@ export default function AirtimeRecipients({ databoys = [] }) {
                 </div>
 
                 <p className="text-xs text-gray-400 bg-gray-50 border border-gray-100 rounded-xl px-4 py-3">
-                    This queues a background job per databoy that looks up their network in EasiGateway's service categories and stores the matching category ID. Refresh this page after a minute or two to see updated statuses.
+                    This queues a background job per {label} that looks up their network in EasiGateway's service categories and stores the matching category ID. Refresh this page after a minute or two to see updated statuses.
                 </p>
 
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                     <div className="px-5 py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center gap-3">
                         <div className="flex-1">
-                            <h3 className="font-semibold text-gray-800">Databoys</h3>
+                            <h3 className="font-semibold text-gray-800">{type === 'party_agent' ? 'Party Agents' : 'Databoys'}</h3>
                             <p className="text-xs text-gray-400 mt-0.5">{filtered.length} of {databoys.length} record{databoys.length !== 1 ? 's' : ''}</p>
                         </div>
                         <div className="relative">
@@ -116,10 +127,10 @@ export default function AirtimeRecipients({ databoys = [] }) {
 
                     {databoys.length === 0 ? (
                         <div className="py-16 text-center">
-                            <p className="text-gray-400 text-sm">No databoys with a browsing network/number found.</p>
+                            <p className="text-gray-400 text-sm">No {label}s with a browsing network/number found.</p>
                         </div>
                     ) : filtered.length === 0 ? (
-                        <div className="py-10 text-center text-sm text-gray-400">No databoys match that search.</div>
+                        <div className="py-10 text-center text-sm text-gray-400">No {label}s match that search.</div>
                     ) : (
                         <div className="overflow-x-auto">
                             <table className="min-w-full">

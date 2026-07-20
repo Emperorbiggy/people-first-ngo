@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Databoy;
 
 use App\Http\Controllers\Controller;
 use App\Jobs\PayAccreditedApplicantJob;
+use App\Jobs\PayDataboyAccreditationJob;
 use App\Models\DataboyApplication;
 use App\Models\Setting;
 use Carbon\Carbon;
@@ -13,12 +14,23 @@ use Illuminate\Support\Facades\Auth;
 class AccreditationController extends Controller
 {
     /**
-     * Check-in/check-out is only allowed inside these windows, and a checkout
-     * must land in the SAME window the check-in happened in (same calendar day).
+     * Check-in is only allowed inside a window's check-in range. Checkout for
+     * that same check-in is only allowed inside the PAIRED checkout range
+     * (a later, separate window), on the same calendar day as check-in.
      */
     private const WINDOWS = [
-        ['start' => '09:00', 'end' => '12:00'],
-        ['start' => '15:00', 'end' => '18:00'],
+        [
+            'checkin_start'  => '08:00', 'checkin_end'  => '12:00',
+            'checkout_start' => '12:00', 'checkout_end' => '15:00',
+            'checkin_label'  => '8:00 AM–12:00 PM',
+            'checkout_label' => '12:00 PM–3:00 PM',
+        ],
+        [
+            'checkin_start'  => '15:00', 'checkin_end'  => '17:00',
+            'checkout_start' => '17:00', 'checkout_end' => '23:59',
+            'checkin_label'  => '3:00 PM–5:00 PM',
+            'checkout_label' => '5:00 PM onward',
+        ],
     ];
 
     public function index()
@@ -48,8 +60,8 @@ class AccreditationController extends Controller
             return back()->withErrors(['suitable' => 'This applicant is already checked in.']);
         }
 
-        if ($this->timeRestrictionEnabled() && !$this->currentWindow(now())) {
-            return back()->withErrors(['suitable' => 'Check-in is only allowed between 9:00 AM–12:00 PM or 3:00 PM–6:00 PM.']);
+        if ($this->timeRestrictionEnabled() && !$this->checkinWindow(now())) {
+            return back()->withErrors(['suitable' => 'Check-in is only allowed between 8:00 AM–12:00 PM or 3:00 PM–5:00 PM.']);
         }
 
         $request->validate([
@@ -86,13 +98,12 @@ class AccreditationController extends Controller
         }
 
         if ($this->timeRestrictionEnabled()) {
-            $checkInWindow = $this->currentWindow($databoyApplication->checked_in_at);
-            $nowWindow     = $this->currentWindow(now());
-            $sameDay       = $databoyApplication->checked_in_at->isSameDay(now());
+            $window  = $this->checkinWindow($databoyApplication->checked_in_at);
+            $sameDay = $databoyApplication->checked_in_at->isSameDay(now());
 
-            if (!$checkInWindow || !$nowWindow || $checkInWindow !== $nowWindow || !$sameDay) {
-                $label = $checkInWindow ? "{$checkInWindow['start']}–{$checkInWindow['end']}" : 'their check-in window';
-                return back()->withErrors(['photo' => "Checkout must happen within the same window as check-in ({$label}), on the same day."]);
+            if (!$window || !$sameDay || !$this->withinCheckoutRange($window, now())) {
+                $label = $window ? $window['checkout_label'] : 'the correct checkout window';
+                return back()->withErrors(['photo' => "Checkout is only allowed between {$label} (based on the check-in time), on the same day."]);
             }
         }
 
@@ -119,6 +130,7 @@ class AccreditationController extends Controller
 
         if ($this->paymentEnabled()) {
             PayAccreditedApplicantJob::dispatch($databoyApplication->id);
+            PayDataboyAccreditationJob::dispatch($databoy->id);
             $suffix = ' Payment queued.';
         } else {
             $suffix = '';
@@ -137,17 +149,24 @@ class AccreditationController extends Controller
         return Setting::get('accreditation_payment_enabled', '1') === '1';
     }
 
-    private function currentWindow(Carbon $at): ?array
+    private function checkinWindow(Carbon $at): ?array
     {
         $time = $at->format('H:i');
 
         foreach (self::WINDOWS as $window) {
-            if ($time >= $window['start'] && $time <= $window['end']) {
+            if ($time >= $window['checkin_start'] && $time <= $window['checkin_end']) {
                 return $window;
             }
         }
 
         return null;
+    }
+
+    private function withinCheckoutRange(array $window, Carbon $at): bool
+    {
+        $time = $at->format('H:i');
+
+        return $time >= $window['checkout_start'] && $time <= $window['checkout_end'];
     }
 
     private function photoFilename(string $fullName, string $type): string
