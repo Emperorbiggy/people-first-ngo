@@ -398,8 +398,10 @@ function StatusCell({ app }) {
     return <span className="inline-flex px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-medium rounded-lg">Pending</span>;
 }
 
-export default function Accreditation({ applications = [], timeRestrictionEnabled = true }) {
+export default function Accreditation({ applications = [], timeRestrictionEnabled = true, role = 'databoy', lgas = [], selectedLgaId = null }) {
+    const isAccreditationBoy = role === 'accreditation_boy';
     const [search, setSearch] = useState('');
+    const [lgaId, setLgaId] = useState(selectedLgaId ?? '');
     const [checkingInApp, setCheckingInApp] = useState(null);
     const [checkingOutApp, setCheckingOutApp] = useState(null);
     const window_ = currentCheckinWindow();
@@ -414,6 +416,16 @@ export default function Accreditation({ applications = [], timeRestrictionEnable
         })
         : applications;
 
+    const handleLgaChange = (id) => {
+        setLgaId(id);
+        setSearch('');
+        router.get(route('databoy.accreditation.index'), id ? { lga_id: id } : {}, {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+        });
+    };
+
     return (
         <DataboyLayout title="Accreditation">
             {checkingInApp && (
@@ -425,8 +437,26 @@ export default function Accreditation({ applications = [], timeRestrictionEnable
 
             <div className="mb-6">
                 <h1 className="text-xl font-bold text-gray-800">Accreditation</h1>
-                <p className="text-sm text-gray-500 mt-0.5">Search the applicants you registered, check them in on arrival, and check them out to accredit them.</p>
+                <p className="text-sm text-gray-500 mt-0.5">
+                    {isAccreditationBoy
+                        ? 'Select an LGA, search for a person across all wards, then check them in or out.'
+                        : 'Search the applicants you registered, check them in on arrival, and check them out to accredit them.'}
+                </p>
             </div>
+
+            {isAccreditationBoy && (
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-4">
+                    <label className="block text-xs font-semibold text-gray-600 mb-1.5">LGA</label>
+                    <select
+                        value={lgaId}
+                        onChange={(e) => handleLgaChange(e.target.value)}
+                        className="w-full sm:w-72 border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    >
+                        <option value="">Select LGA…</option>
+                        {lgas.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+                    </select>
+                </div>
+            )}
 
             {timeRestrictionEnabled ? (
                 <div className={`rounded-xl px-4 py-3 text-sm font-medium mb-4 ${
@@ -445,7 +475,7 @@ export default function Accreditation({ applications = [], timeRestrictionEnable
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <div className="px-5 py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center gap-3">
                     <div className="flex-1">
-                        <h3 className="font-semibold text-gray-800">My Applicants</h3>
+                        <h3 className="font-semibold text-gray-800">{isAccreditationBoy ? 'Applicants' : 'My Applicants'}</h3>
                         <p className="text-xs text-gray-400 mt-0.5">{filtered.length} of {applications.length} record{applications.length !== 1 ? 's' : ''}</p>
                     </div>
                     <div className="relative">
@@ -462,8 +492,12 @@ export default function Accreditation({ applications = [], timeRestrictionEnable
                     </div>
                 </div>
 
-                {applications.length === 0 ? (
-                    <div className="py-16 text-center text-sm text-gray-400">You haven't registered any applicants yet.</div>
+                {isAccreditationBoy && !lgaId ? (
+                    <div className="py-16 text-center text-sm text-gray-400">Select an LGA above to see applicants.</div>
+                ) : applications.length === 0 ? (
+                    <div className="py-16 text-center text-sm text-gray-400">
+                        {isAccreditationBoy ? 'No applicants found in this LGA.' : "You haven't registered any applicants yet."}
+                    </div>
                 ) : filtered.length === 0 ? (
                     <div className="py-10 text-center text-sm text-gray-400">No applicants match that search.</div>
                 ) : (
@@ -471,7 +505,7 @@ export default function Accreditation({ applications = [], timeRestrictionEnable
                         <table className="min-w-full">
                             <thead>
                                 <tr className="bg-gray-50 text-left">
-                                    {['#', 'Applicant', 'Status', 'Actions'].map((h) => (
+                                    {(isAccreditationBoy ? ['#', 'Applicant', 'Ward', 'Status', 'Actions'] : ['#', 'Applicant', 'Status', 'Actions']).map((h) => (
                                         <th key={h} className="px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
                                     ))}
                                 </tr>
@@ -496,6 +530,9 @@ export default function Accreditation({ applications = [], timeRestrictionEnable
                                                 </div>
                                             </div>
                                         </td>
+                                        {isAccreditationBoy && (
+                                            <td className="px-5 py-3 text-sm text-gray-600 whitespace-nowrap">{app.ward?.name ?? '—'}</td>
+                                        )}
                                         <td className="px-5 py-3 whitespace-nowrap"><StatusCell app={app} /></td>
                                         <td className="px-5 py-3 whitespace-nowrap">
                                             {app.is_accredited ? (

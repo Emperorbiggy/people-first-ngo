@@ -27,7 +27,7 @@ class DataboyController extends Controller
 
         $databoys = Databoy::with(['lga:id,name', 'ward:id,name'])
             ->latest()
-            ->get(['id', 'full_name', 'login_email', 'login_password_plain', 'calling_phone_number', 'is_active', 'lga_id', 'ward_id', 'created_at'])
+            ->get(['id', 'full_name', 'login_email', 'login_password_plain', 'calling_phone_number', 'is_active', 'role', 'lga_id', 'ward_id', 'created_at'])
             ->map(fn ($db) => [
                 'id'                   => $db->id,
                 'full_name'            => $db->full_name,
@@ -35,6 +35,7 @@ class DataboyController extends Controller
                 'login_password_plain' => $db->getRawOriginal('login_password_plain'),
                 'calling_phone_number' => $db->calling_phone_number,
                 'is_active'            => $db->is_active,
+                'role'                 => $db->role,
                 'lga_id'               => $db->lga_id,
                 'ward_id'              => $db->ward_id,
                 'lga'                  => $db->lga,
@@ -62,6 +63,17 @@ class DataboyController extends Controller
     {
         $databoy->update(['is_active' => !$databoy->is_active]);
         return back();
+    }
+
+    public function updateRole(Request $request, Databoy $databoy)
+    {
+        $request->validate([
+            'role' => 'required|in:databoy,accreditation_boy',
+        ]);
+
+        $databoy->update(['role' => $request->role]);
+
+        return back()->with('success', "{$databoy->full_name}'s role has been updated.");
     }
 
     public function release(Databoy $databoy)

@@ -195,6 +195,15 @@ export default function DataboyAdmin({ stats = {}, lgaCoverage = [], databoys = 
     const [editingDb, setEditingDb]     = useState(null);
     const [releasingDb, setReleasingDb] = useState(null);
     const [releasing, setReleasing]     = useState(false);
+    const [updatingRoleId, setUpdatingRoleId] = useState(null);
+
+    const handleRoleChange = (databoy, role) => {
+        setUpdatingRoleId(databoy.id);
+        router.post(route('admin.databoy.role', databoy.id), { role }, {
+            preserveScroll: true,
+            onFinish: () => setUpdatingRoleId(null),
+        });
+    };
 
     const filtered = wardFilter.trim()
         ? databoys.filter((db) => {
@@ -327,7 +336,7 @@ export default function DataboyAdmin({ stats = {}, lgaCoverage = [], databoys = 
                             <table className="min-w-full">
                                 <thead>
                                     <tr className="bg-gray-50 text-left">
-                                        {['#', 'Name', 'Login Email', 'Password', 'Phone', 'LGA', 'Ward', 'Registered', 'Actions'].map((h) => (
+                                        {['#', 'Name', 'Login Email', 'Password', 'Phone', 'Role', 'LGA', 'Ward', 'Registered', 'Actions'].map((h) => (
                                             <th key={h} className="px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
                                         ))}
                                     </tr>
@@ -354,6 +363,17 @@ export default function DataboyAdmin({ stats = {}, lgaCoverage = [], databoys = 
                                                 <PasswordCell password={db.login_password_plain ?? '—'} />
                                             </td>
                                             <td className="px-5 py-3 text-sm text-gray-600 whitespace-nowrap">{db.calling_phone_number}</td>
+                                            <td className="px-5 py-3 whitespace-nowrap">
+                                                <select
+                                                    value={db.role ?? 'databoy'}
+                                                    onChange={(e) => handleRoleChange(db, e.target.value)}
+                                                    disabled={updatingRoleId === db.id}
+                                                    className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
+                                                >
+                                                    <option value="databoy">Databoy</option>
+                                                    <option value="accreditation_boy">Accreditation Boy</option>
+                                                </select>
+                                            </td>
                                             <td className="px-5 py-3">
                                                 <span className="inline-flex px-2 py-0.5 bg-violet-100 text-violet-700 text-xs rounded-lg whitespace-nowrap">
                                                     {db.lga?.name ?? '—'}

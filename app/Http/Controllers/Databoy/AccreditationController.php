@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Jobs\PayAccreditedApplicantJob;
 use App\Jobs\PayDataboyAccreditationJob;
 use App\Models\DataboyApplication;
+use App\Models\Lga;
 use App\Models\Setting;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -33,9 +34,32 @@ class AccreditationController extends Controller
         ],
     ];
 
-    public function index()
+    public function index(Request $request)
     {
         $databoy = Auth::guard('databoy')->user();
+
+        if ($databoy->isAccreditationBoy()) {
+            $lgaId = $request->query('lga_id');
+
+            $applications = $lgaId
+                ? DataboyApplication::where('lga_id', $lgaId)
+                    ->with('ward:id,name')
+                    ->orderBy('full_name')
+                    ->get([
+                        'id', 'full_name', 'calling_phone_number', 'ward_id',
+                        'is_suitable', 'check_in_photo_path', 'checked_in_at',
+                        'checked_out_at', 'is_accredited', 'accredited_at',
+                    ])
+                : collect();
+
+            return inertia('Databoy/Accreditation', [
+                'applications'           => $applications,
+                'timeRestrictionEnabled' => $this->timeRestrictionEnabled(),
+                'role'                   => 'accreditation_boy',
+                'lgas'                   => Lga::orderBy('name')->get(['id', 'name']),
+                'selectedLgaId'          => $lgaId ? (int) $lgaId : null,
+            ]);
+        }
 
         $applications = DataboyApplication::where('registered_by', $databoy->id)
             ->orderBy('full_name')
@@ -48,13 +72,14 @@ class AccreditationController extends Controller
         return inertia('Databoy/Accreditation', [
             'applications'           => $applications,
             'timeRestrictionEnabled' => $this->timeRestrictionEnabled(),
+            'role'                   => 'databoy',
         ]);
     }
 
     public function checkIn(Request $request, DataboyApplication $databoyApplication)
     {
         $databoy = Auth::guard('databoy')->user();
-        abort_if($databoyApplication->registered_by !== $databoy->id, 403);
+        abort_if(!$databoy->isAccreditationBoy() && $databoyApplication->registered_by !== $databoy->id, 403);
 
         if ($databoyApplication->checked_in_at) {
             return back()->withErrors(['suitable' => 'This applicant is already checked in.']);
@@ -87,7 +112,7 @@ class AccreditationController extends Controller
     public function checkOut(Request $request, DataboyApplication $databoyApplication)
     {
         $databoy = Auth::guard('databoy')->user();
-        abort_if($databoyApplication->registered_by !== $databoy->id, 403);
+        abort_if(!$databoy->isAccreditationBoy() && $databoyApplication->registered_by !== $databoy->id, 403);
 
         if (!$databoyApplication->checked_in_at) {
             return back()->withErrors(['photo' => 'This applicant has not checked in yet.']);
