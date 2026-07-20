@@ -61,7 +61,7 @@ class AccreditationController extends Controller
         }
 
         if ($this->timeRestrictionEnabled() && !$this->checkinWindow(now())) {
-            return back()->withErrors(['suitable' => 'Check-in is only allowed between 8:00 AM–12:00 PM or 3:00 PM–5:00 PM.']);
+            return back()->withErrors(['suitable' => 'Check-in is only allowed between 7:00 AM–12:00 PM or 3:00 PM–5:00 PM.']);
         }
 
         $request->validate([

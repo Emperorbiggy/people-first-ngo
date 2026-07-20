@@ -8,9 +8,9 @@ import DataboyLayout from '@/Layouts/DataboyLayout';
 // later, separate window), on the same calendar day as check-in.
 const WINDOWS = [
     {
-        checkinStart: 8 * 60, checkinEnd: 12 * 60,
+        checkinStart: 7 * 60, checkinEnd: 12 * 60,
         checkoutStart: 12 * 60, checkoutEnd: 15 * 60,
-        checkinLabel: '8:00 AM–12:00 PM',
+        checkinLabel: '7:00 AM–12:00 PM',
         checkoutLabel: '12:00 PM–3:00 PM',
     },
     {
