@@ -20,9 +20,9 @@ class AccreditationController extends Controller
      */
     private const WINDOWS = [
         [
-            'checkin_start'  => '08:00', 'checkin_end'  => '12:00',
+            'checkin_start'  => '07:00', 'checkin_end'  => '12:00',
             'checkout_start' => '12:00', 'checkout_end' => '15:00',
-            'checkin_label'  => '8:00 AM–12:00 PM',
+            'checkin_label'  => '7:00 AM–12:00 PM',
             'checkout_label' => '12:00 PM–3:00 PM',
         ],
         [
