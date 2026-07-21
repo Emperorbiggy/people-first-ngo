@@ -86,8 +86,6 @@ export default function Create() {
 
         if (fieldName === 'passport_photograph') {
             setCapturedImage(URL.createObjectURL(file));
-            const analysis = await detectBackground(file, true);
-            setBackgroundWarning(analysis.message);
         } else if (fieldName === 'valid_id_card') {
             setIdCardFileName(file.name);
         } else if (fieldName === 'highest_qualification_certificate') {
@@ -97,7 +95,6 @@ export default function Create() {
 
     const [showCamera, setShowCamera] = useState(false);
     const [capturedImage, setCapturedImage] = useState(null);
-    const [backgroundWarning, setBackgroundWarning] = useState('');
     const [idCardFileName, setIdCardFileName] = useState('');
     const [certificateFileName, setCertificateFileName] = useState('');
     const videoRef = useRef(null);
@@ -178,144 +175,10 @@ export default function Create() {
         setData('passport_photograph', file);
         setCapturedImage(imageSrc);
         stopCamera();
-
-        const analysis = await detectBackground(file, true);
-        setBackgroundWarning(analysis.message);
     }, []);
-
-    const detectBackground = (imageSource, isFile = false) => {
-        return new Promise((resolve) => {
-            const img = new Image();
-            const canvas = document.createElement('canvas');
-            const context = canvas.getContext('2d');
-            
-            img.onload = () => {
-                canvas.width = img.width;
-                canvas.height = img.height;
-                context.drawImage(img, 0, 0);
-                
-                const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-                const data = imageData.data;
-                
-                // Advanced background detection
-                const backgroundAnalysis = analyzeBackground(data, canvas.width, canvas.height);
-                
-                resolve(backgroundAnalysis);
-            };
-            
-            if (isFile) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    img.src = e.target.result;
-                };
-                reader.readAsDataURL(imageSource);
-            } else {
-                img.src = imageSource;
-            }
-        });
-    };
-
-    const analyzeBackground = (imageData, width, height) => {
-        const data = imageData.data;
-        const samples = [];
-        const sampleSize = 100;
-        
-        // Sample from multiple edges and corners for better accuracy
-        const samplePoints = [
-            // Top edge
-            ...Array.from({length: 25}, (_, i) => ({x: Math.floor(i * width / 24), y: 0})),
-            // Bottom edge
-            ...Array.from({length: 25}, (_, i) => ({x: Math.floor(i * width / 24), y: height - 1})),
-            // Left edge
-            ...Array.from({length: 25}, (_, i) => ({x: 0, y: Math.floor(i * height / 24)})),
-            // Right edge
-            ...Array.from({length: 25}, (_, i) => ({x: width - 1, y: Math.floor(i * height / 24)})),
-            // Corners (more samples)
-            ...Array.from({length: 10}, () => ({x: Math.floor(Math.random() * width * 0.1), y: Math.floor(Math.random() * height * 0.1)})),
-            ...Array.from({length: 10}, () => ({x: Math.floor(width - Math.random() * width * 0.1), y: Math.floor(Math.random() * height * 0.1)})),
-            ...Array.from({length: 10}, () => ({x: Math.floor(Math.random() * width * 0.1), y: Math.floor(height - Math.random() * height * 0.1)})),
-            ...Array.from({length: 10}, () => ({x: Math.floor(width - Math.random() * width * 0.1), y: Math.floor(height - Math.random() * height * 0.1)}))
-        ];
-        
-        // Collect color samples
-        samplePoints.forEach(point => {
-            const idx = (point.y * width + point.x) * 4;
-            samples.push([data[idx], data[idx + 1], data[idx + 2]]);
-        });
-        
-        // Calculate color statistics
-        const avgColor = samples.reduce((acc, [r, g, b]) => [
-            acc[0] + r, acc[1] + g, acc[2] + b
-        ], [0, 0, 0]).map(sum => sum / samples.length);
-        
-        const [r, g, b] = avgColor;
-        const brightness = (r + g + b) / 3;
-        
-        // Calculate color variance (to detect non-uniform backgrounds)
-        const variance = samples.reduce((acc, [cr, cg, cb]) => {
-            const diff = Math.sqrt(Math.pow(cr - r, 2) + Math.pow(cg - g, 2) + Math.pow(cb - b, 2));
-            return acc + diff;
-        }, 0) / samples.length;
-        
-        // Advanced background analysis
-        const isWhite = brightness > 220 && variance < 30;
-        const isLight = brightness > 200 && variance < 50;
-        const hasPattern = variance > 40;
-        const isDark = brightness < 180;
-        
-        let result = {
-            isWhite: false,
-            isAcceptable: false,
-            message: '',
-            confidence: 0,
-            brightness: Math.round(brightness),
-            variance: Math.round(variance)
-        };
-        
-        if (isWhite) {
-            result = {
-                ...result,
-                isWhite: true,
-                isAcceptable: true,
-                message: '✅ Perfect! White background detected.',
-                confidence: 95
-            };
-        } else if (isLight) {
-            result = {
-                ...result,
-                isAcceptable: true,
-                message: '✅ Good! Light background detected. White background preferred.',
-                confidence: 75
-            };
-        } else if (hasPattern) {
-            result = {
-                ...result,
-                isAcceptable: false,
-                message: '❌ Patterned background detected. Please use a plain white background.',
-                confidence: 90
-            };
-        } else if (isDark) {
-            result = {
-                ...result,
-                isAcceptable: false,
-                message: '❌ Dark background detected. Please use a white background.',
-                confidence: 95
-            };
-        } else {
-            result = {
-                ...result,
-                isAcceptable: false,
-                message: '⚠️ Background color not suitable. Please use a plain white background.',
-                confidence: 60
-            };
-        }
-        
-        return result;
-    };
 
     const clearCapturedImage = () => {
         setCapturedImage(null);
-        setBackgroundWarning('');
         setData('passport_photograph', null);
     };
 
@@ -938,57 +801,6 @@ export default function Create() {
                                                                 </svg>
                                                             </button>
                                                         </div>
-                                                        
-                                                        {/* Background Analysis Result - Immediately Below Image */}
-                                                        {backgroundWarning && (
-                                                            <div className={`w-full max-w-sm p-3 sm:p-4 rounded-lg border-2 text-center ${
-                                                                backgroundWarning.includes('✅') 
-                                                                    ? 'bg-green-50 border-green-200' 
-                                                                    : backgroundWarning.includes('❌')
-                                                                    ? 'bg-red-50 border-red-200'
-                                                                    : 'bg-yellow-50 border-yellow-200'
-                                                            }`}>
-                                                                <div className="flex items-center justify-center mb-2">
-                                                                    <div className={`flex-shrink-0 mr-2 ${
-                                                                        backgroundWarning.includes('✅') 
-                                                                            ? 'text-green-600' 
-                                                                            : backgroundWarning.includes('❌')
-                                                                            ? 'text-red-600'
-                                                                            : 'text-yellow-600'
-                                                                    }`}>
-                                                                        {backgroundWarning.includes('✅') && (
-                                                                            <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="currentColor" viewBox="0 0 20 20">
-                                                                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                                                                            </svg>
-                                                                        )}
-                                                                        {backgroundWarning.includes('❌') && (
-                                                                            <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="currentColor" viewBox="0 0 20 20">
-                                                                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                                                                            </svg>
-                                                                        )}
-                                                                        {backgroundWarning.includes('⚠️') && (
-                                                                            <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="currentColor" viewBox="0 0 20 20">
-                                                                                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                                                                            </svg>
-                                                                        )}
-                                                                    </div>
-                                                                    <p className={`text-sm sm:text-base font-bold ${
-                                                                        backgroundWarning.includes('✅') 
-                                                                            ? 'text-green-800' 
-                                                                            : backgroundWarning.includes('❌')
-                                                                            ? 'text-red-800'
-                                                                            : 'text-yellow-800'
-                                                                    }`}>
-                                                                        {backgroundWarning}
-                                                                    </p>
-                                                                </div>
-                                                                <p className="text-xs sm:text-sm text-gray-600">
-                                                                    {backgroundWarning.includes('✅') && 'Your photo meets our requirements.'}
-                                                                    {backgroundWarning.includes('❌') && 'Please retake your photo with a plain white background.'}
-                                                                    {backgroundWarning.includes('⚠️') && 'Consider retaking with a better background for optimal results.'}
-                                                                </p>
-                                                            </div>
-                                                        )}
                                                     </div>
                                                 </div>
                                             )}

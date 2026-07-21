@@ -22,7 +22,6 @@ export default function Create({ lgas = [] }) {
     // Camera / passport capture state
     const [showCamera, setShowCamera]   = useState(false);
     const [capturedImage, setCapturedImage] = useState(null);
-    const [backgroundWarning, setBackgroundWarning] = useState('');
     const [cameraError, setCameraError] = useState('');
     const [cameraReady, setCameraReady] = useState(false);
     const [facingMode, setFacingMode]   = useState('user');
@@ -86,33 +85,6 @@ export default function Create({ lgas = [] }) {
         document.body.style.overflow = '';
     };
 
-    const detectBackground = (imageSource, isFile = false) => {
-        return new Promise((resolve) => {
-            const img = new Image();
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                const scale = Math.min(1, 200 / Math.max(img.width, img.height));
-                canvas.width = img.width * scale;
-                canvas.height = img.height * scale;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                const { data: px } = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                let whiteCount = 0, total = 0;
-                for (let i = 0; i < px.length; i += 4) {
-                    const r = px[i], g = px[i+1], b = px[i+2];
-                    if (r > 200 && g > 200 && b > 200) whiteCount++;
-                    total++;
-                }
-                const ratio = whiteCount / total;
-                if (ratio > 0.45) resolve({ message: '✅ White background detected' });
-                else if (ratio > 0.25) resolve({ message: '⚠️ Background may not be fully white' });
-                else resolve({ message: '❌ Non-white background detected' });
-            };
-            img.onerror = () => resolve({ message: '⚠️ Could not analyse background' });
-            img.src = isFile ? URL.createObjectURL(imageSource) : imageSource;
-        });
-    };
-
     const capturePhoto = useCallback(async () => {
         if (!videoRef.current || !streamRef.current) return;
         const video = videoRef.current;
@@ -126,13 +98,10 @@ export default function Create({ lgas = [] }) {
         setData('passport_photograph', file);
         setCapturedImage(imageSrc);
         stopCamera();
-        const analysis = await detectBackground(file, true);
-        setBackgroundWarning(analysis.message);
     }, []);
 
     const clearCapturedImage = () => {
         setCapturedImage(null);
-        setBackgroundWarning('');
         setData('passport_photograph', null);
     };
 
@@ -140,8 +109,6 @@ export default function Create({ lgas = [] }) {
         if (!file) return;
         setData('passport_photograph', file);
         setCapturedImage(URL.createObjectURL(file));
-        const analysis = await detectBackground(file, true);
-        setBackgroundWarning(analysis.message);
     };
 
     const submit = (e) => {
@@ -287,16 +254,6 @@ export default function Create({ lgas = [] }) {
                                             </svg>
                                         </button>
                                     </div>
-                                    {backgroundWarning && (
-                                        <div className={`w-full max-w-xs px-4 py-3 rounded-xl border text-center text-sm font-medium ${
-                                            backgroundWarning.includes('✅') ? 'bg-green-50 border-green-200 text-green-800'
-                                            : backgroundWarning.includes('❌') ? 'bg-red-50 border-red-200 text-red-800'
-                                            : 'bg-yellow-50 border-yellow-200 text-yellow-800'
-                                        }`}>
-                                            {backgroundWarning}
-                                            {backgroundWarning.includes('❌') && <p className="text-xs font-normal mt-1">Please retake with a plain white background.</p>}
-                                        </div>
-                                    )}
                                 </div>
                             )}
                             <p className="text-xs text-gray-400">JPEG, PNG (max 2MB) · White background required</p>

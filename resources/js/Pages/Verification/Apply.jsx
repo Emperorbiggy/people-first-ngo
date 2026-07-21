@@ -54,7 +54,6 @@ export default function Apply({ token, prefill, lgas = [] }) {
     // ── Camera / passport ─────────────────────────────────────────────────────
     const [showCamera, setShowCamera]           = useState(false);
     const [capturedImage, setCapturedImage]     = useState(null);
-    const [backgroundWarning, setBgWarning]     = useState('');
     const [idCardFileName, setIdCardName]       = useState('');
     const [certFileName, setCertName]           = useState('');
     const videoRef   = useRef(null);
@@ -109,38 +108,6 @@ export default function Apply({ token, prefill, lgas = [] }) {
         document.body.style.overflow = '';
     };
 
-    const analyzeBackground = (imageData, width, height) => {
-        const d = imageData.data;
-        const pts = [
-            ...Array.from({ length: 25 }, (_, i) => ({ x: Math.floor(i * width / 24), y: 0 })),
-            ...Array.from({ length: 25 }, (_, i) => ({ x: Math.floor(i * width / 24), y: height - 1 })),
-            ...Array.from({ length: 25 }, (_, i) => ({ x: 0, y: Math.floor(i * height / 24) })),
-            ...Array.from({ length: 25 }, (_, i) => ({ x: width - 1, y: Math.floor(i * height / 24) })),
-        ];
-        const samples = pts.map(({ x, y }) => { const idx = (y * width + x) * 4; return [d[idx], d[idx+1], d[idx+2]]; });
-        const [r, g, b] = samples.reduce((a, [cr, cg, cb]) => [a[0]+cr, a[1]+cg, a[2]+cb], [0,0,0]).map(s => s / samples.length);
-        const brightness = (r + g + b) / 3;
-        const variance = samples.reduce((a, [cr, cg, cb]) => a + Math.sqrt((cr-r)**2+(cg-g)**2+(cb-b)**2), 0) / samples.length;
-        if (brightness > 220 && variance < 30) return '✅ Perfect! White background detected.';
-        if (brightness > 200 && variance < 50) return '✅ Good! Light background detected.';
-        if (variance > 40) return '❌ Patterned background. Use a plain white background.';
-        if (brightness < 180) return '❌ Dark background. Use a white background.';
-        return '⚠️ Background not ideal. Use a plain white background.';
-    };
-
-    const detectBackground = (file) => new Promise((resolve) => {
-        const img = new Image();
-        const canvas = document.createElement('canvas');
-        const reader = new FileReader();
-        reader.onload = (e) => { img.src = e.target.result; };
-        img.onload = () => {
-            canvas.width = img.width; canvas.height = img.height;
-            canvas.getContext('2d').drawImage(img, 0, 0);
-            resolve(analyzeBackground(canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height), canvas.width, canvas.height));
-        };
-        reader.readAsDataURL(file);
-    });
-
     const capturePhoto = useCallback(async () => {
         if (!videoRef.current || !streamRef.current) return;
         const video = videoRef.current;
@@ -153,14 +120,13 @@ export default function Apply({ token, prefill, lgas = [] }) {
         setData('passport_photograph', file);
         setCapturedImage(src);
         stopCamera();
-        setBgWarning(await detectBackground(file));
     }, []);
 
     const handleFileChange = async (e, field) => {
         const file = e.target.files[0];
         if (!file) return;
         setData(field, file);
-        if (field === 'passport_photograph') { setCapturedImage(URL.createObjectURL(file)); setBgWarning(await detectBackground(file)); }
+        if (field === 'passport_photograph') { setCapturedImage(URL.createObjectURL(file)); }
         else if (field === 'valid_id_card') setIdCardName(file.name);
         else if (field === 'highest_qualification_certificate') setCertName(file.name);
     };
@@ -510,15 +476,10 @@ export default function Apply({ token, prefill, lgas = [] }) {
                                             <div className="flex flex-col items-center gap-3 mb-3">
                                                 <div className="relative">
                                                     <img src={capturedImage} alt="Passport" className="w-32 h-32 object-cover rounded-xl border-2 border-green-500 shadow" />
-                                                    <button type="button" onClick={() => { setCapturedImage(null); setBgWarning(''); setData('passport_photograph', null); }} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 shadow">
+                                                    <button type="button" onClick={() => { setCapturedImage(null); setData('passport_photograph', null); }} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 shadow">
                                                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
                                                     </button>
                                                 </div>
-                                                {backgroundWarning && (
-                                                    <div className={`w-full max-w-xs px-3 py-2 rounded-lg text-xs text-center font-medium ${backgroundWarning.includes('✅') ? 'bg-green-50 border border-green-200 text-green-800' : backgroundWarning.includes('❌') ? 'bg-red-50 border border-red-200 text-red-800' : 'bg-yellow-50 border border-yellow-200 text-yellow-800'}`}>
-                                                        {backgroundWarning}
-                                                    </div>
-                                                )}
                                             </div>
                                         )}
                                         {errors.passport_photograph && <p className={errClass}>{errors.passport_photograph}</p>}
