@@ -26,12 +26,14 @@ use App\Http\Controllers\Admin\DataPurchaseController as AdminDataPurchaseContro
 use App\Http\Controllers\Admin\EasigatewayFundingController as AdminEasigatewayFundingController;
 use App\Http\Controllers\Admin\AirtimeRecipientController as AdminAirtimeRecipientController;
 use App\Http\Controllers\Admin\AirtimeController as AdminAirtimeController;
+use App\Http\Controllers\Admin\NewFormDataController as AdminNewFormDataController;
 use App\Http\Controllers\Databoy\RegistrationController;
 use App\Http\Controllers\Databoy\AuthController as DataboyAuthController;
 use App\Http\Controllers\Databoy\DashboardController as DataboyDashboardController;
 use App\Http\Controllers\Databoy\ApplicationController as DataboyApplicationController;
 use App\Http\Controllers\Databoy\PartyAgentController as DataboyPartyAgentController;
 use App\Http\Controllers\Databoy\AccreditationController as DataboyAccreditationController;
+use App\Http\Controllers\NewFormController;
 use App\Models\Country;
 use Illuminate\Support\Facades\Route;
 
@@ -50,6 +52,12 @@ Route::post('/apply/{token}', [VerificationController::class, 'submitApplication
 Route::get('/ngo-contract-application', [NgoContractApplicationController::class, 'create'])->name('ngo-contract-applications.create');
 Route::post('/ngo-contract-application', [NgoContractApplicationController::class, 'store'])->name('ngo-contract-applications.store');
 Route::get('/ngo-contract-application/success', [NgoContractApplicationController::class, 'success'])->name('ngo-contract-applications.success');
+
+// Public "new form" registration (one registration per ward)
+Route::get('/form', [NewFormController::class, 'create'])->name('new-form.create');
+Route::post('/form', [NewFormController::class, 'store'])->name('new-form.store');
+Route::get('/form/success', [NewFormController::class, 'success'])->name('new-form.success');
+Route::get('/form/api/wards/{lga}', [NewFormController::class, 'getWards'])->name('new-form.api.wards');
 
 Route::get('/dashboard', [NgoContractApplicationController::class, 'dashboard'])
     ->middleware(['auth', 'verified'])
@@ -147,6 +155,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/admin/queue-monitor/{uuid}/forget', [AdminQueueMonitorController::class, 'forget'])->name('admin.queue-monitor.forget');
 
     // Transport Fares
+    Route::get('/admin/new-form-data', [AdminNewFormDataController::class, 'index'])->name('admin.new-form-data');
+
     Route::get('/admin/transport-fares', [AdminTransportFareController::class, 'index'])->name('admin.transport-fares');
     Route::post('/admin/transport-fares', [AdminTransportFareController::class, 'update'])->name('admin.transport-fares.update');
 
