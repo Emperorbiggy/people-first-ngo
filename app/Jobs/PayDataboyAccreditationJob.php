@@ -15,14 +15,15 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 /**
- * Pays a databoy for having done accreditation work on a given day — once
- * per calendar day, no matter how many people they check out that day.
+ * Pays a databoy, once ever, for having done accreditation work — a
+ * different set of databoys works each day, so once a databoy has been
+ * successfully paid they must never be paid again, no matter how many
+ * more people they go on to check out on later days.
  *
  * Dispatched manually from Admin\DataboyAccreditationPaymentController::pay(),
- * not automatically on checkout, for whichever work day (today or an unpaid
- * earlier day) the admin selects; the "already paid" guard below (scoped to
- * that specific date) enforces the once-a-day rule regardless of how many
- * times this job is dispatched for the same databoy/day.
+ * not automatically on checkout; the "already paid" guard below is scoped
+ * to the databoy for all time (not per day), enforcing the once-ever rule
+ * regardless of how many times this job is dispatched for them.
  */
 class PayDataboyAccreditationJob implements ShouldQueue
 {
@@ -31,7 +32,7 @@ class PayDataboyAccreditationJob implements ShouldQueue
     public int $tries = 1;
     public int $timeout = 120;
 
-    public function __construct(public int $databoyId, public ?string $paymentDate = null)
+    public function __construct(public int $databoyId)
     {
     }
 
@@ -45,10 +46,10 @@ class PayDataboyAccreditationJob implements ShouldQueue
             return;
         }
 
-        $date = $this->paymentDate ?? now()->toDateString();
+        $date = now()->toDateString();
 
-        if ($this->alreadyPaidForDate($databoy->id, $date)) {
-            $log("Aborted: already paid for {$date}.");
+        if ($this->alreadyPaid($databoy->id)) {
+            $log('Aborted: already paid.');
             return;
         }
 
@@ -72,7 +73,7 @@ class PayDataboyAccreditationJob implements ShouldQueue
 
         // Re-check right before the transfer — closes the race window between
         // the guard above and the (potentially slow) recipient-creation call.
-        if ($this->alreadyPaidForDate($databoy->id, $date)) {
+        if ($this->alreadyPaid($databoy->id)) {
             $log('Aborted: paid by another process while this job was running (race-condition guard).');
             return;
         }
@@ -101,10 +102,9 @@ class PayDataboyAccreditationJob implements ShouldQueue
         $log('Finished.', ['status' => $status]);
     }
 
-    private function alreadyPaidForDate(int $databoyId, string $date): bool
+    private function alreadyPaid(int $databoyId): bool
     {
         return DataboyAccreditationPayment::where('databoy_id', $databoyId)
-            ->where('payment_date', $date)
             ->where('status', '!=', 'failed')
             ->exists();
     }

@@ -53,7 +53,7 @@ export default function DataboyAccreditationPayments({ history = [], stats = {} 
                 <div className="flex items-center justify-between gap-3">
                     <div>
                         <h1 className="text-xl font-bold text-gray-800">Databoy Accreditation Payments</h1>
-                        <p className="text-sm text-gray-500 mt-0.5">Daily payments to databoys for accreditation work, paid manually from the "Pay Databoys" page — at most one payment per databoy per day.</p>
+                        <p className="text-sm text-gray-500 mt-0.5">Payments to databoys for accreditation work, paid manually from the "Pay Databoys" page — each databoy is paid once, ever.</p>
                     </div>
                     <Link
                         href={route('admin.databoy-accreditation-payments.pending')}
