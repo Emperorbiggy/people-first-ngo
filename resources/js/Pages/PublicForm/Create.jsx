@@ -156,7 +156,7 @@ export default function Create({ lgas = [] }) {
                 <div className="max-w-2xl mx-auto">
                     <div className="mb-6 text-center">
                         <h1 className="text-2xl font-bold text-gray-800">Registration Form</h1>
-                        <p className="text-sm text-gray-500 mt-1">Only one person can register per ward.</p>
+                        {/* <p className="text-sm text-gray-500 mt-1">Only one person can register per ward.</p> */}
                     </div>
 
                     <form onSubmit={submit} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-5">
