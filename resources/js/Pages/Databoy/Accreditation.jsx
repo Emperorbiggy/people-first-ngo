@@ -400,8 +400,9 @@ function StatusCell({ app }) {
     return <span className="inline-flex px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-medium rounded-lg">Pending</span>;
 }
 
-export default function Accreditation({ applications = [], timeRestrictionEnabled = true, role = 'databoy', lgas = [], selectedLgaId = null, defaultWindows = [] }) {
+export default function Accreditation({ applications = [], timeRestrictionEnabled = true, role = 'databoy', lgas = [], selectedLgaId = null, defaultWindows = [], alreadyPaid = false }) {
     const isAccreditationBoy = role === 'accreditation_boy';
+    const accreditationLocked = alreadyPaid && !isAccreditationBoy;
     const [search, setSearch] = useState('');
     const [lgaId, setLgaId] = useState(selectedLgaId ?? '');
     const [checkingInApp, setCheckingInApp] = useState(null);
@@ -468,6 +469,12 @@ export default function Accreditation({ applications = [], timeRestrictionEnable
                         <option value="">Select LGA…</option>
                         {lgas.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
                     </select>
+                </div>
+            )}
+
+            {accreditationLocked && (
+                <div className="rounded-xl px-4 py-3 text-sm font-medium mb-4 bg-indigo-50 border border-indigo-200 text-indigo-700">
+                    You've already been paid for accreditation work and can no longer check applicants in or out.
                 </div>
             )}
 
@@ -554,7 +561,9 @@ export default function Accreditation({ applications = [], timeRestrictionEnable
                                                 <button
                                                     type="button"
                                                     onClick={() => setCheckingOutApp(app)}
-                                                    className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition"
+                                                    disabled={accreditationLocked}
+                                                    title={accreditationLocked ? "You've already been paid and can no longer check applicants out." : undefined}
+                                                    className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 disabled:opacity-40 disabled:cursor-not-allowed transition"
                                                 >
                                                     Check Out
                                                 </button>
@@ -562,7 +571,9 @@ export default function Accreditation({ applications = [], timeRestrictionEnable
                                                 <button
                                                     type="button"
                                                     onClick={() => setCheckingInApp(app)}
-                                                    className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition"
+                                                    disabled={accreditationLocked}
+                                                    title={accreditationLocked ? "You've already been paid and can no longer check applicants in." : undefined}
+                                                    className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 disabled:opacity-40 disabled:cursor-not-allowed transition"
                                                 >
                                                     Check In
                                                 </button>

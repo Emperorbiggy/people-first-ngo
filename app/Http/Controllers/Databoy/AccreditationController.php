@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Databoy;
 
 use App\Http\Controllers\Controller;
 use App\Jobs\PayAccreditedApplicantJob;
+use App\Models\DataboyAccreditationPayment;
 use App\Models\DataboyApplication;
 use App\Models\Lga;
 use App\Models\Setting;
@@ -77,6 +78,7 @@ class AccreditationController extends Controller
             'timeRestrictionEnabled' => $this->timeRestrictionEnabled(),
             'defaultWindows'         => $this->jsWindows($this->windowsForWard($databoy->ward_id, now())),
             'role'                   => 'databoy',
+            'alreadyPaid'            => $this->alreadyPaidForAccreditation($databoy->id),
         ]);
     }
 
@@ -87,6 +89,10 @@ class AccreditationController extends Controller
 
         if ($databoyApplication->checked_in_at) {
             return back()->withErrors(['suitable' => 'This applicant is already checked in.']);
+        }
+
+        if (!$databoy->isAccreditationBoy() && $this->alreadyPaidForAccreditation($databoy->id)) {
+            return back()->withErrors(['suitable' => 'You have already been paid for accreditation work and can no longer check in applicants.']);
         }
 
         if ($this->timeRestrictionEnabled() && !$this->checkinWindow(now(), $databoyApplication->ward_id)) {
@@ -125,6 +131,10 @@ class AccreditationController extends Controller
 
         if ($databoyApplication->checked_out_at) {
             return back()->withErrors(['photo' => 'This applicant has already checked out.']);
+        }
+
+        if (!$databoy->isAccreditationBoy() && $this->alreadyPaidForAccreditation($databoy->id)) {
+            return back()->withErrors(['photo' => 'You have already been paid for accreditation work and can no longer check out applicants.']);
         }
 
         if ($this->timeRestrictionEnabled()) {
@@ -176,6 +186,19 @@ class AccreditationController extends Controller
     private function paymentEnabled(): bool
     {
         return Setting::get('accreditation_payment_enabled', '1') === '1';
+    }
+
+    /**
+     * A databoy is paid once, ever, for accreditation work. Once paid, a
+     * regular databoy is done for the week and can no longer check anyone
+     * in or out — this does not apply to the accreditation_boy role, which
+     * isn't part of that one-time payment scheme.
+     */
+    private function alreadyPaidForAccreditation(int $databoyId): bool
+    {
+        return DataboyAccreditationPayment::where('databoy_id', $databoyId)
+            ->where('status', '!=', 'failed')
+            ->exists();
     }
 
     private function checkinWindow(Carbon $at, ?int $wardId = null): ?array
