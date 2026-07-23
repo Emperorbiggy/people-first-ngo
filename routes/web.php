@@ -156,6 +156,8 @@ Route::middleware('auth')->group(function () {
 
     // Transport Fares
     Route::get('/admin/new-form-data', [AdminNewFormDataController::class, 'index'])->name('admin.new-form-data');
+    Route::get('/admin/new-form-data/export/excel', [AdminNewFormDataController::class, 'exportExcel'])->name('admin.new-form-data.export.excel');
+    Route::get('/admin/new-form-data/export/zip', [AdminNewFormDataController::class, 'exportZip'])->name('admin.new-form-data.export.zip');
 
     Route::get('/admin/transport-fares', [AdminTransportFareController::class, 'index'])->name('admin.transport-fares');
     Route::post('/admin/transport-fares', [AdminTransportFareController::class, 'update'])->name('admin.transport-fares.update');
