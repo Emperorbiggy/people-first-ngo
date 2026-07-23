@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { router, usePage } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 
 function StatCard({ label, value, color }) {
@@ -33,8 +34,18 @@ function formatNaira(value) {
 }
 
 export default function AccreditationPayments({ history = [], stats = {} }) {
+    const { flash } = usePage().props;
     const [search, setSearch] = useState('');
     const [status, setStatus] = useState('all');
+    const [retryingId, setRetryingId] = useState(null);
+
+    const retry = (databoyApplicationId) => {
+        setRetryingId(databoyApplicationId);
+        router.post(route('admin.accreditation-payments.retry', databoyApplicationId), {}, {
+            preserveScroll: true,
+            onFinish: () => setRetryingId(null),
+        });
+    };
 
     const filtered = useMemo(() => {
         return history.filter((h) => {
@@ -55,6 +66,18 @@ export default function AccreditationPayments({ history = [], stats = {} }) {
                     <h1 className="text-xl font-bold text-gray-800">Accreditation Payments</h1>
                     <p className="text-sm text-gray-500 mt-0.5">Every accreditation payment (general amount + LGA transport fare) queued automatically at checkout, processed via Paystack.</p>
                 </div>
+
+                {flash?.success && (
+                    <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 text-sm text-green-700 font-medium">
+                        {flash.success}
+                    </div>
+                )}
+
+                {flash?.error && (
+                    <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700 font-medium">
+                        {flash.error}
+                    </div>
+                )}
 
                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
                     <StatCard label="Total Attempts" value={stats.total ?? 0} color="text-gray-800" />
@@ -130,6 +153,16 @@ export default function AccreditationPayments({ history = [], stats = {} }) {
                                                 <StatusBadge status={h.status} />
                                                 {h.status === 'failed' && h.message && (
                                                     <p className="text-xs text-red-400 mt-1 max-w-xs truncate" title={h.message}>{h.message}</p>
+                                                )}
+                                                {h.status === 'failed' && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => retry(h.databoy_application_id)}
+                                                        disabled={retryingId === h.databoy_application_id}
+                                                        className="mt-1 inline-flex px-2 py-0.5 rounded-lg text-xs font-medium border bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100 disabled:opacity-50 transition"
+                                                    >
+                                                        {retryingId === h.databoy_application_id ? 'Retrying…' : 'Retry'}
+                                                    </button>
                                                 )}
                                             </td>
                                             <td className="px-5 py-3 text-xs text-gray-400 whitespace-nowrap">

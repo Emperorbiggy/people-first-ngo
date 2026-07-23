@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\PayAccreditedApplicantJob;
 use App\Models\AccreditationPayment;
+use App\Models\DataboyApplication;
 
 class AccreditationPaymentController extends Controller
 {
@@ -22,6 +24,25 @@ class AccreditationPaymentController extends Controller
         return inertia('Admin/AccreditationPayments', compact('history', 'stats'));
     }
 
+    public function retry(DataboyApplication $databoyApplication)
+    {
+        if (!$databoyApplication->is_accredited) {
+            return back()->with('error', "{$databoyApplication->full_name} is not accredited — nothing to pay.");
+        }
+
+        $alreadyPaid = AccreditationPayment::where('databoy_application_id', $databoyApplication->id)
+            ->where('status', '!=', 'failed')
+            ->exists();
+
+        if ($alreadyPaid) {
+            return back()->with('error', "{$databoyApplication->full_name} has already been paid.");
+        }
+
+        PayAccreditedApplicantJob::dispatch($databoyApplication->id);
+
+        return back()->with('success', "Retrying accreditation payment for {$databoyApplication->full_name}.");
+    }
+
     private function paymentHistory()
     {
         return AccreditationPayment::with([
@@ -38,7 +59,8 @@ class AccreditationPaymentController extends Controller
             ->map(fn ($attempts) => $attempts->first())
             ->values()
             ->map(fn ($payment) => [
-                'id'             => $payment->id,
+                'id'                      => $payment->id,
+                'databoy_application_id'  => $payment->databoy_application_id,
                 'full_name'      => $payment->application->full_name ?? '—',
                 'lga'            => $payment->application->lga->name ?? '—',
                 'databoy'        => $payment->application->databoy->full_name ?? '—',
