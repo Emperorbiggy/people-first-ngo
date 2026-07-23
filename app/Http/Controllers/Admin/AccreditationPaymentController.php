@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Jobs\PayAccreditedApplicantJob;
 use App\Models\AccreditationPayment;
 use App\Models\DataboyApplication;
+use Illuminate\Http\Request;
 
 class AccreditationPaymentController extends Controller
 {
@@ -30,17 +31,63 @@ class AccreditationPaymentController extends Controller
             return back()->with('error', "{$databoyApplication->full_name} is not accredited — nothing to pay.");
         }
 
-        $alreadyPaid = AccreditationPayment::where('databoy_application_id', $databoyApplication->id)
-            ->where('status', '!=', 'failed')
-            ->exists();
-
-        if ($alreadyPaid) {
+        if (!$this->eligibleForRetry($databoyApplication)) {
             return back()->with('error', "{$databoyApplication->full_name} has already been paid.");
         }
 
         PayAccreditedApplicantJob::dispatch($databoyApplication->id);
 
         return back()->with('success', "Retrying accreditation payment for {$databoyApplication->full_name}.");
+    }
+
+    public function retryBulk(Request $request)
+    {
+        $request->validate([
+            'databoy_application_ids'   => 'required|array',
+            'databoy_application_ids.*' => 'integer|exists:databoy_applications,id',
+        ]);
+
+        $applications = DataboyApplication::whereIn('id', $request->databoy_application_ids)->get();
+
+        $queued = 0;
+
+        foreach ($applications as $application) {
+            if (!$this->eligibleForRetry($application)) {
+                continue;
+            }
+
+            // PayAccreditedApplicantJob independently re-checks "already paid"
+            // right before transferring, and CreateApplicantRecipientJob (which
+            // it calls if no recipient exists yet) blocks creating a recipient
+            // for a bank account number already claimed by a different
+            // applicant — so a batch of retries can't double-pay anyone or let
+            // two applicants share one payout account, even if this list is
+            // momentarily stale by the time the queue worker processes it.
+            PayAccreditedApplicantJob::dispatch($application->id);
+            $queued++;
+        }
+
+        if ($queued === 0) {
+            return back()->with('error', 'None of the selected applicants were eligible for retry — they may already be paid.');
+        }
+
+        return back()->with('success', "Retrying accreditation payment for {$queued} applicant(s).");
+    }
+
+    /**
+     * Accredited but with no non-failed accreditation payment on record yet.
+     * The job itself re-verifies this again right before transferring, so
+     * this is a fast pre-filter, not the sole line of defense.
+     */
+    private function eligibleForRetry(DataboyApplication $application): bool
+    {
+        if (!$application->is_accredited) {
+            return false;
+        }
+
+        return !AccreditationPayment::where('databoy_application_id', $application->id)
+            ->where('status', '!=', 'failed')
+            ->exists();
     }
 
     private function paymentHistory()

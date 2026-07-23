@@ -38,6 +38,8 @@ export default function AccreditationPayments({ history = [], stats = {} }) {
     const [search, setSearch] = useState('');
     const [status, setStatus] = useState('all');
     const [retryingId, setRetryingId] = useState(null);
+    const [selected, setSelected] = useState([]);
+    const [bulkRetrying, setBulkRetrying] = useState(false);
 
     const retry = (databoyApplicationId) => {
         setRetryingId(databoyApplicationId);
@@ -57,6 +59,32 @@ export default function AccreditationPayments({ history = [], stats = {} }) {
             return matchesSearch && matchesStatus;
         });
     }, [history, search, status]);
+
+    const failedVisible = useMemo(() => filtered.filter((h) => h.status === 'failed'), [filtered]);
+    const allFailedSelected = failedVisible.length > 0 && failedVisible.every((h) => selected.includes(h.databoy_application_id));
+
+    const toggleAllFailed = () => {
+        const failedIds = failedVisible.map((h) => h.databoy_application_id);
+        setSelected(allFailedSelected ? [] : failedIds);
+    };
+
+    const toggleOne = (databoyApplicationId) => {
+        setSelected((prev) => (
+            prev.includes(databoyApplicationId)
+                ? prev.filter((id) => id !== databoyApplicationId)
+                : [...prev, databoyApplicationId]
+        ));
+    };
+
+    const retrySelected = () => {
+        if (selected.length === 0) return;
+        setBulkRetrying(true);
+        router.post(route('admin.accreditation-payments.retry-bulk'), { databoy_application_ids: selected }, {
+            preserveScroll: true,
+            onSuccess: () => setSelected([]),
+            onFinish: () => setBulkRetrying(false),
+        });
+    };
 
     return (
         <AdminLayout title="Accreditation Payments">
@@ -86,6 +114,20 @@ export default function AccreditationPayments({ history = [], stats = {} }) {
                     <StatCard label="Failed" value={stats.failed ?? 0} color="text-red-600" />
                     <StatCard label="Amount Paid" value={formatNaira(stats.amount_paid)} color="text-indigo-600" />
                 </div>
+
+                {selected.length > 0 && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-2xl px-5 py-3 flex items-center justify-between gap-3">
+                        <p className="text-sm text-amber-800 font-medium">{selected.length} failed payment{selected.length !== 1 ? 's' : ''} selected</p>
+                        <button
+                            type="button"
+                            onClick={retrySelected}
+                            disabled={bulkRetrying}
+                            className="px-4 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white font-semibold rounded-xl text-sm transition"
+                        >
+                            {bulkRetrying ? 'Retrying…' : `Retry Selected (${selected.length})`}
+                        </button>
+                    </div>
+                )}
 
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                     <div className="px-5 py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center gap-3">
@@ -131,6 +173,12 @@ export default function AccreditationPayments({ history = [], stats = {} }) {
                             <table className="min-w-full">
                                 <thead>
                                     <tr className="bg-gray-50 text-left">
+                                        <th className="px-5 py-3">
+                                            {failedVisible.length > 0 && (
+                                                <input type="checkbox" checked={allFailedSelected} onChange={toggleAllFailed}
+                                                    className="rounded border-gray-300 text-amber-600 focus:ring-amber-500" />
+                                            )}
+                                        </th>
                                         {['Name', 'LGA', 'Registered By', 'Amount', 'Account Number', 'Account Name', 'Status', 'Date'].map((h) => (
                                             <th key={h} className="px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
                                         ))}
@@ -139,6 +187,13 @@ export default function AccreditationPayments({ history = [], stats = {} }) {
                                 <tbody className="divide-y divide-gray-50">
                                     {filtered.map((h) => (
                                         <tr key={h.id} className="hover:bg-indigo-50/30 transition-colors">
+                                            <td className="px-5 py-3">
+                                                {h.status === 'failed' && (
+                                                    <input type="checkbox" checked={selected.includes(h.databoy_application_id)}
+                                                        onChange={() => toggleOne(h.databoy_application_id)}
+                                                        className="rounded border-gray-300 text-amber-600 focus:ring-amber-500" />
+                                                )}
+                                            </td>
                                             <td className="px-5 py-3 text-sm font-medium text-gray-800 whitespace-nowrap">{h.full_name}</td>
                                             <td className="px-5 py-3">
                                                 <span className="inline-flex px-2 py-0.5 bg-violet-100 text-violet-700 text-xs rounded-lg whitespace-nowrap">
