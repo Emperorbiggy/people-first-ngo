@@ -42,7 +42,13 @@ export default function DataboyAccreditationPayments({ history = [], stats = {} 
             const matchesSearch = search.trim()
                 ? h.full_name?.toLowerCase().includes(search.trim().toLowerCase())
                 : true;
-            const matchesStatus = status === 'all' ? true : h.status === status;
+            // Duplicate-account failures are permanent, not actionable — the
+            // "Failed" filter excludes them (they're not something to retry).
+            const matchesStatus = status === 'all'
+                ? true
+                : status === 'failed'
+                    ? h.status === 'failed' && !h.is_duplicate_failure
+                    : h.status === status;
             return matchesSearch && matchesStatus;
         });
     }, [history, search, status]);
@@ -133,6 +139,11 @@ export default function DataboyAccreditationPayments({ history = [], stats = {} 
                                             <td className="px-5 py-3 text-sm text-gray-600 whitespace-nowrap">{h.account_name}</td>
                                             <td className="px-5 py-3 whitespace-nowrap">
                                                 <StatusBadge status={h.status} />
+                                                {h.is_duplicate_failure && (
+                                                    <span className="ml-1 inline-flex px-2 py-0.5 rounded-lg text-xs font-medium border bg-gray-100 border-gray-200 text-gray-500">
+                                                        Duplicate
+                                                    </span>
+                                                )}
                                                 {h.status === 'failed' && h.message && (
                                                     <p className="text-xs text-red-400 mt-1 max-w-xs truncate" title={h.message}>{h.message}</p>
                                                 )}

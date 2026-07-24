@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Exports\DataboyAccreditationPaymentsExport;
+use App\Http\Controllers\Concerns\DetectsDuplicateFailures;
 use App\Http\Controllers\Controller;
 use App\Jobs\PayDataboyAccreditationJob;
 use App\Models\Databoy;
@@ -14,6 +15,8 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class DataboyAccreditationPaymentController extends Controller
 {
+    use DetectsDuplicateFailures;
+
     public function index()
     {
         $history = $this->paymentHistory();
@@ -21,7 +24,9 @@ class DataboyAccreditationPaymentController extends Controller
         $stats = [
             'total'       => $history->count(),
             'success'     => $history->where('status', 'success')->count(),
-            'failed'      => $history->where('status', 'failed')->count(),
+            // Duplicate-account failures are permanent, not actionable — they
+            // don't count toward "Failed" and don't appear under that filter.
+            'failed'      => $history->where('status', 'failed')->where('is_duplicate_failure', false)->count(),
             'amount_paid' => $history->where('status', 'success')->sum('amount'),
         ];
 
@@ -34,8 +39,10 @@ class DataboyAccreditationPaymentController extends Controller
 
         $history = $this->paymentHistory();
 
-        if (in_array($status, ['success', 'failed'], true)) {
-            $history = $history->where('status', $status)->values();
+        if ($status === 'failed') {
+            $history = $history->where('status', 'failed')->where('is_duplicate_failure', false)->values();
+        } elseif ($status === 'success') {
+            $history = $history->where('status', 'success')->values();
         }
 
         return Excel::download(new DataboyAccreditationPaymentsExport($history), "databoy_accreditation_payments_{$status}.xlsx");
@@ -66,6 +73,7 @@ class DataboyAccreditationPaymentController extends Controller
                 'account_name'   => $payment->account_name,
                 'status'         => $payment->status,
                 'message'        => $payment->message,
+                'is_duplicate_failure' => $payment->status === 'failed' && $this->isDuplicateAccountFailure($payment->message),
                 'created_at'     => $payment->created_at,
             ]);
     }
@@ -123,7 +131,10 @@ class DataboyAccreditationPaymentController extends Controller
      * Databoys who have accredited (checked someone out) at least once but
      * don't yet have a non-failed accreditation payment — a databoy is paid
      * once, ever, so anyone already paid drops out of this list permanently,
-     * even if they go on to accredit more people on later days.
+     * even if they go on to accredit more people on later days. Also excludes
+     * anyone whose most recent attempt failed due to a duplicate account
+     * number — that's permanent, not retryable, so they must never be shown
+     * as awaiting payment.
      */
     private function eligibleDataboyIds()
     {
@@ -136,6 +147,16 @@ class DataboyAccreditationPaymentController extends Controller
             ->distinct()
             ->pluck('databoy_id');
 
-        return $worked->diff($alreadyPaid);
+        $eligible = $worked->diff($alreadyPaid);
+
+        $duplicateBlocked = DataboyAccreditationPayment::whereIn('databoy_id', $eligible)
+            ->orderByDesc('created_at')
+            ->get(['databoy_id', 'message'])
+            ->groupBy('databoy_id')
+            ->map(fn ($attempts) => $attempts->first())
+            ->filter(fn ($payment) => $this->isDuplicateAccountFailure($payment->message))
+            ->keys();
+
+        return $eligible->diff($duplicateBlocked);
     }
 }

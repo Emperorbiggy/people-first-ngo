@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Exports\AccreditationPaymentsExport;
+use App\Http\Controllers\Concerns\DetectsDuplicateFailures;
 use App\Http\Controllers\Controller;
 use App\Jobs\PayAccreditedApplicantJob;
 use App\Models\AccreditationPayment;
@@ -12,6 +13,8 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class AccreditationPaymentController extends Controller
 {
+    use DetectsDuplicateFailures;
+
     public function index()
     {
         $history = $this->paymentHistory();
@@ -20,7 +23,9 @@ class AccreditationPaymentController extends Controller
             'total'       => $history->count(),
             'success'     => $history->where('status', 'success')->count(),
             'pending'     => $history->whereIn('status', ['pending', 'otp'])->count(),
-            'failed'      => $history->where('status', 'failed')->count(),
+            // Duplicate-account failures are permanent, not actionable — they
+            // don't count toward "Failed" and don't appear under that filter.
+            'failed'      => $history->where('status', 'failed')->where('is_duplicate_failure', false)->count(),
             'amount_paid' => $history->where('status', 'success')->sum('amount'),
         ];
 
@@ -82,17 +87,21 @@ class AccreditationPaymentController extends Controller
 
         $history = $this->paymentHistory();
 
-        if (in_array($status, ['success', 'failed'], true)) {
-            $history = $history->where('status', $status)->values();
+        if ($status === 'failed') {
+            $history = $history->where('status', 'failed')->where('is_duplicate_failure', false)->values();
+        } elseif ($status === 'success') {
+            $history = $history->where('status', 'success')->values();
         }
 
         return Excel::download(new AccreditationPaymentsExport($history), "accreditation_payments_{$status}.xlsx");
     }
 
     /**
-     * Accredited but with no non-failed accreditation payment on record yet.
-     * The job itself re-verifies this again right before transferring, so
-     * this is a fast pre-filter, not the sole line of defense.
+     * Accredited, with no non-failed accreditation payment on record yet, and
+     * not blocked by a duplicate-account-number failure (permanent — retrying
+     * can never succeed while another applicant already owns that account).
+     * The job itself re-verifies "already paid" again right before
+     * transferring, so this is a fast pre-filter, not the sole line of defense.
      */
     private function eligibleForRetry(DataboyApplication $application): bool
     {
@@ -100,9 +109,20 @@ class AccreditationPaymentController extends Controller
             return false;
         }
 
-        return !AccreditationPayment::where('databoy_application_id', $application->id)
+        $alreadyPaid = AccreditationPayment::where('databoy_application_id', $application->id)
             ->where('status', '!=', 'failed')
             ->exists();
+
+        if ($alreadyPaid) {
+            return false;
+        }
+
+        $latestFailureMessage = AccreditationPayment::where('databoy_application_id', $application->id)
+            ->where('status', 'failed')
+            ->latest()
+            ->value('message');
+
+        return !$this->isDuplicateAccountFailure($latestFailureMessage);
     }
 
     private function paymentHistory()
@@ -133,6 +153,7 @@ class AccreditationPaymentController extends Controller
                 'account_name'   => $payment->account_name,
                 'status'         => $payment->status,
                 'message'        => $payment->message,
+                'is_duplicate_failure' => $payment->status === 'failed' && $this->isDuplicateAccountFailure($payment->message),
                 'created_at'     => $payment->created_at,
             ]);
     }

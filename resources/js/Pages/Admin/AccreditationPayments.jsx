@@ -56,12 +56,18 @@ export default function AccreditationPayments({ history = [], stats = {} }) {
             const matchesSearch = q
                 ? h.full_name?.toLowerCase().includes(q) || h.lga?.toLowerCase().includes(q) || h.databoy?.toLowerCase().includes(q)
                 : true;
-            const matchesStatus = status === 'all' ? true : h.status === status;
+            // Duplicate-account failures are permanent, not actionable — the
+            // "Failed" filter excludes them (they're not something to retry).
+            const matchesStatus = status === 'all'
+                ? true
+                : status === 'failed'
+                    ? h.status === 'failed' && !h.is_duplicate_failure
+                    : h.status === status;
             return matchesSearch && matchesStatus;
         });
     }, [history, search, status]);
 
-    const failedVisible = useMemo(() => filtered.filter((h) => h.status === 'failed'), [filtered]);
+    const failedVisible = useMemo(() => filtered.filter((h) => h.status === 'failed' && !h.is_duplicate_failure), [filtered]);
     const allFailedSelected = failedVisible.length > 0 && failedVisible.every((h) => selected.includes(h.databoy_application_id));
 
     const toggleAllFailed = () => {
@@ -192,7 +198,7 @@ export default function AccreditationPayments({ history = [], stats = {} }) {
                                     {filtered.map((h) => (
                                         <tr key={h.id} className="hover:bg-indigo-50/30 transition-colors">
                                             <td className="px-5 py-3">
-                                                {h.status === 'failed' && (
+                                                {h.status === 'failed' && !h.is_duplicate_failure && (
                                                     <input type="checkbox" checked={selected.includes(h.databoy_application_id)}
                                                         onChange={() => toggleOne(h.databoy_application_id)}
                                                         className="rounded border-gray-300 text-amber-600 focus:ring-amber-500" />
@@ -210,10 +216,15 @@ export default function AccreditationPayments({ history = [], stats = {} }) {
                                             <td className="px-5 py-3 text-sm text-gray-600 whitespace-nowrap">{h.account_name}</td>
                                             <td className="px-5 py-3 whitespace-nowrap">
                                                 <StatusBadge status={h.status} />
+                                                {h.is_duplicate_failure && (
+                                                    <span className="ml-1 inline-flex px-2 py-0.5 rounded-lg text-xs font-medium border bg-gray-100 border-gray-200 text-gray-500">
+                                                        Duplicate
+                                                    </span>
+                                                )}
                                                 {h.status === 'failed' && h.message && (
                                                     <p className="text-xs text-red-400 mt-1 max-w-xs truncate" title={h.message}>{h.message}</p>
                                                 )}
-                                                {h.status === 'failed' && (
+                                                {h.status === 'failed' && !h.is_duplicate_failure && (
                                                     <button
                                                         type="button"
                                                         onClick={() => retry(h.databoy_application_id)}
