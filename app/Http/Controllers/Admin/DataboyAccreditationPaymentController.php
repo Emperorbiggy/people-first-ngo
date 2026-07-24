@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Exports\DataboyAccreditationPaymentsExport;
 use App\Http\Controllers\Controller;
 use App\Jobs\PayDataboyAccreditationJob;
 use App\Models\Databoy;
@@ -9,16 +10,46 @@ use App\Models\DataboyAccreditationPayment;
 use App\Models\DataboyApplication;
 use App\Models\Setting;
 use Illuminate\Http\Request;
+use Maatwebsite\Excel\Facades\Excel;
 
 class DataboyAccreditationPaymentController extends Controller
 {
     public function index()
     {
-        // A databoy is only ever meant to be paid once, period — but a failed
-        // attempt is retryable, so repeated retries can leave several rows for
-        // the same databoy. Dedupe to one row per databoy: prefer the
-        // successful attempt if one exists, otherwise the latest attempt.
-        $history = DataboyAccreditationPayment::with('databoy:id,full_name')
+        $history = $this->paymentHistory();
+
+        $stats = [
+            'total'       => $history->count(),
+            'success'     => $history->where('status', 'success')->count(),
+            'failed'      => $history->where('status', 'failed')->count(),
+            'amount_paid' => $history->where('status', 'success')->sum('amount'),
+        ];
+
+        return inertia('Admin/DataboyAccreditationPayments', compact('history', 'stats'));
+    }
+
+    public function exportExcel(Request $request)
+    {
+        $status = $request->get('status', 'all');
+
+        $history = $this->paymentHistory();
+
+        if (in_array($status, ['success', 'failed'], true)) {
+            $history = $history->where('status', $status)->values();
+        }
+
+        return Excel::download(new DataboyAccreditationPaymentsExport($history), "databoy_accreditation_payments_{$status}.xlsx");
+    }
+
+    /**
+     * A databoy is only ever meant to be paid once, period — but a failed
+     * attempt is retryable, so repeated retries can leave several rows for
+     * the same databoy. Dedupe to one row per databoy: prefer the
+     * successful attempt if one exists, otherwise the latest attempt.
+     */
+    private function paymentHistory()
+    {
+        return DataboyAccreditationPayment::with('databoy:id,full_name')
             ->orderByDesc('payment_date')
             ->orderByDesc('created_at')
             ->get(['id', 'databoy_id', 'payment_date', 'amount', 'bank_name', 'bank_code', 'account_number', 'account_name', 'status', 'message', 'created_at'])
@@ -37,15 +68,6 @@ class DataboyAccreditationPaymentController extends Controller
                 'message'        => $payment->message,
                 'created_at'     => $payment->created_at,
             ]);
-
-        $stats = [
-            'total'       => $history->count(),
-            'success'     => $history->where('status', 'success')->count(),
-            'failed'      => $history->where('status', 'failed')->count(),
-            'amount_paid' => $history->where('status', 'success')->sum('amount'),
-        ];
-
-        return inertia('Admin/DataboyAccreditationPayments', compact('history', 'stats'));
     }
 
     public function pending()

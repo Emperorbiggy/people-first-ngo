@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Exports\AccreditationPaymentsExport;
 use App\Http\Controllers\Controller;
 use App\Jobs\PayAccreditedApplicantJob;
 use App\Models\AccreditationPayment;
 use App\Models\DataboyApplication;
 use Illuminate\Http\Request;
+use Maatwebsite\Excel\Facades\Excel;
 
 class AccreditationPaymentController extends Controller
 {
@@ -72,6 +74,19 @@ class AccreditationPaymentController extends Controller
         }
 
         return back()->with('success', "Retrying accreditation payment for {$queued} applicant(s).");
+    }
+
+    public function exportExcel(Request $request)
+    {
+        $status = $request->get('status', 'all');
+
+        $history = $this->paymentHistory();
+
+        if (in_array($status, ['success', 'failed'], true)) {
+            $history = $history->where('status', $status)->values();
+        }
+
+        return Excel::download(new AccreditationPaymentsExport($history), "accreditation_payments_{$status}.xlsx");
     }
 
     /**

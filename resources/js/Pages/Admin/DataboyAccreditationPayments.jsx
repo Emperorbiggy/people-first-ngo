@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import ExportButtons from '@/Components/ExportButtons';
 
 function StatCard({ label, value, color }) {
     return (
@@ -55,12 +56,15 @@ export default function DataboyAccreditationPayments({ history = [], stats = {} 
                         <h1 className="text-xl font-bold text-gray-800">Databoy Accreditation Payments</h1>
                         <p className="text-sm text-gray-500 mt-0.5">Payments to databoys for accreditation work, paid manually from the "Pay Databoys" page — each databoy is paid once, ever.</p>
                     </div>
-                    <Link
-                        href={route('admin.databoy-accreditation-payments.pending')}
-                        className="px-4 py-2 text-sm font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition whitespace-nowrap"
-                    >
-                        Pay Databoys
-                    </Link>
+                    <div className="flex gap-2 flex-wrap items-center">
+                        <Link
+                            href={route('admin.databoy-accreditation-payments.pending')}
+                            className="px-4 py-2 text-sm font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition whitespace-nowrap"
+                        >
+                            Pay Databoys
+                        </Link>
+                        <ExportButtons routeName="admin.databoy-accreditation-payments.export" />
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

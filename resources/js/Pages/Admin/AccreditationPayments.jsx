@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { router, usePage } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import ExportButtons from '@/Components/ExportButtons';
 
 function StatCard({ label, value, color }) {
     return (
@@ -90,9 +91,12 @@ export default function AccreditationPayments({ history = [], stats = {} }) {
         <AdminLayout title="Accreditation Payments">
             <div className="max-w-7xl mx-auto space-y-6">
 
-                <div>
-                    <h1 className="text-xl font-bold text-gray-800">Accreditation Payments</h1>
-                    <p className="text-sm text-gray-500 mt-0.5">Every accreditation payment (general amount + LGA transport fare) queued automatically at checkout, processed via Paystack.</p>
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <div>
+                        <h1 className="text-xl font-bold text-gray-800">Accreditation Payments</h1>
+                        <p className="text-sm text-gray-500 mt-0.5">Every accreditation payment (general amount + LGA transport fare) queued automatically at checkout, processed via Paystack.</p>
+                    </div>
+                    <ExportButtons routeName="admin.accreditation-payments.export" />
                 </div>
 
                 {flash?.success && (
