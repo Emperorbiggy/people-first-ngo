@@ -13,12 +13,24 @@ export default function DataboyAccreditationPending({ accreditationDataboyAmount
     const [selected, setSelected] = useState([]);
     const [paying, setPaying] = useState(false);
     const [retryingId, setRetryingId] = useState(null);
+    const [filter, setFilter] = useState('all'); // all | new | retry
 
     const amount = Number(accreditationDataboyAmount) || 0;
-    const allSelected = databoys.length > 0 && selected.length === databoys.length;
+
+    const newCount   = useMemo(() => databoys.filter((d) => !d.previous_failure).length, [databoys]);
+    const retryCount = useMemo(() => databoys.filter((d) => d.previous_failure).length, [databoys]);
+
+    const visible = useMemo(() => {
+        if (filter === 'new') return databoys.filter((d) => !d.previous_failure);
+        if (filter === 'retry') return databoys.filter((d) => d.previous_failure);
+        return databoys;
+    }, [databoys, filter]);
+
+    const allSelected = visible.length > 0 && visible.every((d) => selected.includes(d.id));
 
     const toggleAll = () => {
-        setSelected(allSelected ? [] : databoys.map((d) => d.id));
+        const visibleIds = visible.map((d) => d.id);
+        setSelected(allSelected ? selected.filter((id) => !visibleIds.includes(id)) : [...new Set([...selected, ...visibleIds])]);
     };
 
     const toggleOne = (id) => {
@@ -101,19 +113,30 @@ export default function DataboyAccreditationPending({ accreditationDataboyAmount
                 )}
 
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                    <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+                    <div className="px-5 py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div>
                             <h3 className="font-semibold text-gray-800">Awaiting Payment</h3>
-                            <p className="text-xs text-gray-400 mt-0.5">{databoys.length} databoy{databoys.length !== 1 ? 's' : ''}</p>
+                            <p className="text-xs text-gray-400 mt-0.5">{visible.length} of {databoys.length} databoy{databoys.length !== 1 ? 's' : ''}</p>
                         </div>
-                        <button
-                            type="button"
-                            onClick={pay}
-                            disabled={paying || amount <= 0 || selected.length === 0}
-                            className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-semibold rounded-xl text-sm transition"
-                        >
-                            {paying ? 'Queuing…' : `Pay Selected (${formatNaira(total)})`}
-                        </button>
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <select
+                                value={filter}
+                                onChange={(e) => setFilter(e.target.value)}
+                                className="px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            >
+                                <option value="all">All ({databoys.length})</option>
+                                <option value="new">Never Paid ({newCount})</option>
+                                <option value="retry">Retry (Previously Failed) ({retryCount})</option>
+                            </select>
+                            <button
+                                type="button"
+                                onClick={pay}
+                                disabled={paying || amount <= 0 || selected.length === 0}
+                                className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-semibold rounded-xl text-sm transition whitespace-nowrap"
+                            >
+                                {paying ? 'Queuing…' : `Pay Selected (${formatNaira(total)})`}
+                            </button>
+                        </div>
                     </div>
 
                     {databoys.length === 0 ? (
@@ -123,6 +146,8 @@ export default function DataboyAccreditationPending({ accreditationDataboyAmount
                                 A databoy shows up here as soon as they check someone out, and drops off for good once successfully paid.
                             </p>
                         </div>
+                    ) : visible.length === 0 ? (
+                        <div className="py-10 text-center text-sm text-gray-400">No databoys match this filter.</div>
                     ) : (
                         <div className="overflow-x-auto">
                             <table className="min-w-full">
@@ -138,7 +163,7 @@ export default function DataboyAccreditationPending({ accreditationDataboyAmount
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-50">
-                                    {databoys.map((databoy) => {
+                                    {visible.map((databoy) => {
                                         const isChecked = selected.includes(databoy.id);
                                         return (
                                         <tr key={databoy.id} className="hover:bg-indigo-50/30 transition-colors">
