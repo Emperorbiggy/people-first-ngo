@@ -32,6 +32,8 @@ use App\Http\Controllers\Databoy\AuthController as DataboyAuthController;
 use App\Http\Controllers\Databoy\DashboardController as DataboyDashboardController;
 use App\Http\Controllers\Databoy\ApplicationController as DataboyApplicationController;
 use App\Http\Controllers\Databoy\PartyAgentController as DataboyPartyAgentController;
+use App\Http\Controllers\Databoy\ApoOfficerController as DataboyApoOfficerController;
+use App\Http\Controllers\Admin\ApoOfficerController as AdminApoOfficerController;
 use App\Http\Controllers\Databoy\AccreditationController as DataboyAccreditationController;
 use App\Http\Controllers\NewFormController;
 use App\Models\Country;
@@ -156,6 +158,9 @@ Route::middleware('auth')->group(function () {
 
     // Transport Fares
     Route::get('/admin/new-form-data', [AdminNewFormDataController::class, 'index'])->name('admin.new-form-data');
+
+    Route::get('/admin/apo-officers', [AdminApoOfficerController::class, 'index'])->name('admin.apo-officers');
+    Route::get('/admin/apo-officers/export', [AdminApoOfficerController::class, 'exportExcel'])->name('admin.apo-officers.export');
     Route::get('/admin/new-form-data/export/excel', [AdminNewFormDataController::class, 'exportExcel'])->name('admin.new-form-data.export.excel');
     Route::get('/admin/new-form-data/export/zip', [AdminNewFormDataController::class, 'exportZip'])->name('admin.new-form-data.export.zip');
 
@@ -251,6 +256,9 @@ Route::prefix('databoy')->name('databoy.')->group(function () {
         Route::get('/party-agents', [DataboyPartyAgentController::class, 'index'])->name('party-agents.index');
         Route::get('/party-agents/create', [DataboyPartyAgentController::class, 'create'])->name('party-agents.create');
         Route::post('/party-agents', [DataboyPartyAgentController::class, 'store'])->name('party-agents.store');
+
+        Route::get('/apo-officers', [DataboyApoOfficerController::class, 'index'])->name('apo-officers.index');
+        Route::post('/apo-officers/{databoyApplication}/qualify', [DataboyApoOfficerController::class, 'qualify'])->name('apo-officers.qualify');
     });
 });
 

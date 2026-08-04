@@ -49,6 +49,7 @@ export default function DataboyLayout({ title, children }) {
                         {partyAgentRegistrationEnabled && navLink('databoy.party-agents.index', 'Party Agents')}
                         {partyAgentRegistrationEnabled && navLink('databoy.party-agents.create', '+ Add Party Agent')}
                         {navLink('databoy.accreditation.index', 'Accreditation')}
+                        {navLink('databoy.apo-officers.index', 'APO Officers')}
                     </div>
 
                     <div className="hidden sm:flex items-center gap-3">
@@ -84,6 +85,7 @@ export default function DataboyLayout({ title, children }) {
                         {partyAgentRegistrationEnabled && navLink('databoy.party-agents.index', 'Party Agents')}
                         {partyAgentRegistrationEnabled && navLink('databoy.party-agents.create', '+ Add Party Agent')}
                         {navLink('databoy.accreditation.index', 'Accreditation')}
+                        {navLink('databoy.apo-officers.index', 'APO Officers')}
                         <div className="pt-2 border-t border-indigo-700 mt-2">
                             <p className="text-xs text-indigo-400 px-4 mb-1">{databoy?.full_name}</p>
                             <Link

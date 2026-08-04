@@ -40,4 +40,5 @@ class DataboyApplication extends Model
     public function recipient()   { return $this->hasOne(DataboyApplicantRecipient::class, 'databoy_application_id'); }
     public function payments()    { return $this->hasMany(ApplicantPayment::class, 'databoy_application_id'); }
     public function accreditationPayments() { return $this->hasMany(AccreditationPayment::class, 'databoy_application_id'); }
+    public function apoOfficer()  { return $this->hasOne(ApoOfficer::class, 'databoy_application_id'); }
 }
