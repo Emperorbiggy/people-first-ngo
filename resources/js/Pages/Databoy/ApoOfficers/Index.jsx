@@ -4,19 +4,62 @@ import { router, usePage } from '@inertiajs/react';
 import DataboyLayout from '@/Layouts/DataboyLayout';
 import PaystackService from '@/services/paystack';
 
-function ReplaceModal({ application, onClose }) {
-    const [fullName, setFullName] = useState(application.full_name ?? '');
+const NETWORKS    = ['MTN', 'GLO', 'AIRTEL', '9MOBILE'];
+const EMPLOYMENT   = ['Employed', 'Unemployed', 'Student', 'Self-employed', 'Corp member', 'Recently passed out Corp member'];
+const GRADE_LEVELS = Array.from({ length: 17 }, (_, i) => `Level ${i + 1}`);
+const AVAILABILITY = [
+    { value: 'all_opportunities', label: 'I am Available for all opportunities' },
+    { value: 'southwest_travel',  label: 'Available for short-time contract work (travel within South West)' },
+    { value: 'outside_state',     label: 'Available for 30-day contract work outside my state' },
+    { value: 'not_available',     label: 'I am not available' },
+];
+
+const inputCls = 'w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white disabled:bg-gray-50 disabled:text-gray-400';
+const labelCls = 'block text-sm font-semibold text-gray-700 mb-1.5';
+const errCls   = 'mt-1 text-xs text-red-600';
+
+function Section({ title, children }) {
+    return (
+        <div className="border-b border-gray-100 pb-5 mb-5 last:border-b-0 last:mb-0 last:pb-0">
+            <h4 className="font-semibold text-gray-800 text-sm mb-4">{title}</h4>
+            <div className="space-y-4">{children}</div>
+        </div>
+    );
+}
+
+function ReplaceModal({ application, pollingUnits, onClose }) {
+    const [data, setDataState] = useState({
+        full_name: application.full_name ?? '',
+        gender: application.gender ?? '',
+        age: application.age ?? '',
+        email_address: application.email_address ?? '',
+        calling_phone_number: application.calling_phone_number ?? '',
+        whatsapp_number: application.whatsapp_number ?? '',
+        polling_unit_id: application.polling_unit?.id ? String(application.polling_unit.id) : '',
+        house_address: application.house_address ?? '',
+        browsing_network: application.browsing_network ?? '',
+        browsing_number: application.browsing_number ?? '',
+        bank_name: application.bank_name ?? '',
+        bank_code: application.bank_code ?? '',
+        account_number: application.account_number ?? '',
+        bank_account_name: application.bank_account_name ?? '',
+        employment_status: application.employment_status ?? '',
+        availability: application.availability ?? '',
+        current_occupation: application.current_occupation ?? '',
+        work_grade_level: application.work_grade_level ?? '',
+        has_voter_card: !!application.has_voter_card,
+    });
+    const setData = (field, value) => setDataState((d) => ({ ...d, [field]: value }));
+
     const [banks, setBanks] = useState([]);
-    const [bankName, setBankName] = useState(application.bank_name ?? '');
-    const [bankCode, setBankCode] = useState(application.bank_code ?? '');
-    const [accountNumber, setAccountNumber] = useState(application.account_number ?? '');
-    const [accountName, setAccountName] = useState(application.bank_account_name ?? '');
     const [resolving, setResolving] = useState(false);
+    const [resolvedName, setResolvedName] = useState(application.bank_account_name ?? '');
     const [resolveError, setResolveError] = useState('');
+
     const [passportFile, setPassportFile] = useState(null);
     const [capturedImage, setCapturedImage] = useState(null);
     const [saving, setSaving] = useState(false);
-    const [error, setError] = useState('');
+    const [errors, setErrors] = useState({});
 
     // Camera capture state
     const [showCamera, setShowCamera] = useState(false);
@@ -36,22 +79,24 @@ function ReplaceModal({ application, onClose }) {
 
     const handleBankChange = (name) => {
         const bank = banks.find((b) => b.name === name);
-        setBankName(name);
-        setBankCode(bank?.code ?? '');
-        if (accountNumber.length === 10 && bank?.code) {
-            triggerResolve(accountNumber, bank.code);
+        setData('bank_name', name);
+        setData('bank_code', bank?.code ?? '');
+        if (data.account_number.length === 10 && bank?.code) {
+            triggerResolve(data.account_number, bank.code);
         }
     };
 
     const triggerResolve = async (number, code) => {
         if (!number || !code || number.length < 10) return;
         setResolving(true);
-        setAccountName('');
+        setResolvedName('');
         setResolveError('');
+        setData('bank_account_name', '');
         try {
             const result = await PaystackService.resolveAccountNumber(number, code);
             if (result.status && result.data) {
-                setAccountName(result.data.account_name);
+                setResolvedName(result.data.account_name);
+                setData('bank_account_name', result.data.account_name);
             } else {
                 setResolveError(result.message || 'Could not verify account. Please check the details.');
             }
@@ -64,11 +109,12 @@ function ReplaceModal({ application, onClose }) {
 
     const handleAccountNumberChange = (value) => {
         const val = value.replace(/\D/g, '').slice(0, 10);
-        setAccountNumber(val);
-        if (val.length === 10 && bankCode) {
-            triggerResolve(val, bankCode);
+        setData('account_number', val);
+        if (val.length === 10 && data.bank_code) {
+            triggerResolve(val, data.bank_code);
         } else {
-            setAccountName('');
+            setResolvedName('');
+            setData('bank_account_name', '');
             setResolveError('');
         }
     };
@@ -145,34 +191,28 @@ function ReplaceModal({ application, onClose }) {
     const submit = (e) => {
         e.preventDefault();
         setSaving(true);
-        setError('');
+        setErrors({});
         router.post(route('databoy.apo-officers.replace', application.id), {
-            full_name: fullName,
-            bank_name: bankName,
-            bank_code: bankCode,
-            account_number: accountNumber,
-            bank_account_name: accountName,
+            ...data,
+            has_voter_card: data.has_voter_card ? '1' : '0',
             passport_photograph: passportFile,
         }, {
             forceFormData: true,
             preserveScroll: true,
             onSuccess: () => onClose(),
-            onError: (e) => { setError(Object.values(e)[0] ?? 'Failed to replace details.'); setSaving(false); },
+            onError: (e) => { setErrors(e); setSaving(false); },
             onFinish: () => setSaving(false),
         });
     };
 
-    const inputCls = 'w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white';
-    const labelCls = 'block text-sm font-semibold text-gray-700 mb-1.5';
-
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/50" onClick={!saving ? onClose : undefined} />
-            <form onSubmit={submit} className="relative bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden max-h-[90vh] flex flex-col">
+            <form onSubmit={submit} className="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col">
                 <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between shrink-0">
                     <div>
-                        <h3 className="font-bold text-gray-800">Replace APO Officer Details</h3>
-                        <p className="text-xs text-gray-500 mt-0.5">Updates the registration for {application.full_name}.</p>
+                        <h3 className="font-bold text-gray-800">Replace Registration Details</h3>
+                        <p className="text-xs text-gray-500 mt-0.5">Correcting {application.full_name}'s registration. ID card and certificate cannot be changed here.</p>
                     </div>
                     <button type="button" onClick={onClose} disabled={saving} className="text-gray-400 hover:text-gray-600 disabled:opacity-50">
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -181,50 +221,181 @@ function ReplaceModal({ application, onClose }) {
                     </button>
                 </div>
 
-                <div className="p-5 space-y-4 overflow-y-auto">
-                    {error && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>}
+                <div className="p-5 overflow-y-auto">
+                    {errors.account && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-4">{errors.account}</p>}
 
-                    <div>
-                        <label className={labelCls}>Full Name *</label>
-                        <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} className={inputCls} />
-                    </div>
-
-                    <div>
-                        <label className={labelCls}>Bank *</label>
-                        <select value={bankName} onChange={(e) => handleBankChange(e.target.value)} className={inputCls}>
-                            <option value="">{banks.length === 0 ? 'Loading banks…' : 'Select bank'}</option>
-                            {banks.map((b) => <option key={b.code} value={b.name}>{b.name}</option>)}
-                        </select>
-                    </div>
-
-                    <div>
-                        <label className={labelCls}>Account Number *</label>
-                        <div className="relative">
-                            <input type="text" maxLength={10} value={accountNumber}
-                                onChange={(e) => handleAccountNumberChange(e.target.value)}
-                                placeholder="10-digit account number" className={inputCls + (resolving ? ' pr-9' : '')} />
-                            {resolving && (
-                                <span className="absolute right-3 top-1/2 -translate-y-1/2">
-                                    <svg className="w-4 h-4 text-indigo-500 animate-spin" fill="none" viewBox="0 0 24 24">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                                    </svg>
-                                </span>
-                            )}
+                    <Section title="Personal Information">
+                        <div>
+                            <label className={labelCls}>Full Name *</label>
+                            <input type="text" value={data.full_name} onChange={(e) => setData('full_name', e.target.value)} className={inputCls} />
+                            {errors.full_name && <p className={errCls}>{errors.full_name}</p>}
                         </div>
-                        {resolveError && <p className="mt-1 text-xs text-red-600">{resolveError}</p>}
-                    </div>
 
-                    <div>
-                        <label className={labelCls}>Account Name *</label>
-                        <input type="text" value={accountName} readOnly
-                            placeholder={resolving ? 'Verifying…' : 'Auto-filled after verification'}
-                            className={inputCls + ' cursor-default ' + (accountName ? 'text-green-700 bg-green-50' : 'bg-gray-50 text-gray-400')} />
-                    </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className={labelCls}>Gender *</label>
+                                <select value={data.gender} onChange={(e) => setData('gender', e.target.value)} className={inputCls}>
+                                    <option value="">Select gender</option>
+                                    <option>Male</option><option>Female</option>
+                                </select>
+                                {errors.gender && <p className={errCls}>{errors.gender}</p>}
+                            </div>
+                            <div>
+                                <label className={labelCls}>Age *</label>
+                                <input type="number" min="18" max="60" value={data.age} onChange={(e) => setData('age', e.target.value)} className={inputCls} />
+                                {errors.age && <p className={errCls}>{errors.age}</p>}
+                            </div>
+                        </div>
 
-                    <div>
-                        <label className={labelCls}>Passport Photograph (optional)</label>
-                        <p className="text-xs text-gray-400 mb-2">Leave blank to keep the current passport photo.</p>
+                        <div>
+                            <label className={labelCls}>Email Address *</label>
+                            <input type="email" value={data.email_address} onChange={(e) => setData('email_address', e.target.value)} className={inputCls} />
+                            {errors.email_address && <p className={errCls}>{errors.email_address}</p>}
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label className={labelCls}>Calling Phone Number *</label>
+                                <input type="tel" value={data.calling_phone_number} onChange={(e) => setData('calling_phone_number', e.target.value)} className={inputCls} />
+                                {errors.calling_phone_number && <p className={errCls}>{errors.calling_phone_number}</p>}
+                            </div>
+                            <div>
+                                <label className={labelCls}>WhatsApp Number *</label>
+                                <input type="tel" value={data.whatsapp_number} onChange={(e) => setData('whatsapp_number', e.target.value)} className={inputCls} />
+                                {errors.whatsapp_number && <p className={errCls}>{errors.whatsapp_number}</p>}
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className={labelCls}>House Address *</label>
+                            <textarea value={data.house_address} onChange={(e) => setData('house_address', e.target.value)} rows={2} className={inputCls} />
+                            {errors.house_address && <p className={errCls}>{errors.house_address}</p>}
+                        </div>
+                    </Section>
+
+                    <Section title="Location">
+                        <div>
+                            <label className={labelCls}>LGA</label>
+                            <input type="text" value={application.lga?.name ?? '—'} readOnly className={`${inputCls} bg-gray-50 cursor-not-allowed text-gray-600 font-medium`} />
+                        </div>
+                        <div>
+                            <label className={labelCls}>Ward</label>
+                            <input type="text" value={application.ward?.name ?? '—'} readOnly className={`${inputCls} bg-gray-50 cursor-not-allowed text-gray-600 font-medium`} />
+                        </div>
+                        <div>
+                            <label className={labelCls}>Polling Unit</label>
+                            <select value={data.polling_unit_id} onChange={(e) => setData('polling_unit_id', e.target.value)} className={inputCls}>
+                                <option value="">Select Polling Unit…</option>
+                                {pollingUnits.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                            </select>
+                            {errors.polling_unit_id && <p className={errCls}>{errors.polling_unit_id}</p>}
+                        </div>
+                        <label className="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" checked={data.has_voter_card} onChange={(e) => setData('has_voter_card', e.target.checked)} className="accent-indigo-600 w-4 h-4" />
+                            <span className="text-sm text-gray-700">Applicant has a Voter's Card</span>
+                        </label>
+                    </Section>
+
+                    <Section title="Bank & Network Information">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label className={labelCls}>Browsing Network *</label>
+                                <select value={data.browsing_network} onChange={(e) => setData('browsing_network', e.target.value)} className={inputCls}>
+                                    <option value="">Select network</option>
+                                    {NETWORKS.map((n) => <option key={n}>{n}</option>)}
+                                </select>
+                                {errors.browsing_network && <p className={errCls}>{errors.browsing_network}</p>}
+                            </div>
+                            <div>
+                                <label className={labelCls}>Browsing Number *</label>
+                                <input type="tel" value={data.browsing_number} onChange={(e) => setData('browsing_number', e.target.value)} className={inputCls} />
+                                {errors.browsing_number && <p className={errCls}>{errors.browsing_number}</p>}
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className={labelCls}>Bank *</label>
+                            <select value={data.bank_name} onChange={(e) => handleBankChange(e.target.value)} className={inputCls}>
+                                <option value="">{banks.length === 0 ? 'Loading banks…' : 'Select bank'}</option>
+                                {banks.map((b) => <option key={b.code} value={b.name}>{b.name}</option>)}
+                            </select>
+                            {errors.bank_name && <p className={errCls}>{errors.bank_name}</p>}
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label className={labelCls}>Account Number *</label>
+                                <div className="relative">
+                                    <input type="text" maxLength={10} value={data.account_number}
+                                        onChange={(e) => handleAccountNumberChange(e.target.value)}
+                                        placeholder="10-digit account number" className={inputCls + (resolving ? ' pr-9' : '')} />
+                                    {resolving && (
+                                        <span className="absolute right-3 top-1/2 -translate-y-1/2">
+                                            <svg className="w-4 h-4 text-indigo-500 animate-spin" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                                            </svg>
+                                        </span>
+                                    )}
+                                </div>
+                                {errors.account_number && <p className={errCls}>{errors.account_number}</p>}
+                            </div>
+                            <div>
+                                <label className={labelCls}>Bank Account Name *</label>
+                                <input type="text" value={data.bank_account_name} readOnly
+                                    placeholder={resolving ? 'Verifying…' : 'Auto-filled after verification'}
+                                    className={inputCls + ' cursor-default ' + (resolvedName ? 'text-green-700 bg-green-50' : 'bg-gray-50 text-gray-400')} />
+                                {resolveError && <p className={errCls}>{resolveError}</p>}
+                                {errors.bank_account_name && <p className={errCls}>{errors.bank_account_name}</p>}
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className={labelCls}>Employment Status *</label>
+                            <select value={data.employment_status} onChange={(e) => setData('employment_status', e.target.value)} className={inputCls}>
+                                <option value="">Select employment status</option>
+                                {EMPLOYMENT.map((s) => <option key={s}>{s}</option>)}
+                            </select>
+                            {errors.employment_status && <p className={errCls}>{errors.employment_status}</p>}
+                        </div>
+
+                        {(data.employment_status === 'Employed' || data.employment_status === 'Self-employed') && (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label className={labelCls}>Current Occupation</label>
+                                    <input type="text" value={data.current_occupation} onChange={(e) => setData('current_occupation', e.target.value)} className={inputCls} />
+                                </div>
+                                {data.employment_status === 'Employed' && (
+                                    <div>
+                                        <label className={labelCls}>Work Grade Level</label>
+                                        <select value={data.work_grade_level} onChange={(e) => setData('work_grade_level', e.target.value)} className={inputCls}>
+                                            <option value="">Select grade level</option>
+                                            {GRADE_LEVELS.map((l) => <option key={l}>{l}</option>)}
+                                        </select>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        <div>
+                            <label className={labelCls}>Availability for Contract Work</label>
+                            <div className="space-y-2">
+                                {AVAILABILITY.map((a) => (
+                                    <label key={a.value} className="flex items-start gap-3 cursor-pointer">
+                                        <input type="radio" name="availability" value={a.value}
+                                            checked={data.availability === a.value}
+                                            onChange={() => setData('availability', a.value)}
+                                            className="mt-0.5 accent-indigo-600" />
+                                        <span className="text-sm text-gray-700">{a.label}</span>
+                                    </label>
+                                ))}
+                            </div>
+                            {errors.availability && <p className={errCls}>{errors.availability}</p>}
+                        </div>
+                    </Section>
+
+                    <Section title="Passport Photograph (optional)">
+                        <p className="text-xs text-gray-400 -mt-2">Leave blank to keep the current passport photo.</p>
                         <div className="flex gap-2 mb-3">
                             <button type="button" onClick={startCamera}
                                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl transition">
@@ -303,7 +474,8 @@ function ReplaceModal({ application, onClose }) {
                                     className="w-28 h-28 object-cover rounded-xl border-2 border-gray-200" />
                             </div>
                         )}
-                    </div>
+                        {errors.passport_photograph && <p className={errCls}>{errors.passport_photograph}</p>}
+                    </Section>
                 </div>
 
                 <div className="p-5 border-t border-gray-100 flex gap-3 shrink-0">
@@ -311,7 +483,7 @@ function ReplaceModal({ application, onClose }) {
                         className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50 transition disabled:opacity-50">
                         Cancel
                     </button>
-                    <button type="submit" disabled={saving || !fullName || !accountName}
+                    <button type="submit" disabled={saving}
                         className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-semibold rounded-xl text-sm transition">
                         {saving ? 'Saving…' : 'Replace Details'}
                     </button>
@@ -321,7 +493,7 @@ function ReplaceModal({ application, onClose }) {
     );
 }
 
-export default function Index({ applications = [] }) {
+export default function Index({ applications = [], pollingUnits = [] }) {
     const { flash } = usePage().props;
     const [search, setSearch] = useState('');
     const [qualifyingId, setQualifyingId] = useState(null);
@@ -348,7 +520,7 @@ export default function Index({ applications = [] }) {
     return (
         <DataboyLayout title="APO Officers">
             {replacingApp && (
-                <ReplaceModal application={replacingApp} onClose={() => setReplacingApp(null)} />
+                <ReplaceModal application={replacingApp} pollingUnits={pollingUnits} onClose={() => setReplacingApp(null)} />
             )}
 
             <div className="mb-6">

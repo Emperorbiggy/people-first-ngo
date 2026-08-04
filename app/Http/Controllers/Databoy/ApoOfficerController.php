@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ApoOfficer;
 use App\Models\DataboyApplication;
 use App\Models\DataboyApplicantRecipient;
+use App\Models\PollingUnit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -17,11 +18,15 @@ class ApoOfficerController extends Controller
         $databoy = Auth::guard('databoy')->user();
 
         $applications = DataboyApplication::where('registered_by', $databoy->id)
-            ->with(['lga:id,name', 'ward:id,name', 'apoOfficer'])
+            ->with(['lga:id,name', 'ward:id,name', 'pollingUnit:id,name', 'apoOfficer'])
             ->latest()
             ->get();
 
-        return inertia('Databoy/ApoOfficers/Index', compact('applications'));
+        $pollingUnits = $databoy->ward_id
+            ? PollingUnit::where('ward_id', $databoy->ward_id)->orderBy('name')->get(['id', 'name'])
+            : collect();
+
+        return inertia('Databoy/ApoOfficers/Index', compact('applications', 'pollingUnits'));
     }
 
     public function qualify(DataboyApplication $databoyApplication)
@@ -52,22 +57,57 @@ class ApoOfficerController extends Controller
 
         $validated = $request->validate([
             'full_name'            => 'required|string|max:255',
+            'gender'               => 'required|in:Male,Female',
+            'age'                  => 'required|integer|min:18|max:60',
+            'email_address'        => 'required|email|max:255',
+            'calling_phone_number' => 'required|string|max:20',
+            'whatsapp_number'      => 'required|string|max:20',
+            'polling_unit_id'      => 'nullable|exists:polling_units,id',
+            'house_address'        => 'required|string',
+            'browsing_network'     => 'required|string|max:50',
+            'browsing_number'      => 'required|string|max:20',
             'bank_name'            => 'required|string|max:255',
             'bank_code'            => 'nullable|string|max:10',
             'account_number'       => 'required|string|max:20',
             'bank_account_name'    => 'required|string|max:255',
+            'employment_status'    => 'required|string|max:100',
+            'availability'         => 'nullable|string|max:100',
+            'current_occupation'   => 'nullable|string|max:255',
+            'work_grade_level'     => 'nullable|string|max:50',
+            'has_voter_card'       => 'boolean',
             'passport_photograph'  => 'nullable|extensions:jpg,jpeg,png|max:2048',
         ]);
+
+        if ($validated['polling_unit_id'] ?? null) {
+            $pollingUnit = PollingUnit::find($validated['polling_unit_id']);
+            if (!$pollingUnit || $pollingUnit->ward_id !== $databoyApplication->ward_id) {
+                return back()->withErrors(['polling_unit_id' => 'That polling unit is not in this registration\'s ward.']);
+            }
+        }
 
         $accountChanged = $validated['account_number'] !== $databoyApplication->account_number
             || ($validated['bank_code'] ?? null) !== $databoyApplication->bank_code;
 
         $data = [
-            'full_name'         => $validated['full_name'],
-            'bank_name'         => $validated['bank_name'],
-            'bank_code'         => $validated['bank_code'] ?? null,
-            'account_number'    => $validated['account_number'],
-            'bank_account_name' => $validated['bank_account_name'],
+            'full_name'             => $validated['full_name'],
+            'gender'                => $validated['gender'],
+            'age'                   => $validated['age'],
+            'email_address'         => $validated['email_address'],
+            'calling_phone_number'  => $validated['calling_phone_number'],
+            'whatsapp_number'       => $validated['whatsapp_number'],
+            'polling_unit_id'       => $validated['polling_unit_id'] ?? null,
+            'house_address'         => $validated['house_address'],
+            'browsing_network'      => $validated['browsing_network'],
+            'browsing_number'       => $validated['browsing_number'],
+            'bank_name'             => $validated['bank_name'],
+            'bank_code'             => $validated['bank_code'] ?? null,
+            'account_number'        => $validated['account_number'],
+            'bank_account_name'     => $validated['bank_account_name'],
+            'employment_status'     => $validated['employment_status'],
+            'availability'          => $validated['availability'] ?? null,
+            'current_occupation'    => $validated['current_occupation'] ?? null,
+            'work_grade_level'      => $validated['work_grade_level'] ?? null,
+            'has_voter_card'        => $request->boolean('has_voter_card'),
         ];
 
         $oldPassportPath = $databoyApplication->passport_photograph_path;
