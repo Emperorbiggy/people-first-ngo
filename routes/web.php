@@ -259,6 +259,7 @@ Route::prefix('databoy')->name('databoy.')->group(function () {
 
         Route::get('/apo-officers', [DataboyApoOfficerController::class, 'index'])->name('apo-officers.index');
         Route::post('/apo-officers/{databoyApplication}/qualify', [DataboyApoOfficerController::class, 'qualify'])->name('apo-officers.qualify');
+        Route::post('/apo-officers/{databoyApplication}/replace', [DataboyApoOfficerController::class, 'replace'])->name('apo-officers.replace');
     });
 });
 
