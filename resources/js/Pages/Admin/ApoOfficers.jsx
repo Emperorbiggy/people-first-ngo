@@ -4,6 +4,8 @@ import AdminLayout from '@/Layouts/AdminLayout';
 export default function ApoOfficers({ officers = [] }) {
     const [search, setSearch] = useState('');
     const [status, setStatus] = useState('all'); // all | replaced | original
+    const [dateFrom, setDateFrom] = useState('2026-08-03');
+    const [dateTo, setDateTo] = useState('');
 
     const filtered = useMemo(() => {
         return officers.filter((o) => {
@@ -16,9 +18,20 @@ export default function ApoOfficers({ officers = [] }) {
                   o.registered_by?.toLowerCase().includes(q)
                 : true;
             const matchesStatus = status === 'all' ? true : status === 'replaced' ? o.is_replaced : !o.is_replaced;
-            return matchesSearch && matchesStatus;
+
+            // Date range only applies to replaced records — an "original" row
+            // has no replaced_at to filter on, so it's exempt from this filter
+            // rather than always being excluded when a range is set.
+            let matchesDate = true;
+            if (o.is_replaced && o.replaced_at && (dateFrom || dateTo)) {
+                const replacedDate = o.replaced_at.slice(0, 10);
+                if (dateFrom && replacedDate < dateFrom) matchesDate = false;
+                if (dateTo && replacedDate > dateTo) matchesDate = false;
+            }
+
+            return matchesSearch && matchesStatus && matchesDate;
         });
-    }, [officers, search, status]);
+    }, [officers, search, status, dateFrom, dateTo]);
 
     const replacedCount = useMemo(() => officers.filter((o) => o.is_replaced).length, [officers]);
 
@@ -36,7 +49,7 @@ export default function ApoOfficers({ officers = [] }) {
                             className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition whitespace-nowrap">
                             Export All
                         </a>
-                        <a href={route('admin.apo-officers.export', { status: 'replaced' })}
+                        <a href={route('admin.apo-officers.export', { status: 'replaced', from: dateFrom, to: dateTo })}
                             className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-violet-700 bg-violet-50 hover:bg-violet-100 rounded-xl transition whitespace-nowrap">
                             Export Replaced
                         </a>
@@ -46,6 +59,35 @@ export default function ApoOfficers({ officers = [] }) {
                         </a>
                     </div>
                 </div>
+
+                {status === 'replaced' && (
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex flex-wrap items-center gap-3">
+                        <span className="text-xs font-semibold text-gray-500 uppercase">Replaced Between</span>
+                        <input
+                            type="date"
+                            value={dateFrom}
+                            onChange={(e) => setDateFrom(e.target.value)}
+                            className="px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                        <span className="text-xs text-gray-400">to</span>
+                        <input
+                            type="date"
+                            value={dateTo}
+                            onChange={(e) => setDateTo(e.target.value)}
+                            placeholder="Up till date"
+                            className="px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                        {(dateFrom || dateTo) && (
+                            <button
+                                type="button"
+                                onClick={() => { setDateFrom(''); setDateTo(''); }}
+                                className="text-xs text-indigo-600 hover:underline"
+                            >
+                                Clear
+                            </button>
+                        )}
+                    </div>
+                )}
 
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                     <div className="px-5 py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center gap-3">
@@ -87,7 +129,7 @@ export default function ApoOfficers({ officers = [] }) {
                             <table className="min-w-full">
                                 <thead>
                                     <tr className="bg-gray-50 text-left">
-                                        {['Name', 'Status', 'Phone Number', 'Email', 'LGA', 'Ward', 'Registered By', 'Qualified At'].map((h) => (
+                                        {['Name', 'Status', 'Phone Number', 'Email', 'LGA', 'Ward', 'Registered By', 'Qualified At', 'Replaced At'].map((h) => (
                                             <th key={h} className="px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
                                         ))}
                                     </tr>
@@ -115,6 +157,11 @@ export default function ApoOfficers({ officers = [] }) {
                                             <td className="px-5 py-3 text-sm text-gray-600 whitespace-nowrap">{o.registered_by}</td>
                                             <td className="px-5 py-3 text-xs text-gray-400 whitespace-nowrap">
                                                 {new Date(o.qualified_at).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                            </td>
+                                            <td className="px-5 py-3 text-xs text-gray-400 whitespace-nowrap">
+                                                {o.replaced_at
+                                                    ? new Date(o.replaced_at).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                                                    : '—'}
                                             </td>
                                         </tr>
                                     ))}

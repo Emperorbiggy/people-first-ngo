@@ -19,11 +19,22 @@ class ApoOfficerController extends Controller
 
     public function exportExcel(Request $request)
     {
-        $status  = $request->get('status', 'all');
+        $status   = $request->get('status', 'all');
+        $from     = $request->get('from');
+        $to       = $request->get('to');
         $officers = $this->officerList();
 
         if ($status === 'replaced') {
-            $officers = $officers->where('is_replaced', true)->values();
+            $officers = $officers->where('is_replaced', true);
+
+            if ($from) {
+                $officers = $officers->filter(fn ($o) => $o['replaced_at'] && $o['replaced_at']->toDateString() >= $from);
+            }
+            if ($to) {
+                $officers = $officers->filter(fn ($o) => $o['replaced_at'] && $o['replaced_at']->toDateString() <= $to);
+            }
+
+            $officers = $officers->values();
         } elseif ($status === 'original') {
             $officers = $officers->where('is_replaced', false)->values();
         }
