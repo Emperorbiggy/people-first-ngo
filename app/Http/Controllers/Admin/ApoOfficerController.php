@@ -45,25 +45,33 @@ class ApoOfficerController extends Controller
     private function officerList()
     {
         return ApoOfficer::with([
-                'application:id,full_name,calling_phone_number,email_address,lga_id,ward_id,registered_by',
+                'application:id,full_name,calling_phone_number,email_address,lga_id,ward_id,registered_by,created_at,updated_at',
                 'application.lga:id,name',
                 'application.ward:id,name',
                 'application.databoy:id,full_name',
             ])
             ->latest()
             ->get()
-            ->map(fn ($officer) => [
-                'id'                 => $officer->id,
-                'full_name'          => $officer->application->full_name ?? '—',
-                'previous_full_name' => $officer->previous_full_name,
-                'is_replaced'        => (bool) $officer->replaced_at,
-                'replaced_at'        => $officer->replaced_at,
-                'phone_number'       => $officer->application->calling_phone_number ?? '—',
-                'email'              => $officer->application->email_address ?? '—',
-                'lga'                => $officer->application->lga->name ?? '—',
-                'ward'               => $officer->application->ward->name ?? '—',
-                'registered_by'      => $officer->application->databoy->full_name ?? '—',
-                'qualified_at'       => $officer->created_at,
-            ]);
+            ->map(function ($officer) {
+                $application = $officer->application;
+
+                // "Replaced" is read straight off the databoy_applications
+                // row's updated_at column — see DataboyApplication::wasReplaced().
+                $isReplaced = $application && $application->wasReplaced();
+
+                return [
+                    'id'                 => $officer->id,
+                    'full_name'          => $application->full_name ?? '—',
+                    'previous_full_name' => $officer->previous_full_name,
+                    'is_replaced'        => $isReplaced,
+                    'replaced_at'        => $isReplaced ? $application->replacedAt() : null,
+                    'phone_number'       => $application->calling_phone_number ?? '—',
+                    'email'              => $application->email_address ?? '—',
+                    'lga'                => $application->lga->name ?? '—',
+                    'ward'               => $application->ward->name ?? '—',
+                    'registered_by'      => $application->databoy->full_name ?? '—',
+                    'qualified_at'       => $officer->created_at,
+                ];
+            });
     }
 }

@@ -20,7 +20,13 @@ class ApoOfficerController extends Controller
         $applications = DataboyApplication::where('registered_by', $databoy->id)
             ->with(['lga:id,name', 'ward:id,name', 'pollingUnit:id,name', 'apoOfficer'])
             ->latest()
-            ->get();
+            ->get()
+            ->each(function ($application) {
+                // Same rule the admin list uses: the applicant's own updated_at
+                // column is what marks a record as changed/replaced.
+                $application->is_replaced = $application->wasReplaced();
+                $application->replaced_at = $application->replacedAt()?->toIso8601String();
+            });
 
         $pollingUnits = $databoy->ward_id
             ? PollingUnit::where('ward_id', $databoy->ward_id)->orderBy('name')->get(['id', 'name'])

@@ -574,7 +574,7 @@ export default function Index({ applications = [], pollingUnits = [] }) {
                                         <td className="px-4 py-3 text-xs text-gray-400">{i + 1}</td>
                                         <td className="px-4 py-3 text-sm font-medium text-gray-800 whitespace-nowrap">
                                             {app.full_name}
-                                            {app.apo_officer?.replaced_at && app.apo_officer?.previous_full_name && (
+                                            {app.is_replaced && app.apo_officer?.previous_full_name && (
                                                 <span className="ml-1 text-xs font-normal text-gray-400">(Replaced: {app.apo_officer.previous_full_name})</span>
                                             )}
                                         </td>
