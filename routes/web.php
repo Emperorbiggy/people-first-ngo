@@ -36,6 +36,7 @@ use App\Http\Controllers\Databoy\ApoOfficerController as DataboyApoOfficerContro
 use App\Http\Controllers\Admin\ApoOfficerController as AdminApoOfficerController;
 use App\Http\Controllers\Databoy\AccreditationController as DataboyAccreditationController;
 use App\Http\Controllers\NewFormController;
+use App\Http\Controllers\CheckDocumentController;
 use App\Models\Country;
 use Illuminate\Support\Facades\Route;
 
@@ -54,6 +55,14 @@ Route::post('/apply/{token}', [VerificationController::class, 'submitApplication
 Route::get('/ngo-contract-application', [NgoContractApplicationController::class, 'create'])->name('ngo-contract-applications.create');
 Route::post('/ngo-contract-application', [NgoContractApplicationController::class, 'store'])->name('ngo-contract-applications.store');
 Route::get('/ngo-contract-application/success', [NgoContractApplicationController::class, 'success'])->name('ngo-contract-applications.success');
+
+// Public document check — enter an 11-digit phone number, get the PDF filed under it
+Route::get('/check', [CheckDocumentController::class, 'index'])->name('check');
+Route::get('/check/lookup', [CheckDocumentController::class, 'lookup'])
+    ->middleware('throttle:30,1')
+    ->name('check.lookup');
+Route::get('/check/view/{phone}', [CheckDocumentController::class, 'view'])->name('check.view');
+Route::get('/check/download/{phone}', [CheckDocumentController::class, 'download'])->name('check.download');
 
 // Public "new form" registration (one registration per ward)
 Route::get('/form', [NewFormController::class, 'create'])->name('new-form.create');

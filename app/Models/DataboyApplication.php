@@ -6,6 +6,10 @@ use Illuminate\Database\Eloquent\Model;
 
 class DataboyApplication extends Model
 {
+    // Replacement tracking only went live on this date — edits made before it
+    // are ordinary registration fixes, not replacements.
+    public const REPLACEMENT_TRACKING_FROM = '2026-08-03 00:00:00';
+
     protected $fillable = [
         'registered_by',
         'full_name', 'gender', 'age',
@@ -30,6 +34,25 @@ class DataboyApplication extends Model
         'checked_in_at'  => 'datetime',
         'checked_out_at' => 'datetime',
     ];
+
+    /**
+     * Whoever changed this record — databoy replace, admin edit, anything —
+     * moves updated_at past created_at. That column is the single source of
+     * truth for "this applicant was replaced"; the apo_officers row only keeps
+     * the previous name for display.
+     */
+    public function wasReplaced(): bool
+    {
+        return $this->updated_at
+            && $this->created_at
+            && $this->updated_at->gt($this->created_at)
+            && $this->updated_at->gte(static::REPLACEMENT_TRACKING_FROM);
+    }
+
+    public function replacedAt()
+    {
+        return $this->wasReplaced() ? $this->updated_at : null;
+    }
 
     public function databoy()     { return $this->belongsTo(Databoy::class, 'registered_by'); }
     public function lga()         { return $this->belongsTo(Lga::class); }
