@@ -16,12 +16,15 @@ class ApoOfficersExport implements FromCollection, WithHeadings, WithStyles, Sho
     {
         return $this->officers->map(fn ($officer) => [
             $officer['full_name'],
+            $officer['is_replaced'] ? 'Yes' : 'No',
+            $officer['previous_full_name'] ?? '',
             $officer['phone_number'],
             $officer['email'],
             $officer['lga'],
             $officer['ward'],
             $officer['registered_by'],
             optional($officer['qualified_at'])->format('Y-m-d H:i'),
+            optional($officer['replaced_at'])->format('Y-m-d H:i'),
         ]);
     }
 
@@ -29,12 +32,15 @@ class ApoOfficersExport implements FromCollection, WithHeadings, WithStyles, Sho
     {
         return [
             'Name',
+            'Replaced?',
+            'Previous Name',
             'Phone Number',
             'Email',
             'LGA',
             'Ward',
             'Registered By (Databoy)',
             'Qualified At',
+            'Replaced At',
         ];
     }
 

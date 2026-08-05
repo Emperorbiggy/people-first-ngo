@@ -572,7 +572,12 @@ export default function Index({ applications = [], pollingUnits = [] }) {
                                 {filtered.map((app, i) => (
                                     <tr key={app.id} className="hover:bg-gray-50 transition">
                                         <td className="px-4 py-3 text-xs text-gray-400">{i + 1}</td>
-                                        <td className="px-4 py-3 text-sm font-medium text-gray-800 whitespace-nowrap">{app.full_name}</td>
+                                        <td className="px-4 py-3 text-sm font-medium text-gray-800 whitespace-nowrap">
+                                            {app.full_name}
+                                            {app.apo_officer?.replaced_at && app.apo_officer?.previous_full_name && (
+                                                <span className="ml-1 text-xs font-normal text-gray-400">(Replaced: {app.apo_officer.previous_full_name})</span>
+                                            )}
+                                        </td>
                                         <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{app.calling_phone_number}</td>
                                         <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{app.lga?.name ?? '—'}</td>
                                         <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{app.ward?.name ?? '—'}</td>

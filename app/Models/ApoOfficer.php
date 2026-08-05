@@ -6,7 +6,9 @@ use Illuminate\Database\Eloquent\Model;
 
 class ApoOfficer extends Model
 {
-    protected $fillable = ['databoy_application_id', 'qualified_by'];
+    protected $fillable = ['databoy_application_id', 'qualified_by', 'previous_full_name', 'replaced_at'];
+
+    protected $casts = ['replaced_at' => 'datetime'];
 
     public function application()  { return $this->belongsTo(DataboyApplication::class, 'databoy_application_id'); }
     public function qualifiedBy()  { return $this->belongsTo(Databoy::class, 'qualified_by'); }

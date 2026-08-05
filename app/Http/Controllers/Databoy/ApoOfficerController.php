@@ -55,6 +55,8 @@ class ApoOfficerController extends Controller
             return back()->with('error', 'Only qualified APO officers can be replaced.');
         }
 
+        $oldName = $databoyApplication->full_name;
+
         $validated = $request->validate([
             'full_name'            => 'required|string|max:255',
             'gender'               => 'required|in:Male,Female',
@@ -132,6 +134,15 @@ class ApoOfficerController extends Controller
         if ($accountChanged) {
             DataboyApplicantRecipient::where('databoy_application_id', $databoyApplication->id)->delete();
         }
+
+        // Only overwrite previous_full_name when the name actually changed —
+        // otherwise a name-unchanged replace (e.g. only bank details fixed)
+        // would wipe out the real previous name from an earlier replace.
+        $apoOfficer = $databoyApplication->apoOfficer;
+        $apoOfficer->update([
+            'previous_full_name' => $validated['full_name'] !== $oldName ? $oldName : $apoOfficer->previous_full_name,
+            'replaced_at'        => now(),
+        ]);
 
         return back()->with('success', "{$databoyApplication->full_name}'s details have been replaced.");
     }
