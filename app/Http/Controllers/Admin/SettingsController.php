@@ -25,6 +25,7 @@ class SettingsController extends Controller
             'accreditationTimeRestrictionEnabled' => Setting::get('accreditation_time_restriction_enabled', '1') === '1',
             'accreditationPaymentEnabled' => Setting::get('accreditation_payment_enabled', '1') === '1',
             'apoPaymentEnabled'  => Setting::get('apo_payment_enabled', '1') === '1',
+            'apoAccreditationEnabled' => Setting::get('apo_accreditation_enabled', '1') === '1',
             'partyAgentRegistrationEnabled' => Setting::get('party_agent_registration_enabled', '1') === '1',
 
             'paymentGateway'       => Setting::get('payment_gateway', 'paystack'),
@@ -44,7 +45,7 @@ class SettingsController extends Controller
     public function update(Request $request)
     {
         $request->validate([
-            'key'      => 'required|in:databoy_registration_open,databoy_access_enabled,accreditation_time_restriction_enabled,accreditation_payment_enabled,party_agent_registration_enabled,apo_payment_enabled',
+            'key'      => 'required|in:databoy_registration_open,databoy_access_enabled,accreditation_time_restriction_enabled,accreditation_payment_enabled,party_agent_registration_enabled,apo_payment_enabled,apo_accreditation_enabled',
             'value'    => 'required|boolean',
             'passcode' => 'required|string',
         ]);

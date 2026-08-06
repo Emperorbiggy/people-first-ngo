@@ -738,6 +738,7 @@ export default function Settings({
     accessEnabled,
     accreditationTimeRestrictionEnabled,
     accreditationPaymentEnabled,
+    apoAccreditationEnabled,
     partyAgentRegistrationEnabled,
     paymentGateway,
     paystackPublicKey,
@@ -822,6 +823,17 @@ export default function Settings({
                     enabled={accreditationPaymentEnabled}
                     statusOn="Payment is ENABLED — checking an applicant out queues their accreditation payment as normal."
                     statusOff="Payment is DISABLED — checking an applicant out still accredits them, but no payment is queued."
+                    colorOn="green"
+                    colorOff="red"
+                />
+
+                <SettingRow
+                    label="APO Check-In / Check-Out"
+                    description="Master switch for APO accreditation. Turn it off between exercises so officers can't check anyone in or out."
+                    settingKey="apo_accreditation_enabled"
+                    enabled={apoAccreditationEnabled}
+                    statusOn="APO accreditation is OPEN — officers can check APO officers in and out."
+                    statusOff="APO accreditation is CLOSED — the check-in and check-out buttons are disabled for every officer."
                     colorOn="green"
                     colorOff="red"
                 />

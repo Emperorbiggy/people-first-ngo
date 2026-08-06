@@ -46,6 +46,8 @@ class ApoAccreditationController extends Controller
      * accreditation officers. A field databoy qualifies APO officers (on their
      * own APO Officers page) but never accredits or pays them.
      */
+    private const CLOSED_MESSAGE = 'APO accreditation is currently closed by the admin.';
+
     private function authorizeOfficer(): void
     {
         abort_unless(Auth::guard('databoy')->user()?->isApoAccreditationOfficer(), 403,
@@ -78,12 +80,17 @@ class ApoAccreditationController extends Controller
             'selectedLgaId'          => $lgaId ? (int) $lgaId : null,
             'timeRestrictionEnabled' => $this->timeRestrictionEnabled(),
             'windows'                => $this->jsWindows(),
+            'accreditationEnabled'   => $this->accreditationEnabled(),
         ]);
     }
 
     public function checkIn(Request $request, ApoOfficer $apoOfficer)
     {
         $this->authorizeOfficer();
+
+        if (!$this->accreditationEnabled()) {
+            return back()->withErrors(['suitable' => self::CLOSED_MESSAGE]);
+        }
 
         if ($apoOfficer->checked_in_at) {
             return back()->withErrors(['suitable' => 'This APO officer is already checked in.']);
@@ -114,6 +121,10 @@ class ApoAccreditationController extends Controller
     public function checkOut(Request $request, ApoOfficer $apoOfficer)
     {
         $this->authorizeOfficer();
+
+        if (!$this->accreditationEnabled()) {
+            return back()->withErrors(['photo' => self::CLOSED_MESSAGE]);
+        }
 
         if (!$apoOfficer->checked_in_at) {
             return back()->withErrors(['photo' => 'This APO officer has not checked in yet.']);
@@ -187,6 +198,15 @@ class ApoAccreditationController extends Controller
     private function timeRestrictionEnabled(): bool
     {
         return Setting::get('accreditation_time_restriction_enabled', '1') === '1';
+    }
+
+    /**
+     * Master switch from Settings. Checked here as well as in the UI — a
+     * greyed-out button is a courtesy, not a control.
+     */
+    private function accreditationEnabled(): bool
+    {
+        return Setting::get('apo_accreditation_enabled', '1') === '1';
     }
 
     private function paymentEnabled(): bool

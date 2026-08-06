@@ -189,7 +189,7 @@ function CheckOutModal({ officer, onClose, timeRestrictionEnabled, windows }) {
     );
 }
 
-export default function ApoAccreditation({ officers, lgas, selectedLgaId, timeRestrictionEnabled, windows }) {
+export default function ApoAccreditation({ officers, lgas, selectedLgaId, timeRestrictionEnabled, windows, accreditationEnabled = true }) {
     const { flash, databoy } = usePage().props;
     const [search, setSearch] = useState('');
     const [checkingIn, setCheckingIn] = useState(null);
@@ -212,6 +212,21 @@ export default function ApoAccreditation({ officers, lgas, selectedLgaId, timeRe
             <ApoOfficerHeader active="accreditation" />
 
             <div className="max-w-5xl mx-auto px-4 py-6">
+                {!accreditationEnabled && (
+                    <div className="mb-4 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-start gap-2.5">
+                        <svg className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                        <div>
+                            <p className="text-sm font-bold text-amber-900">APO accreditation is closed</p>
+                            <p className="text-xs text-amber-700/80 mt-0.5">
+                                Check-in and check-out have been turned off by the admin. You can still view the list.
+                            </p>
+                        </div>
+                    </div>
+                )}
+
                 {flash?.success && (
                     <div className="mb-4 bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm rounded-xl px-4 py-3">{flash.success}</div>
                 )}
@@ -292,14 +307,14 @@ export default function ApoAccreditation({ officers, lgas, selectedLgaId, timeRe
                                             Accredited at {formatTime(o.accredited_at)} · payment queued
                                         </p>
                                     ) : o.checked_in_at ? (
-                                        <button onClick={() => setCheckingOut(o)}
-                                            className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl transition">
-                                            Check Out & Accredit
+                                        <button onClick={() => setCheckingOut(o)} disabled={!accreditationEnabled}
+                                            className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-xl transition">
+                                            {accreditationEnabled ? 'Check Out & Accredit' : 'Check-Out Closed'}
                                         </button>
                                     ) : (
-                                        <button onClick={() => setCheckingIn(o)}
-                                            className="w-full py-2.5 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold rounded-xl transition">
-                                            Check In
+                                        <button onClick={() => setCheckingIn(o)} disabled={!accreditationEnabled}
+                                            className="w-full py-2.5 bg-violet-600 hover:bg-violet-700 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-xl transition">
+                                            {accreditationEnabled ? 'Check In' : 'Check-In Closed'}
                                         </button>
                                     )}
                                 </div>
