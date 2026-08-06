@@ -310,10 +310,11 @@ function AirtimeSettingsSection({ airtimeAmount, paymentGateway }) {
     );
 }
 
-function AccreditationPaymentSection({ accreditationGeneralAmount, accreditationDataboyAmount, partyAgentPaymentAmount, paymentGateway }) {
+function AccreditationPaymentSection({ accreditationGeneralAmount, accreditationDataboyAmount, partyAgentPaymentAmount, apoPaymentAmount, paymentGateway }) {
     const [applicantAmount, setApplicantAmount] = useState(accreditationGeneralAmount || '');
     const [databoyAmount, setDataboyAmount] = useState(accreditationDataboyAmount || '');
     const [partyAgentAmount, setPartyAgentAmount] = useState(partyAgentPaymentAmount || '');
+    const [apoAmount, setApoAmount] = useState(apoPaymentAmount || '');
     const [saving, setSaving] = useState(false);
     const passcodeGate = usePasscodeGate();
 
@@ -324,6 +325,7 @@ function AccreditationPaymentSection({ accreditationGeneralAmount, accreditation
             accreditation_general_amount: applicantAmount,
             accreditation_databoy_amount: databoyAmount,
             party_agent_payment_amount: partyAgentAmount,
+            apo_payment_amount: apoAmount,
             passcode,
         }, {
             preserveScroll: true,
@@ -388,6 +390,22 @@ function AccreditationPaymentSection({ accreditationGeneralAmount, accreditation
                     />
                 </div>
                 <p className="text-xs text-gray-500 mt-1">One-time amount used on the Party Agent Payment page — not automatic.</p>
+            </div>
+            <div>
+                <label className="text-xs font-medium text-gray-600">APO Officer Payment</label>
+                <div className="relative mt-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">₦</span>
+                    <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={apoAmount}
+                        onChange={(e) => setApoAmount(e.target.value)}
+                        placeholder="0.00"
+                        className="w-full rounded-xl border border-gray-200 pl-7 pr-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                </div>
+                <p className="text-xs text-gray-500 mt-1">Flat amount paid automatically when an APO officer is checked out and accredited. Each officer is paid once, ever — enforced by the database.</p>
             </div>
             <button
                 type="button"
@@ -731,6 +749,8 @@ export default function Settings({
     accreditationGeneralAmount,
     accreditationDataboyAmount,
     partyAgentPaymentAmount,
+    apoPaymentAmount,
+    apoPaymentEnabled,
 }) {
     const { flash } = usePage().props;
 
@@ -807,6 +827,17 @@ export default function Settings({
                 />
 
                 <SettingRow
+                    label="APO Officer Payment"
+                    description="Controls whether accrediting an APO officer automatically queues their payment."
+                    settingKey="apo_payment_enabled"
+                    enabled={apoPaymentEnabled}
+                    statusOn="Payment is ENABLED — accrediting an APO officer queues their payment."
+                    statusOff="Payment is DISABLED — APO officers are still accredited, but no payment is queued."
+                    colorOn="green"
+                    colorOff="red"
+                />
+
+                <SettingRow
                     label="Party Agent Registration"
                     description="Controls whether databoys can register new party agents from their portal."
                     settingKey="party_agent_registration_enabled"
@@ -835,6 +866,7 @@ export default function Settings({
                     accreditationGeneralAmount={accreditationGeneralAmount}
                     accreditationDataboyAmount={accreditationDataboyAmount}
                     partyAgentPaymentAmount={partyAgentPaymentAmount}
+                    apoPaymentAmount={apoPaymentAmount}
                     paymentGateway={paymentGateway}
                 />
 

@@ -5,6 +5,10 @@ export default function DataboyLayout({ title, children }) {
     const { databoy, flash, partyAgentRegistrationEnabled } = usePage().props;
     const [menuOpen, setMenuOpen] = useState(false);
 
+    // Attendance is the second job of both accrediting roles — nobody else sees it.
+    const isAccreditationBoy = databoy?.role === 'accreditation_boy';
+    const isApoOfficer       = databoy?.role === 'apo_accreditation_officer';
+
     const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
 
     const navLink = (href, label) => {
@@ -23,6 +27,26 @@ export default function DataboyLayout({ title, children }) {
             </Link>
         );
     };
+
+    // An APO officer is confined to two routes server-side, so showing them
+    // the full databoy menu would just be a row of links that bounce back.
+    const links = () => isApoOfficer ? (
+        <>
+            {navLink('databoy.apo-accreditation.index', 'APO Accreditation')}
+            {navLink('databoy.attendance.index', 'Attendance')}
+        </>
+    ) : (
+        <>
+            {navLink('databoy.dashboard', 'Dashboard')}
+            {navLink('databoy.applications.index', 'My Applications')}
+            {navLink('databoy.applications.create', '+ Add Application')}
+            {partyAgentRegistrationEnabled && navLink('databoy.party-agents.index', 'Party Agents')}
+            {partyAgentRegistrationEnabled && navLink('databoy.party-agents.create', '+ Add Party Agent')}
+            {navLink('databoy.accreditation.index', 'Accreditation')}
+            {isAccreditationBoy && navLink('databoy.attendance.index', 'Attendance')}
+            {navLink('databoy.apo-officers.index', 'APO Officers')}
+        </>
+    );
 
     return (
         <div className="min-h-screen bg-gray-50">
@@ -43,13 +67,7 @@ export default function DataboyLayout({ title, children }) {
 
                     {/* Desktop nav */}
                     <div className="hidden sm:flex items-center gap-1">
-                        {navLink('databoy.dashboard', 'Dashboard')}
-                        {navLink('databoy.applications.index', 'My Applications')}
-                        {navLink('databoy.applications.create', '+ Add Application')}
-                        {partyAgentRegistrationEnabled && navLink('databoy.party-agents.index', 'Party Agents')}
-                        {partyAgentRegistrationEnabled && navLink('databoy.party-agents.create', '+ Add Party Agent')}
-                        {navLink('databoy.accreditation.index', 'Accreditation')}
-                        {navLink('databoy.apo-officers.index', 'APO Officers')}
+                        {links()}
                     </div>
 
                     <div className="hidden sm:flex items-center gap-3">
@@ -79,13 +97,7 @@ export default function DataboyLayout({ title, children }) {
                 {/* Mobile menu */}
                 {menuOpen && (
                     <div className="sm:hidden border-t border-indigo-700 px-4 py-3 space-y-1">
-                        {navLink('databoy.dashboard', 'Dashboard')}
-                        {navLink('databoy.applications.index', 'My Applications')}
-                        {navLink('databoy.applications.create', '+ Add Application')}
-                        {partyAgentRegistrationEnabled && navLink('databoy.party-agents.index', 'Party Agents')}
-                        {partyAgentRegistrationEnabled && navLink('databoy.party-agents.create', '+ Add Party Agent')}
-                        {navLink('databoy.accreditation.index', 'Accreditation')}
-                        {navLink('databoy.apo-officers.index', 'APO Officers')}
+                        {links()}
                         <div className="pt-2 border-t border-indigo-700 mt-2">
                             <p className="text-xs text-indigo-400 px-4 mb-1">{databoy?.full_name}</p>
                             <Link

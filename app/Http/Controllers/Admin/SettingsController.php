@@ -24,6 +24,7 @@ class SettingsController extends Controller
             'accessEnabled'    => Setting::get('databoy_access_enabled', '1') === '1',
             'accreditationTimeRestrictionEnabled' => Setting::get('accreditation_time_restriction_enabled', '1') === '1',
             'accreditationPaymentEnabled' => Setting::get('accreditation_payment_enabled', '1') === '1',
+            'apoPaymentEnabled'  => Setting::get('apo_payment_enabled', '1') === '1',
             'partyAgentRegistrationEnabled' => Setting::get('party_agent_registration_enabled', '1') === '1',
 
             'paymentGateway'       => Setting::get('payment_gateway', 'paystack'),
@@ -36,13 +37,14 @@ class SettingsController extends Controller
             'accreditationGeneralAmount' => Setting::get('accreditation_general_amount', ''),
             'accreditationDataboyAmount' => Setting::get('accreditation_databoy_amount', ''),
             'partyAgentPaymentAmount'    => Setting::get('party_agent_payment_amount', ''),
+            'apoPaymentAmount'           => Setting::get('apo_payment_amount', ''),
         ]);
     }
 
     public function update(Request $request)
     {
         $request->validate([
-            'key'      => 'required|in:databoy_registration_open,databoy_access_enabled,accreditation_time_restriction_enabled,accreditation_payment_enabled,party_agent_registration_enabled',
+            'key'      => 'required|in:databoy_registration_open,databoy_access_enabled,accreditation_time_restriction_enabled,accreditation_payment_enabled,party_agent_registration_enabled,apo_payment_enabled',
             'value'    => 'required|boolean',
             'passcode' => 'required|string',
         ]);
@@ -69,6 +71,7 @@ class SettingsController extends Controller
             'accreditation_general_amount' => 'nullable|numeric|min:0',
             'accreditation_databoy_amount' => 'nullable|numeric|min:0',
             'party_agent_payment_amount'   => 'nullable|numeric|min:0',
+            'apo_payment_amount'           => 'nullable|numeric|min:0',
             'passcode'                => 'required|string',
         ]);
 
@@ -100,6 +103,10 @@ class SettingsController extends Controller
 
         if ($request->filled('party_agent_payment_amount')) {
             Setting::set('party_agent_payment_amount', $request->party_agent_payment_amount);
+        }
+
+        if ($request->filled('apo_payment_amount')) {
+            Setting::set('apo_payment_amount', $request->apo_payment_amount);
         }
 
         if ($request->filled('paystack_secret_key')) {

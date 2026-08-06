@@ -68,7 +68,7 @@ class DataboyController extends Controller
     public function updateRole(Request $request, Databoy $databoy)
     {
         $request->validate([
-            'role' => 'required|in:databoy,accreditation_boy',
+            'role' => 'required|in:databoy,accreditation_boy,apo_accreditation_officer',
         ]);
 
         $databoy->update(['role' => $request->role]);

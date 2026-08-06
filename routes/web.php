@@ -33,7 +33,13 @@ use App\Http\Controllers\Databoy\DashboardController as DataboyDashboardControll
 use App\Http\Controllers\Databoy\ApplicationController as DataboyApplicationController;
 use App\Http\Controllers\Databoy\PartyAgentController as DataboyPartyAgentController;
 use App\Http\Controllers\Databoy\ApoOfficerController as DataboyApoOfficerController;
+use App\Http\Controllers\Databoy\AttendanceController as DataboyAttendanceController;
 use App\Http\Controllers\Admin\ApoOfficerController as AdminApoOfficerController;
+use App\Http\Controllers\Admin\ApoRecipientController as AdminApoRecipientController;
+use App\Http\Controllers\Admin\ApoPaymentController as AdminApoPaymentController;
+use App\Http\Controllers\Admin\AccreditationOfficerController as AdminAccreditationOfficerController;
+use App\Http\Controllers\Admin\AttendanceController as AdminAttendanceController;
+use App\Http\Controllers\Databoy\ApoAccreditationController as DataboyApoAccreditationController;
 use App\Http\Controllers\Databoy\AccreditationController as DataboyAccreditationController;
 use App\Http\Controllers\NewFormController;
 use App\Http\Controllers\CheckDocumentController;
@@ -191,6 +197,24 @@ Route::middleware('auth')->group(function () {
     Route::get('/admin/databoy-accreditation-payments/pending', [AdminDataboyAccreditationPaymentController::class, 'pending'])->name('admin.databoy-accreditation-payments.pending');
     Route::post('/admin/databoy-accreditation-payments/pay', [AdminDataboyAccreditationPaymentController::class, 'pay'])->name('admin.databoy-accreditation-payments.pay');
 
+    // APO officers — transfer recipients, payments, and the accounts that accredit them
+    Route::get('/admin/apo-recipients', [AdminApoRecipientController::class, 'index'])->name('admin.apo-recipients');
+    Route::post('/admin/apo-recipients/create', [AdminApoRecipientController::class, 'create'])->name('admin.apo-recipients.create');
+    Route::get('/admin/apo-payments', [AdminApoPaymentController::class, 'index'])->name('admin.apo-payments');
+    Route::post('/admin/apo-payments/{apoOfficer}/retry', [AdminApoPaymentController::class, 'retry'])->name('admin.apo-payments.retry');
+    Route::post('/admin/apo-payments/pay-unpaid', [AdminApoPaymentController::class, 'payUnpaid'])->name('admin.apo-payments.pay-unpaid');
+    Route::get('/admin/accreditation-officers', [AdminAccreditationOfficerController::class, 'index'])->name('admin.accreditation-officers');
+    Route::post('/admin/accreditation-officers', [AdminAccreditationOfficerController::class, 'store'])->name('admin.accreditation-officers.store');
+    Route::post('/admin/accreditation-officers/{databoy}/toggle', [AdminAccreditationOfficerController::class, 'toggle'])->name('admin.accreditation-officers.toggle');
+    Route::delete('/admin/accreditation-officers/{databoy}', [AdminAccreditationOfficerController::class, 'destroy'])->name('admin.accreditation-officers.destroy');
+
+    // Attendance
+    Route::get('/admin/attendance', [AdminAttendanceController::class, 'index'])->name('admin.attendance');
+    Route::get('/admin/attendance/import', [AdminAttendanceController::class, 'showImport'])->name('admin.attendance.import');
+    Route::post('/admin/attendance/import', [AdminAttendanceController::class, 'import'])->name('admin.attendance.import.store');
+    Route::post('/admin/attendance/{attendance}/toggle', [AdminAttendanceController::class, 'toggle'])->name('admin.attendance.toggle');
+    Route::delete('/admin/attendance/{attendance}', [AdminAttendanceController::class, 'destroy'])->name('admin.attendance.destroy');
+
     // Data Plans (EasiGateway data bundles)
     Route::get('/admin/data-plans', [AdminDataPlanController::class, 'index'])->name('admin.data-plans');
     Route::get('/admin/data-plans/{categoryId}/products', [AdminDataPlanController::class, 'products'])->name('admin.data-plans.products');
@@ -254,6 +278,10 @@ Route::prefix('databoy')->name('databoy.')->group(function () {
         Route::post('/applications', [DataboyApplicationController::class, 'store'])->name('applications.store');
         Route::put('/applications/{databoyApplication}/polling-unit', [DataboyApplicationController::class, 'updatePollingUnit'])->name('applications.update-polling-unit');
 
+        // Attendance register — accreditation boys only (enforced in controller)
+        Route::get('/attendance', [DataboyAttendanceController::class, 'index'])->name('attendance.index');
+        Route::post('/attendance/{attendance}/toggle', [DataboyAttendanceController::class, 'toggle'])->name('attendance.toggle');
+
         Route::get('/accreditation', [DataboyAccreditationController::class, 'index'])->name('accreditation.index');
         Route::post('/accreditation/{databoyApplication}/check-in', [DataboyAccreditationController::class, 'checkIn'])->name('accreditation.check-in');
         Route::post('/accreditation/{databoyApplication}/check-out', [DataboyAccreditationController::class, 'checkOut'])->name('accreditation.check-out');
@@ -265,6 +293,11 @@ Route::prefix('databoy')->name('databoy.')->group(function () {
         Route::get('/party-agents', [DataboyPartyAgentController::class, 'index'])->name('party-agents.index');
         Route::get('/party-agents/create', [DataboyPartyAgentController::class, 'create'])->name('party-agents.create');
         Route::post('/party-agents', [DataboyPartyAgentController::class, 'store'])->name('party-agents.store');
+
+        // APO accreditation — restricted to the apo_accreditation_officer role by DataboyAuth
+        Route::get('/apo-accreditation', [DataboyApoAccreditationController::class, 'index'])->name('apo-accreditation.index');
+        Route::post('/apo-accreditation/{apoOfficer}/check-in', [DataboyApoAccreditationController::class, 'checkIn'])->name('apo-accreditation.check-in');
+        Route::post('/apo-accreditation/{apoOfficer}/check-out', [DataboyApoAccreditationController::class, 'checkOut'])->name('apo-accreditation.check-out');
 
         Route::get('/apo-officers', [DataboyApoOfficerController::class, 'index'])->name('apo-officers.index');
         Route::post('/apo-officers/{databoyApplication}/qualify', [DataboyApoOfficerController::class, 'qualify'])->name('apo-officers.qualify');

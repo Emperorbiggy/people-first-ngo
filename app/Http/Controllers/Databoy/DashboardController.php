@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Databoy;
 
 use App\Http\Controllers\Controller;
+use App\Models\Attendance;
 use App\Models\DataboyApplication;
 use Illuminate\Support\Facades\Auth;
 
@@ -20,6 +21,12 @@ class DashboardController extends Controller
         return inertia('Databoy/Dashboard', [
             'total'  => $total,
             'recent' => $recent,
+            // Accreditation boys work two jobs, so their dashboard leads with
+            // both: accreditation and the attendance register.
+            'attendance' => $databoy->isAccreditationBoy() ? [
+                'total'   => Attendance::count(),
+                'present' => Attendance::where('present', true)->count(),
+            ] : null,
         ]);
     }
 }

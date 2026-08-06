@@ -29,6 +29,15 @@ class Databoy extends Authenticatable
         return $this->role === 'accreditation_boy';
     }
 
+    /**
+     * Accredits APO officers and does nothing else — DataboyAuth confines
+     * this role to the APO accreditation page.
+     */
+    public function isApoAccreditationOfficer(): bool
+    {
+        return $this->role === 'apo_accreditation_officer';
+    }
+
     public function getAuthIdentifierName(): string { return 'login_email'; }
 
     public function state()   { return $this->belongsTo(State::class); }

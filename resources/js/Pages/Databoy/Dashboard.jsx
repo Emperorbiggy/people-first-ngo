@@ -1,7 +1,7 @@
 import { Link, usePage } from '@inertiajs/react';
 import DataboyLayout from '@/Layouts/DataboyLayout';
 
-export default function Dashboard({ total, recent }) {
+export default function Dashboard({ total, recent, attendance = null }) {
     const { databoy } = usePage().props;
 
     return (
@@ -16,6 +16,44 @@ export default function Dashboard({ total, recent }) {
                     {databoy?.lga?.name && <span className="text-gray-400">, {databoy.lga.name}</span>}
                 </p>
             </div>
+
+            {/* An accreditation boy's two jobs, front and centre */}
+            {attendance && (
+                <div className="mb-8">
+                    <p className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-3">Your Tasks Today</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <Link href={route('databoy.accreditation.index')}
+                            className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex items-center gap-4 hover:border-indigo-200 hover:shadow transition">
+                            <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center shrink-0">
+                                <svg className="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                                        d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                                </svg>
+                            </div>
+                            <div className="min-w-0">
+                                <p className="font-bold text-gray-800">Accreditation</p>
+                                <p className="text-sm text-gray-500">Check applicants in and out</p>
+                            </div>
+                        </Link>
+
+                        <Link href={route('databoy.attendance.index')}
+                            className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex items-center gap-4 hover:border-emerald-200 hover:shadow transition">
+                            <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center shrink-0">
+                                <svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                                </svg>
+                            </div>
+                            <div className="min-w-0">
+                                <p className="font-bold text-gray-800">Attendance</p>
+                                <p className="text-sm text-gray-500">
+                                    <span className="font-semibold text-emerald-700">{attendance.present}</span> of {attendance.total} marked present
+                                </p>
+                            </div>
+                        </Link>
+                    </div>
+                </div>
+            )}
 
             {/* Stats */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
