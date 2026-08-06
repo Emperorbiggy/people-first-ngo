@@ -21,7 +21,7 @@ export default function Attendance({ attendees = [], lgas = [], stats }) {
             if (filter === 'absent' && a.present) return false;
             if (lga !== 'all' && a.lga !== lga) return false;
             if (!q) return true;
-            return [a.name, a.phone_number, a.whatsapp_number, a.lga].some((v) => (v ?? '').toLowerCase().includes(q));
+            return [a.surname, a.firstname, a.othernames, a.phone_number, a.lga].some((v) => (v ?? '').toLowerCase().includes(q));
         });
     }, [attendees, search, filter, lga]);
 
@@ -97,13 +97,15 @@ export default function Attendance({ attendees = [], lgas = [], stats }) {
                                     a.present ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-gray-100'
                                 }`}>
                                 <div className="min-w-0 flex-1">
-                                    <p className="text-sm font-bold text-gray-800 truncate">{a.name}</p>
+                                    <p className="text-sm font-bold text-gray-800 truncate">
+                                        <span className="uppercase">{a.surname}</span> {a.firstname}
+                                    </p>
+                                    {a.othernames && (
+                                        <p className="text-xs text-gray-400 truncate">{a.othernames}</p>
+                                    )}
                                     <p className="text-xs text-gray-500 mt-0.5 tabular-nums">
                                         {a.phone_number}{a.lga ? ` · ${a.lga}` : ''}
                                     </p>
-                                    {a.whatsapp_number && a.whatsapp_number !== a.phone_number && (
-                                        <p className="text-[11px] text-gray-400 mt-0.5 tabular-nums">WhatsApp: {a.whatsapp_number}</p>
-                                    )}
                                 </div>
 
                                 <button

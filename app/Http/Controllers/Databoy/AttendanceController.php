@@ -17,8 +17,8 @@ class AttendanceController extends Controller
     {
         $this->authorizeAttendanceTaker();
 
-        $attendees = Attendance::orderBy('name')
-            ->get(['id', 'name', 'lga', 'phone_number', 'whatsapp_number', 'present', 'marked_present_at']);
+        $attendees = Attendance::orderBy('surname')->orderBy('firstname')
+            ->get(['id', 'surname', 'firstname', 'othernames', 'lga', 'phone_number', 'present', 'marked_present_at']);
 
         return inertia('Databoy/Attendance', [
             'attendees' => $attendees,

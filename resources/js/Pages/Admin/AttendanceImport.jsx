@@ -89,10 +89,10 @@ export default function AttendanceImport({ existing = 0 }) {
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
                     <h2 className="text-sm font-bold text-gray-700 mb-2">How the file is read</h2>
                     <ul className="text-xs text-gray-600 space-y-1.5 list-disc pl-4">
-                        <li><strong>Required:</strong> name, LGA and phone number. WhatsApp is optional.</li>
-                        <li>Column headings are matched by name, in any order — <span className="font-mono">Name</span>, <span className="font-mono">LGA</span>, <span className="font-mono">Phone Number</span>, <span className="font-mono">WhatsApp</span> and common variations all work.</li>
-                        <li>No headings? The columns are read in order: name, LGA, phone, whatsapp.</li>
-                        <li>Rows missing a name, LGA or phone number are skipped and counted back to you.</li>
+                        <li><strong>Columns:</strong> Surname, Firstname, Othernames, Phone Number, LGA. Othernames is the only optional one.</li>
+                        <li>Headings are matched by name, in any order — <span className="font-mono">Surname</span>, <span className="font-mono">Firstname</span>, <span className="font-mono">Othernames</span>, <span className="font-mono">Phone Number</span>, <span className="font-mono">LGA</span> and common variations (Last Name, Middle Name, Mobile…) all work.</li>
+                        <li>No headings? The columns are read in that same order: surname, firstname, othernames, phone, LGA.</li>
+                        <li>Rows missing a surname, firstname, LGA or phone number are skipped and counted back to you.</li>
                         <li>LGAs are matched against Osun state's — spelling, case and punctuation don't matter. An unrecognised LGA is kept as typed and flagged.</li>
                         <li>Leading zeros Excel dropped from phone numbers are restored.</li>
                         <li>Re-uploading matches people by phone number and updates them instead of creating duplicates — <strong>anyone already marked present stays present</strong>.</li>

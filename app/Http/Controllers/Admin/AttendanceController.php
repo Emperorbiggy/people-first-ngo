@@ -17,10 +17,11 @@ class AttendanceController extends Controller
      * matters only in that the first match wins.
      */
     private const HEADER_ALIASES = [
-        'name'            => ['name', 'fullname', 'full name', 'attendee', 'attendeename', 'surname', 'names'],
-        'lga'             => ['lga', 'localgovernment', 'localgovernmentarea', 'lganame', 'localgovt', 'lgaofresidence', 'council'],
-        'phone_number'    => ['phone', 'phonenumber', 'phoneno', 'callingphonenumber', 'mobile', 'mobilenumber', 'tel', 'telephone', 'contact', 'number'],
-        'whatsapp_number' => ['whatsapp', 'whatsappnumber', 'whatsappno', 'whatsapline', 'wanumber'],
+        'surname'      => ['surname', 'lastname', 'familyname'],
+        'firstname'    => ['firstname', 'first name', 'givenname', 'fname'],
+        'othernames'   => ['othernames', 'othername', 'middlename', 'middlenames', 'other names'],
+        'lga'          => ['lga', 'localgovernment', 'localgovernmentarea', 'lganame', 'localgovt', 'lgaofresidence', 'council'],
+        'phone_number' => ['phone', 'phonenumber', 'phoneno', 'callingphonenumber', 'mobile', 'mobilenumber', 'tel', 'telephone', 'contact', 'number'],
     ];
 
     /** Every attendee is Osun state — LGA names are resolved within it. */
@@ -28,8 +29,8 @@ class AttendanceController extends Controller
 
     public function index(Request $request)
     {
-        $attendees = Attendance::orderBy('name')
-            ->get(['id', 'name', 'lga', 'phone_number', 'whatsapp_number', 'present', 'marked_present_at']);
+        $attendees = Attendance::orderBy('surname')->orderBy('firstname')
+            ->get(['id', 'surname', 'firstname', 'othernames', 'lga', 'phone_number', 'present', 'marked_present_at']);
 
         return inertia('Admin/Attendance', [
             'attendees' => $attendees,
@@ -73,9 +74,10 @@ class AttendanceController extends Controller
         $unmatched = [];
 
         foreach ($rows as $row) {
-            // Name, LGA and phone are all required — a row missing any of them
-            // can't be marked present or contacted, so it isn't an attendee.
-            if ($row['name'] === '' || $row['lga'] === '' || !$row['phone_number']) {
+            // Surname, firstname, LGA and phone are required — a row missing
+            // any of them can't be called or contacted, so it isn't an
+            // attendee. Othernames is optional; plenty of people have none.
+            if ($row['surname'] === '' || $row['firstname'] === '' || $row['lga'] === '' || !$row['phone_number']) {
                 $skipped++;
                 continue;
             }
@@ -87,11 +89,12 @@ class AttendanceController extends Controller
             }
 
             $payload = [
-                'name'            => $row['name'],
-                'lga'             => $lgaName,
-                'lga_id'          => $lgaId,
-                'phone_number'    => $row['phone_number'],
-                'whatsapp_number' => $row['whatsapp_number'],
+                'surname'      => $row['surname'],
+                'firstname'    => $row['firstname'],
+                'othernames'   => $row['othernames'] ?: null,
+                'lga'          => $lgaName,
+                'lga_id'       => $lgaId,
+                'phone_number' => $row['phone_number'],
             ];
 
             // Re-uploading a corrected list should update people, not clone
@@ -113,7 +116,7 @@ class AttendanceController extends Controller
         $message = "Imported {$created} new attendee(s)" . ($updated ? ", updated {$updated} existing" : '') . '.';
 
         if ($skipped) {
-            $message .= " {$skipped} row(s) skipped — name, LGA and phone number are all required.";
+            $message .= " {$skipped} row(s) skipped — surname, firstname, LGA and phone number are all required.";
         }
 
         if ($unmatched) {
@@ -161,28 +164,30 @@ class AttendanceController extends Controller
 
         $map = $this->headerMap($sheet[0] ?? []);
         // No recognisable headings? Treat the sheet as bare columns in the
-        // order asked for: name, phone, whatsapp, email.
+        // order asked for: surname, firstname, othernames, phone, LGA.
         $positional = $map === [];
         $body       = $positional ? $sheet : array_slice($sheet, 1);
 
         if ($positional) {
-            $map = ['name' => 0, 'lga' => 1, 'phone_number' => 2, 'whatsapp_number' => 3];
+            $map = ['surname' => 0, 'firstname' => 1, 'othernames' => 2, 'phone_number' => 3, 'lga' => 4];
         }
 
         $rows = [];
 
         foreach ($body as $line) {
-            $name = $this->cell($line, $map['name'] ?? null);
+            $surname   = $this->cell($line, $map['surname'] ?? null);
+            $firstname = $this->cell($line, $map['firstname'] ?? null);
 
-            if ($name === '') {
+            if ($surname === '' && $firstname === '') {
                 continue;
             }
 
             $rows[] = [
-                'name'            => $name,
-                'lga'             => $this->cell($line, $map['lga'] ?? null),
-                'phone_number'    => $this->phone($this->cell($line, $map['phone_number'] ?? null)),
-                'whatsapp_number' => $this->phone($this->cell($line, $map['whatsapp_number'] ?? null)),
+                'surname'      => $surname,
+                'firstname'    => $firstname,
+                'othernames'   => $this->cell($line, $map['othernames'] ?? null),
+                'lga'          => $this->cell($line, $map['lga'] ?? null),
+                'phone_number' => $this->phone($this->cell($line, $map['phone_number'] ?? null)),
             ];
         }
 
@@ -214,8 +219,8 @@ class AttendanceController extends Controller
             }
         }
 
-        // A sheet with only, say, an "email" column isn't an attendance list.
-        return isset($map['name']) ? $map : [];
+        // A sheet with only, say, an LGA column isn't an attendance list.
+        return isset($map['surname']) || isset($map['firstname']) ? $map : [];
     }
 
     /**

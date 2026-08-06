@@ -10,13 +10,14 @@ return new class extends Migration
     {
         Schema::create('attendance', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
+            $table->string('surname');
+            $table->string('firstname');
+            $table->string('othernames')->nullable();
             // Attendees are all Osun state; lga is the required text as given,
             // lga_id is set when it matches a known Osun LGA.
             $table->string('lga');
             $table->foreignId('lga_id')->nullable()->constrained('lgas')->nullOnDelete();
             $table->string('phone_number');
-            $table->string('whatsapp_number')->nullable();
             $table->boolean('present')->default(false);
             $table->timestamp('marked_present_at')->nullable();
             $table->timestamps();

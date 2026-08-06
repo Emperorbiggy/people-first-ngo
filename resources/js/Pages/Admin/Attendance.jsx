@@ -30,7 +30,7 @@ export default function Attendance({ attendees = [], lgas = [], stats }) {
             if (filter === 'absent' && a.present) return false;
             if (lga !== 'all' && a.lga !== lga) return false;
             if (!q) return true;
-            return [a.name, a.phone_number, a.whatsapp_number, a.lga].some((v) => (v ?? '').toLowerCase().includes(q));
+            return [a.surname, a.firstname, a.othernames, a.phone_number, a.lga].some((v) => (v ?? '').toLowerCase().includes(q));
         });
     }, [attendees, search, filter, lga]);
 
@@ -43,7 +43,7 @@ export default function Attendance({ attendees = [], lgas = [], stats }) {
     };
 
     const remove = (attendee) => {
-        if (!confirm(`Remove ${attendee.name} from the attendance list?`)) return;
+        if (!confirm(`Remove ${attendee.full_name} from the attendance list?`)) return;
         router.delete(route('admin.attendance.destroy', attendee.id), { preserveScroll: true });
     };
 
@@ -74,7 +74,7 @@ export default function Attendance({ attendees = [], lgas = [], stats }) {
                     <div className="p-4 flex gap-3 flex-wrap items-center border-b border-gray-50">
                         <input
                             type="text" value={search} onChange={(e) => setSearch(e.target.value)}
-                            placeholder="Search name, phone, LGA…"
+                            placeholder="Search surname, firstname, phone, LGA…"
                             className="flex-1 min-w-[200px] px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         />
                         <select value={lga} onChange={(e) => setLga(e.target.value)}
@@ -110,7 +110,7 @@ export default function Attendance({ attendees = [], lgas = [], stats }) {
                             <table className="min-w-full divide-y divide-gray-100">
                                 <thead className="bg-gray-50">
                                     <tr>
-                                        {['#', 'Name', 'LGA', 'Phone', 'WhatsApp', 'Status', 'Action', ''].map((h) => (
+                                        {['#', 'Surname', 'Firstname', 'Othernames', 'Phone', 'LGA', 'Status', 'Action', ''].map((h) => (
                                             <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">{h}</th>
                                         ))}
                                     </tr>
@@ -119,10 +119,11 @@ export default function Attendance({ attendees = [], lgas = [], stats }) {
                                     {filtered.map((a, i) => (
                                         <tr key={a.id} className={`transition ${a.present ? 'bg-emerald-50/40' : 'hover:bg-gray-50'}`}>
                                             <td className="px-4 py-3 text-xs text-gray-400">{i + 1}</td>
-                                            <td className="px-4 py-3 text-sm font-medium text-gray-800 whitespace-nowrap">{a.name}</td>
-                                            <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{a.lga ?? '—'}</td>
+                                            <td className="px-4 py-3 text-sm font-semibold text-gray-800 whitespace-nowrap uppercase">{a.surname}</td>
+                                            <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{a.firstname}</td>
+                                            <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">{a.othernames ?? '—'}</td>
                                             <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap tabular-nums">{a.phone_number ?? '—'}</td>
-                                            <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap tabular-nums">{a.whatsapp_number ?? '—'}</td>
+                                            <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{a.lga ?? '—'}</td>
                                             <td className="px-4 py-3 whitespace-nowrap">
                                                 {a.present ? (
                                                     <span className="inline-flex px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-lg">
