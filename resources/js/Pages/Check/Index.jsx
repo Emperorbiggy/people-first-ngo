@@ -65,18 +65,13 @@ export default function Check() {
                 </div>
 
                 <div className="relative z-10 w-full max-w-lg">
-                    {/* Header */}
-                    <div className="text-center mb-8">
-                        <div className="inline-flex items-center justify-center w-20 h-20 bg-white rounded-2xl shadow-2xl mb-5 rotate-3">
-                            <svg className="w-10 h-10 text-emerald-600 -rotate-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="text-center mb-6">
+                        <div className="inline-flex items-center justify-center w-16 h-16 bg-white rounded-2xl shadow-2xl rotate-3">
+                            <svg className="w-8 h-8 text-emerald-600 -rotate-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8"
                                     d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                             </svg>
                         </div>
-                        <h1 className="text-3xl sm:text-4xl font-bold text-white drop-shadow-lg tracking-tight">Check Acknowledgement Slip</h1>
-                        <p className="text-white/70 mt-3 text-sm max-w-sm mx-auto">
-                            Enter the 11-digit phone number you registered with to view and download your acknowledgement slip.
-                        </p>
                     </div>
 
                     {/* Card */}
@@ -256,10 +251,6 @@ export default function Check() {
                                 </p>
                             </div>
                         )}
-
-                        <p className="text-center text-xs text-gray-400 mt-6">
-                            Slips are released only to the phone number they were filed under.
-                        </p>
                     </div>
                 </div>
             </div>
