@@ -54,7 +54,7 @@ export default function Check() {
 
     return (
         <>
-            <Head title="Check Acknowledgement Slip" />
+            <Head title="Check" />
 
             <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-900 to-emerald-800 flex items-center justify-center p-4">
                 {/* Ambient blobs */}
@@ -66,12 +66,7 @@ export default function Check() {
 
                 <div className="relative z-10 w-full max-w-lg">
                     <div className="text-center mb-6">
-                        <div className="inline-flex items-center justify-center w-16 h-16 bg-white rounded-2xl shadow-2xl rotate-3">
-                            <svg className="w-8 h-8 text-emerald-600 -rotate-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8"
-                                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                        </div>
+                        <h1 className="text-3xl sm:text-4xl font-bold text-white drop-shadow-lg tracking-tight">Check</h1>
                     </div>
 
                     {/* Card */}
@@ -183,47 +178,15 @@ export default function Check() {
 
                                 </div>
 
-                                {/* Preview leads — they see the slip before deciding to save it */}
-                                <div className="mt-4 rounded-2xl overflow-hidden border border-gray-200 bg-gray-50 shadow-sm">
-                                    <div className="px-4 py-2.5 bg-gray-100 border-b border-gray-200 flex items-center gap-2">
-                                        <span className="w-2.5 h-2.5 rounded-full bg-red-400" />
-                                        <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
-                                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
-                                        <span className="ml-2 text-[11px] font-medium text-gray-500">Preview</span>
-                                    </div>
-                                    <iframe
-                                        title="Acknowledgement slip preview"
-                                        src={result.view_url}
-                                        className="w-full h-72 sm:h-[26rem] bg-white"
-                                    />
-                                    <div className="px-4 py-2 bg-gray-50 border-t border-gray-100 text-center">
-                                        <p className="text-[11px] text-gray-400">Can't see it? Use Open Slip below.</p>
-                                    </div>
-                                </div>
-
-                                <div className="mt-4 flex flex-col sm:flex-row gap-2.5">
-                                    <a
-                                        href={result.view_url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="flex-1 py-3 px-4 rounded-xl bg-white border-2 border-emerald-600 text-emerald-700 hover:bg-emerald-50 text-sm font-bold text-center transition-all flex items-center justify-center gap-2"
-                                    >
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                        </svg>
-                                        Open Slip
-                                    </a>
-                                    <a
-                                        href={result.download_url}
-                                        className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white text-sm font-bold text-center shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2"
-                                    >
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                                        </svg>
-                                        Download Slip
-                                    </a>
-                                </div>
+                                <a
+                                    href={result.download_url}
+                                    className="mt-4 w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white text-sm font-bold text-center shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                    </svg>
+                                    Download Slip
+                                </a>
 
                                 <button
                                     type="button"
@@ -246,8 +209,7 @@ export default function Check() {
                                 </div>
                                 <p className="text-sm font-bold text-amber-900">No acknowledgement slip found</p>
                                 <p className="text-xs text-amber-700/80 mt-1.5 max-w-xs mx-auto">
-                                    No slip has been uploaded for <span className="font-semibold tabular-nums">{phone}</span> yet.
-                                    Confirm the number is correct, or check back later.
+                                    Reach out to your coordinator to send it to you.
                                 </p>
                             </div>
                         )}
