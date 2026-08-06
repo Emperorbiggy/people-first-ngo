@@ -78,7 +78,7 @@ class CheckDocumentController extends Controller
      */
     private function locate(string $phone): ?string
     {
-        $dir = storage_path(self::DOCUMENT_DIR);
+        $dir = $this->documentDir();
 
         if (!is_dir($dir)) {
             return null;
@@ -117,6 +117,23 @@ class CheckDocumentController extends Controller
         }
 
         return null;
+    }
+
+    /**
+     * storage/app/.gitignore excludes everything beneath it, so this folder is
+     * never carried by a deploy — git cannot ship a directory whose parent is
+     * ignored. Create it on first use so nobody has to mkdir it by hand on the
+     * server; it just shows up empty, ready for slips to be uploaded into.
+     */
+    private function documentDir(): string
+    {
+        $dir = storage_path(self::DOCUMENT_DIR);
+
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0755, true);
+        }
+
+        return $dir;
     }
 
     private function humanSize(int $bytes): string
