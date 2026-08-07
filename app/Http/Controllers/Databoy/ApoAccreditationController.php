@@ -161,7 +161,9 @@ class ApoAccreditationController extends Controller
             'checked_out_at'           => now(),
             'is_accredited'            => true,
             'accredited_at'            => now(),
-            'accredited_by_databoy_id' => Auth::guard('databoy')->id(),
+            // NOT ->id(): Databoy::getAuthIdentifierName() is 'login_email',
+            // so the guard's id() hands back the email, not the primary key.
+            'accredited_by_databoy_id' => Auth::guard('databoy')->user()->id,
         ]);
 
         $suffix = '';

@@ -79,7 +79,7 @@ function CheckInModal({ officer, onClose, timeRestrictionEnabled, windows }) {
 
             {step === 'question' && (
                 <div className="space-y-3">
-                    <p className="text-sm font-semibold text-gray-700 text-center">Is this officer present and fit to serve as APO?</p>
+                    <p className="text-sm font-semibold text-gray-700 text-center">Is this officer present?</p>
                     <div className="flex gap-3">
                         <button type="button" onClick={() => { setSuitable(false); setStep('camera'); }} disabled={closed}
                             className="flex-1 py-3 border border-red-200 text-red-600 rounded-xl text-sm font-semibold hover:bg-red-50 disabled:opacity-40 transition">
