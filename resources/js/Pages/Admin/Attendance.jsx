@@ -24,13 +24,21 @@ export default function Attendance({ attendees = [], lgas = [], stats }) {
     const [busyId, setBusyId] = useState(null);
 
     const filtered = useMemo(() => {
-        const q = search.trim().toLowerCase();
+        // Every word typed must appear somewhere in the row, so "adeyemi b"
+        // finds "Adeyemi Bolanle" — and so does "bolanle ade", since the words
+        // are matched independently of the order they're written in.
+        const terms = search.trim().toLowerCase().split(/\s+/).filter(Boolean);
+
         return attendees.filter((a) => {
             if (filter === 'present' && !a.present) return false;
             if (filter === 'absent' && a.present) return false;
             if (lga !== 'all' && a.lga !== lga) return false;
-            if (!q) return true;
-            return [a.surname, a.firstname, a.othernames, a.phone_number, a.lga].some((v) => (v ?? '').toLowerCase().includes(q));
+            if (terms.length === 0) return true;
+
+            const haystack = [a.surname, a.firstname, a.othernames, a.phone_number, a.lga]
+                .filter(Boolean).join(' ').toLowerCase();
+
+            return terms.every((term) => haystack.includes(term));
         });
     }, [attendees, search, filter, lga]);
 
