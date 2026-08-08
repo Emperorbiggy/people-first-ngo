@@ -43,6 +43,7 @@ use App\Http\Controllers\Databoy\ApoAccreditationController as DataboyApoAccredi
 use App\Http\Controllers\Databoy\AccreditationController as DataboyAccreditationController;
 use App\Http\Controllers\NewFormController;
 use App\Http\Controllers\CheckDocumentController;
+use App\Http\Controllers\EFormController;
 use App\Models\Country;
 use Illuminate\Support\Facades\Route;
 
@@ -61,6 +62,11 @@ Route::post('/apply/{token}', [VerificationController::class, 'submitApplication
 Route::get('/ngo-contract-application', [NgoContractApplicationController::class, 'create'])->name('ngo-contract-applications.create');
 Route::post('/ngo-contract-application', [NgoContractApplicationController::class, 'store'])->name('ngo-contract-applications.store');
 Route::get('/ngo-contract-application/success', [NgoContractApplicationController::class, 'success'])->name('ngo-contract-applications.success');
+
+// Public e-form
+Route::get('/e-form', [EFormController::class, 'create'])->name('e-form.create');
+Route::post('/e-form', [EFormController::class, 'store'])->name('e-form.store');
+Route::get('/e-form/success', [EFormController::class, 'success'])->name('e-form.success');
 
 // Public document check — enter an 11-digit phone number, get the PDF filed under it
 Route::get('/check', [CheckDocumentController::class, 'index'])->name('check');
