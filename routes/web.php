@@ -39,6 +39,7 @@ use App\Http\Controllers\Admin\ApoRecipientController as AdminApoRecipientContro
 use App\Http\Controllers\Admin\ApoPaymentController as AdminApoPaymentController;
 use App\Http\Controllers\Admin\AccreditationOfficerController as AdminAccreditationOfficerController;
 use App\Http\Controllers\Admin\AttendanceController as AdminAttendanceController;
+use App\Http\Controllers\Admin\EFormController as AdminEFormController;
 use App\Http\Controllers\Databoy\ApoAccreditationController as DataboyApoAccreditationController;
 use App\Http\Controllers\Databoy\AccreditationController as DataboyAccreditationController;
 use App\Http\Controllers\NewFormController;
@@ -213,6 +214,11 @@ Route::middleware('auth')->group(function () {
     Route::post('/admin/accreditation-officers', [AdminAccreditationOfficerController::class, 'store'])->name('admin.accreditation-officers.store');
     Route::post('/admin/accreditation-officers/{databoy}/toggle', [AdminAccreditationOfficerController::class, 'toggle'])->name('admin.accreditation-officers.toggle');
     Route::delete('/admin/accreditation-officers/{databoy}', [AdminAccreditationOfficerController::class, 'destroy'])->name('admin.accreditation-officers.destroy');
+
+    // E-Form submissions
+    Route::get('/admin/e-forms', [AdminEFormController::class, 'index'])->name('admin.e-forms');
+    Route::get('/admin/e-forms/export', [AdminEFormController::class, 'exportExcel'])->name('admin.e-forms.export');
+    Route::delete('/admin/e-forms/{eForm}', [AdminEFormController::class, 'destroy'])->name('admin.e-forms.destroy');
 
     // Attendance
     Route::get('/admin/attendance', [AdminAttendanceController::class, 'index'])->name('admin.attendance');
