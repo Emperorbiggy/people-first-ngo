@@ -64,10 +64,21 @@ Route::get('/ngo-contract-application', [NgoContractApplicationController::class
 Route::post('/ngo-contract-application', [NgoContractApplicationController::class, 'store'])->name('ngo-contract-applications.store');
 Route::get('/ngo-contract-application/success', [NgoContractApplicationController::class, 'success'])->name('ngo-contract-applications.success');
 
-// Public e-form
-Route::get('/e-form', [EFormController::class, 'create'])->name('e-form.create');
-Route::post('/e-form', [EFormController::class, 'store'])->name('e-form.store');
-Route::get('/e-form/success', [EFormController::class, 'success'])->name('e-form.success');
+// Public e-form. With EFORM_DOMAIN set (e.g. form.peoplefirst.org.ng) the form
+// lives at that host's root and /e-form no longer exists on the main domain —
+// the address bar shows the short host and never changes, unlike a link
+// shortener, which only disguises the link until it is clicked.
+if ($eformDomain = config('app.eform_domain')) {
+    Route::domain($eformDomain)->group(function () {
+        Route::get('/', [EFormController::class, 'create'])->name('e-form.create');
+        Route::post('/', [EFormController::class, 'store'])->name('e-form.store');
+        Route::get('/submitted', [EFormController::class, 'success'])->name('e-form.success');
+    });
+} else {
+    Route::get('/e-form', [EFormController::class, 'create'])->name('e-form.create');
+    Route::post('/e-form', [EFormController::class, 'store'])->name('e-form.store');
+    Route::get('/e-form/success', [EFormController::class, 'success'])->name('e-form.success');
+}
 
 // Public document check — enter an 11-digit phone number, get the PDF filed under it
 Route::get('/check', [CheckDocumentController::class, 'index'])->name('check');

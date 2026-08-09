@@ -11,7 +11,7 @@ class EForm extends Model
     protected $fillable = [
         'application_id', 'full_name', 'phone_number',
         'lga_id', 'lga_of_training', 'gender',
-        'account_number', 'bank_name', 'bank_code',
+        'account_number', 'bank_name', 'bank_code', 'bank_account_name',
     ];
 
     public function lga() { return $this->belongsTo(Lga::class); }

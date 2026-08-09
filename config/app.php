@@ -55,6 +55,14 @@ return [
     'url' => env('APP_URL', 'http://localhost'),
 
     /*
+     * Optional dedicated host for the public e-form, e.g.
+     * "form.peoplefirst.org.ng". When set, the form is served from that
+     * host's root and the /e-form path disappears from the main domain
+     * entirely — so the long URL is never shown or reachable.
+     */
+    'eform_domain' => env('EFORM_DOMAIN'),
+
+    /*
     |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------

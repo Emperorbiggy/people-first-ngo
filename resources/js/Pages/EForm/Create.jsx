@@ -15,6 +15,9 @@ export default function Create({ lgas = [] }) {
     });
 
     const [banks, setBanks] = useState([]);
+    const [resolving, setResolving] = useState(false);
+    const [accountName, setAccountName] = useState('');
+    const [resolveError, setResolveError] = useState('');
 
     useEffect(() => {
         PaystackService.fetchBanks()
@@ -22,13 +25,56 @@ export default function Create({ lgas = [] }) {
             .catch(() => {});
     }, []);
 
+    // Application ID must start with osu_ — any casing.
+    const appIdValid = /^osu_/i.test(data.application_id.trim());
+    const appIdTouched = data.application_id.trim().length > 0;
+
+    const verify = async (accountNumber, bankCode) => {
+        if (accountNumber.length !== 10 || !bankCode) return;
+
+        setResolving(true);
+        setAccountName('');
+        setResolveError('');
+
+        try {
+            // The endpoint hands back Paystack's own shape: {status, data:{account_name}}
+            const res = await PaystackService.resolveAccountNumber(accountNumber, bankCode);
+            const name = res?.data?.account_name ?? res?.account_name ?? '';
+
+            if (name) {
+                setAccountName(name);
+            } else {
+                setResolveError(res?.message || 'Could not verify this account. Check the number and bank.');
+            }
+        } catch {
+            setResolveError('Could not verify this account. Check the number and bank.');
+        } finally {
+            setResolving(false);
+        }
+    };
+
     const pickBank = (name) => {
         const bank = banks.find((b) => b.name === name);
         setData((d) => ({ ...d, bank_name: name, bank_code: bank?.code ?? '' }));
+        setAccountName('');
+        setResolveError('');
+        verify(data.account_number, bank?.code ?? '');
     };
+
+    const changeAccount = (value) => {
+        const digits = value.replace(/\D/g, '').slice(0, 10);
+        setData('account_number', digits);
+        setAccountName('');
+        setResolveError('');
+        verify(digits, data.bank_code);
+    };
+
+    // Nothing is submitted until the bank has confirmed whose account it is.
+    const canSubmit = appIdValid && accountName && !resolving && !processing;
 
     const submit = (e) => {
         e.preventDefault();
+        if (!canSubmit) return;
         post(route('e-form.store'));
     };
 
@@ -60,10 +106,14 @@ export default function Create({ lgas = [] }) {
                             <input
                                 type="text" value={data.application_id}
                                 onChange={(e) => setData('application_id', e.target.value)}
-                                placeholder="As shown on your application"
-                                className={field}
+                                placeholder="e.g. osu_12345"
+                                className={`${field} ${appIdTouched && !appIdValid ? 'border-red-300 focus:border-red-400 focus:ring-red-200' : ''}`}
                             />
-                            {errors.application_id && <p className={errCls}>{errors.application_id}</p>}
+                            {errors.application_id
+                                ? <p className={errCls}>{errors.application_id}</p>
+                                : appIdTouched && !appIdValid
+                                    ? <p className={errCls}>Application ID must start with “osu_”.</p>
+                                    : <p className="mt-1.5 text-xs text-gray-400">Must start with <span className="font-mono font-semibold">osu_</span></p>}
                         </div>
 
                         <div>
@@ -136,27 +186,59 @@ export default function Create({ lgas = [] }) {
                                     <label className={label}>Bank Account Number <span className="text-red-500">*</span></label>
                                     <input
                                         type="text" inputMode="numeric" value={data.account_number}
-                                        onChange={(e) => setData('account_number', e.target.value.replace(/\D/g, '').slice(0, 10))}
+                                        onChange={(e) => changeAccount(e.target.value)}
                                         placeholder="10-digit account number"
                                         className={`${field} tabular-nums tracking-wide`}
                                     />
                                     {errors.account_number
                                         ? <p className={errCls}>{errors.account_number}</p>
-                                        : <p className="mt-1.5 text-xs text-gray-400">{data.account_number.length}/10 digits</p>}
+                                        : <p className="mt-1.5 text-xs text-gray-400">
+                                            {data.account_number.length}/10 digits
+                                            {data.account_number.length === 10 && !data.bank_code ? ' — now select your bank' : ''}
+                                          </p>}
                                 </div>
+
+                                {/* Account verification result */}
+                                {resolving && (
+                                    <div className="flex items-center gap-2.5 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
+                                        <svg className="animate-spin w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                        </svg>
+                                        <p className="text-xs text-gray-500">Verifying account with the bank…</p>
+                                    </div>
+                                )}
+
+                                {accountName && !resolving && (
+                                    <div className="bg-emerald-50 border-2 border-emerald-200 rounded-xl px-4 py-3">
+                                        <p className="text-[11px] font-semibold uppercase text-emerald-600/70">Account Name</p>
+                                        <p className="text-sm font-bold text-emerald-900 mt-0.5">{accountName}</p>
+                                        <p className="text-[11px] text-emerald-700/70 mt-1">
+                                            Not your name? Correct the account number or bank before submitting.
+                                        </p>
+                                    </div>
+                                )}
+
+                                {resolveError && !resolving && (
+                                    <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+                                        <p className="text-xs text-red-700">{resolveError}</p>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
                         <button
                             type="submit"
-                            disabled={processing}
-                            className="w-full py-4 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-indigo-600 to-emerald-600 hover:from-indigo-700 hover:to-emerald-700 disabled:from-gray-200 disabled:to-gray-200 disabled:text-gray-400 shadow-lg hover:shadow-xl transition-all"
+                            disabled={!canSubmit}
+                            className="w-full py-4 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-indigo-600 to-emerald-600 hover:from-indigo-700 hover:to-emerald-700 disabled:from-gray-200 disabled:to-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transition-all"
                         >
-                            {processing ? 'Submitting…' : 'Submit E-Form'}
+                            {processing ? 'Submitting…' : resolving ? 'Verifying account…' : 'Submit E-Form'}
                         </button>
 
                         <p className="text-center text-xs text-gray-400">
-                            Make sure your account number and bank are correct — payments are sent to these details.
+                            {!accountName
+                                ? 'Your account must be verified before you can submit.'
+                                : 'Payments are sent to the account shown above.'}
                         </p>
                     </form>
                 </div>
