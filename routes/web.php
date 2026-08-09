@@ -221,6 +221,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/admin/apo-payments', [AdminApoPaymentController::class, 'index'])->name('admin.apo-payments');
     Route::post('/admin/apo-payments/{apoOfficer}/retry', [AdminApoPaymentController::class, 'retry'])->name('admin.apo-payments.retry');
     Route::post('/admin/apo-payments/pay-unpaid', [AdminApoPaymentController::class, 'payUnpaid'])->name('admin.apo-payments.pay-unpaid');
+    Route::get('/admin/apo-payments/export', [AdminApoPaymentController::class, 'exportExcel'])->name('admin.apo-payments.export');
     Route::get('/admin/accreditation-officers', [AdminAccreditationOfficerController::class, 'index'])->name('admin.accreditation-officers');
     Route::post('/admin/accreditation-officers', [AdminAccreditationOfficerController::class, 'store'])->name('admin.accreditation-officers.store');
     Route::post('/admin/accreditation-officers/{databoy}/toggle', [AdminAccreditationOfficerController::class, 'toggle'])->name('admin.accreditation-officers.toggle');

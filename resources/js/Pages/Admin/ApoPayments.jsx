@@ -32,6 +32,7 @@ export default function ApoPayments({ history = [], stats }) {
     const [search, setSearch] = useState('');
     const [filter, setFilter] = useState('all');
     const [busy, setBusy] = useState(false);
+    const [exportStatus, setExportStatus] = useState('all');
 
     const filtered = useMemo(() => {
         const q = search.trim().toLowerCase();
@@ -73,6 +74,38 @@ export default function ApoPayments({ history = [], stats }) {
                         className="px-4 py-2 text-sm font-semibold text-violet-600 bg-violet-50 hover:bg-violet-100 rounded-xl transition whitespace-nowrap">
                         ← APO Recipients
                     </Link>
+                </div>
+
+                {/* Full-detail export — identity, polling unit, account and outcome */}
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-3.5 flex items-center justify-between gap-3 flex-wrap">
+                    <div>
+                        <p className="text-sm font-semibold text-gray-800">Download full details</p>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                            Name, gender, phone, LGA, ward, polling unit, bank account and payment status in one sheet.
+                        </p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <select
+                            value={exportStatus}
+                            onChange={(e) => setExportStatus(e.target.value)}
+                            className="px-3 py-2 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+                        >
+                            <option value="all">All statuses ({history.length})</option>
+                            <option value="success">Paid only ({stats.paid})</option>
+                            <option value="failed">Failed only ({stats.failed})</option>
+                            <option value="pending">Pending only ({stats.pending})</option>
+                            <option value="unknown">Needs review only ({stats.unknown})</option>
+                        </select>
+                        <a
+                            href={route('admin.apo-payments.export', { status: exportStatus })}
+                            className="px-4 py-2 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition whitespace-nowrap flex items-center gap-2"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                            Export Excel
+                        </a>
+                    </div>
                 </div>
 
                 {flash?.success && <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm rounded-xl px-4 py-3">{flash.success}</div>}

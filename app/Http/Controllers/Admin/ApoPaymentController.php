@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Exports\ApoPaymentsExport;
 use App\Http\Controllers\Controller;
 use App\Jobs\PayApoOfficerJob;
 use App\Models\ApoOfficer;
 use App\Models\ApoPayment;
 use Illuminate\Http\Request;
+use Maatwebsite\Excel\Facades\Excel;
 
 /**
  * APO payment history and retries.
@@ -21,30 +23,7 @@ class ApoPaymentController extends Controller
 {
     public function index()
     {
-        $history = ApoPayment::with([
-                'application:id,full_name,lga_id',
-                'application.lga:id,name',
-            ])
-            ->latest()
-            ->get()
-            // An officer can have failed attempts followed by a live one; only
-            // the newest row reflects where they actually stand.
-            ->groupBy('apo_officer_id')
-            ->map(fn ($attempts) => $attempts->first())
-            ->values()
-            ->map(fn ($payment) => [
-                'id'             => $payment->id,
-                'apo_officer_id' => $payment->apo_officer_id,
-                'full_name'      => $payment->application->full_name ?? '—',
-                'lga'            => $payment->application->lga->name ?? '—',
-                'amount'         => $payment->amount,
-                'bank_name'      => $payment->bank_name,
-                'account_number' => $payment->account_number,
-                'account_name'   => $payment->account_name,
-                'status'         => $payment->status,
-                'message'        => $payment->message,
-                'created_at'     => $payment->created_at,
-            ]);
+        $history = $this->paymentHistory();
 
         $accredited = ApoOfficer::where('is_accredited', true)->count();
 
@@ -60,6 +39,23 @@ class ApoPaymentController extends Controller
                 'amount_paid' => $history->where('status', 'success')->sum('amount'),
             ],
         ]);
+    }
+
+    /**
+     * Full officer + payment detail, optionally narrowed to one outcome.
+     * Statuses other than success/failed (pending, unknown) are reachable via
+     * "all" so nothing is silently invisible.
+     */
+    public function exportExcel(Request $request)
+    {
+        $status  = $request->get('status', 'all');
+        $history = $this->paymentHistory();
+
+        if (in_array($status, ['success', 'failed', 'pending', 'unknown'], true)) {
+            $history = $history->where('status', $status)->values();
+        }
+
+        return Excel::download(new ApoPaymentsExport($history), "apo_payments_{$status}.xlsx");
     }
 
     public function retry(ApoOfficer $apoOfficer)
@@ -94,5 +90,47 @@ class ApoPaymentController extends Controller
         }
 
         return back()->with('success', "Queued payment for {$officers->count()} APO officer(s).");
+    }
+
+    /**
+     * One row per officer — their newest attempt — carrying the whole record:
+     * identity, posting, payout account and outcome.
+     */
+    private function paymentHistory()
+    {
+        return ApoPayment::with([
+                'application:id,full_name,gender,calling_phone_number,lga_id,ward_id,polling_unit_id',
+                'application.lga:id,name',
+                'application.ward:id,name',
+                'application.pollingUnit:id,name',
+                'officer:id,accredited_at',
+            ])
+            ->latest()
+            ->get()
+            // An officer can have failed attempts followed by a live one; only
+            // the newest row reflects where they actually stand.
+            ->groupBy('apo_officer_id')
+            ->map(fn ($attempts) => $attempts->first())
+            ->values()
+            ->map(fn ($payment) => [
+                'id'             => $payment->id,
+                'apo_officer_id' => $payment->apo_officer_id,
+                'full_name'      => $payment->application->full_name ?? '—',
+                'gender'         => $payment->application->gender ?? '—',
+                'phone_number'   => $payment->application->calling_phone_number ?? '—',
+                'lga'            => $payment->application->lga->name ?? '—',
+                'ward'           => $payment->application->ward->name ?? '—',
+                'polling_unit'   => $payment->application->pollingUnit->name ?? '—',
+                'accredited_at'  => optional($payment->officer?->accredited_at)->format('Y-m-d H:i') ?? '—',
+                'amount'         => $payment->amount,
+                'bank_name'      => $payment->bank_name,
+                'account_number' => $payment->account_number,
+                'account_name'   => $payment->account_name,
+                'status'         => $payment->status,
+                'message'        => $payment->message,
+                'reference'      => $payment->reference,
+                'paid_at'        => optional($payment->created_at)->format('Y-m-d H:i'),
+                'created_at'     => $payment->created_at,
+            ]);
     }
 }
