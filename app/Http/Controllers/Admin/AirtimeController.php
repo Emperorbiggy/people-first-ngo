@@ -119,12 +119,19 @@ class AirtimeController extends Controller
             $history = AirtimePurchase::with('databoy:id,full_name')
                 ->latest()
                 ->get(['id', 'databoy_id', 'phone_number', 'network', 'amount', 'status', 'message', 'created_at'])
-                ->groupBy('databoy_id')
+                // Only the newest attempt per recipient is shown. Imported
+                // contacts have no databoy_id, so they are keyed by phone
+                // number instead — grouping them all under a single null key
+                // would collapse every imported purchase into one row.
+                ->groupBy(fn ($purchase) => $purchase->databoy_id ?? 'imported:' . $purchase->phone_number)
                 ->map(fn ($attempts) => $attempts->first())
                 ->values()
                 ->map(fn ($purchase) => [
                     'id'           => $purchase->id,
-                    'full_name'    => $purchase->databoy->full_name ?? '—',
+                    'full_name'    => $purchase->databoy->full_name
+                        ?? ($purchase->databoy_id ? '—' : 'Imported contact'),
+                    // No databoy behind the number — it came from a contact list.
+                    'is_imported'  => $purchase->databoy_id === null,
                     'phone_number' => $purchase->phone_number,
                     'network'      => $purchase->network,
                     'amount'       => $purchase->amount,

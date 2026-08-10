@@ -120,7 +120,16 @@ export default function AirtimeHistory({ type = 'databoy', history = [], stats =
                                 <tbody className="divide-y divide-gray-50">
                                     {filtered.map((h) => (
                                         <tr key={h.id} className="hover:bg-indigo-50/30 transition-colors">
-                                            <td className="px-5 py-3 text-sm font-medium text-gray-800 whitespace-nowrap">{h.full_name}</td>
+                                            <td className="px-5 py-3 text-sm font-medium text-gray-800 whitespace-nowrap">
+                                                {h.is_imported ? (
+                                                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-violet-100 text-violet-700 text-xs font-semibold rounded-lg">
+                                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v12m0-12l-4 4m4-4l4 4M4 20h16" />
+                                                        </svg>
+                                                        Imported
+                                                    </span>
+                                                ) : h.full_name}
+                                            </td>
                                             <td className="px-5 py-3 text-sm text-gray-600 whitespace-nowrap">{h.network}</td>
                                             <td className="px-5 py-3 text-sm text-gray-600 whitespace-nowrap">{h.phone_number}</td>
                                             <td className="px-5 py-3 text-sm text-gray-600 whitespace-nowrap">{formatNaira(h.amount)}</td>
