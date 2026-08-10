@@ -273,6 +273,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/admin/airtime', [AdminAirtimeController::class, 'index'])->name('admin.airtime');
     Route::post('/admin/airtime', [AdminAirtimeController::class, 'send'])->name('admin.airtime.send');
     Route::get('/admin/airtime/history', [AdminAirtimeController::class, 'history'])->name('admin.airtime.history');
+    // Retry a single failed airtime purchase (databoy, imported contact, or party agent)
+    Route::post('/admin/airtime/history/{airtimePurchase}/retry', [AdminAirtimeController::class, 'retry'])->name('admin.airtime.retry');
+    Route::post('/admin/airtime/history/party-agent/{partyAgentAirtimePurchase}/retry', [AdminAirtimeController::class, 'retryPartyAgent'])->name('admin.airtime.retry-party-agent');
 
     // Geo Import
     Route::get('/geo-import', [GeoImportController::class, 'showPage'])->name('geo.import');

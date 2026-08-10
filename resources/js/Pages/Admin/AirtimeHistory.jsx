@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { router } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import TargetTypeToggle from '@/Components/TargetTypeToggle';
 
@@ -33,8 +33,23 @@ function formatNaira(value) {
 }
 
 export default function AirtimeHistory({ type = 'databoy', history = [], stats = {} }) {
+    const { flash } = usePage().props;
     const [search, setSearch]   = useState('');
     const [status, setStatus]   = useState('all');
+    const [retryingId, setRetryingId] = useState(null);
+
+    const retry = (row) => {
+        setRetryingId(row.id);
+        // Party agent purchases live in their own table, so they have their own route.
+        const target = type === 'party_agent'
+            ? route('admin.airtime.retry-party-agent', row.id)
+            : route('admin.airtime.retry', row.id);
+
+        router.post(target, {}, {
+            preserveScroll: true,
+            onFinish: () => setRetryingId(null),
+        });
+    };
 
     const changeType = (newType) => {
         if (newType === type) return;
@@ -69,6 +84,17 @@ export default function AirtimeHistory({ type = 'databoy', history = [], stats =
                     <StatCard label="Failed" value={stats.failed ?? 0} color="text-red-600" />
                     <StatCard label="Amount Sent" value={formatNaira(stats.amount_sent)} color="text-indigo-600" />
                 </div>
+
+                {flash?.success && (
+                    <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 text-sm text-green-700 font-medium">
+                        {flash.success}
+                    </div>
+                )}
+                {flash?.error && (
+                    <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700 font-medium">
+                        {flash.error}
+                    </div>
+                )}
 
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                     <div className="px-5 py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center gap-3">
@@ -112,7 +138,7 @@ export default function AirtimeHistory({ type = 'databoy', history = [], stats =
                             <table className="min-w-full">
                                 <thead>
                                     <tr className="bg-gray-50 text-left">
-                                        {['Name', 'Network', 'Phone Number', 'Amount', 'Status', 'Date'].map((h) => (
+                                        {['Name', 'Network', 'Phone Number', 'Amount', 'Status', 'Date', ''].map((h) => (
                                             <th key={h} className="px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
                                         ))}
                                     </tr>
@@ -141,6 +167,17 @@ export default function AirtimeHistory({ type = 'databoy', history = [], stats =
                                             </td>
                                             <td className="px-5 py-3 text-xs text-gray-400 whitespace-nowrap">
                                                 {new Date(h.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                            </td>
+                                            <td className="px-5 py-3 whitespace-nowrap">
+                                                {h.status === 'failed' && (
+                                                    <button
+                                                        onClick={() => retry(h)}
+                                                        disabled={retryingId === h.id}
+                                                        className="px-3 py-1.5 text-xs font-bold rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 disabled:opacity-40 transition"
+                                                    >
+                                                        {retryingId === h.id ? 'Retrying…' : 'Retry'}
+                                                    </button>
+                                                )}
                                             </td>
                                         </tr>
                                     ))}

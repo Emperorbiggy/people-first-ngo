@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Jobs\PurchaseAirtimeJob;
+use App\Jobs\PurchaseImportedAirtimeJob;
 use App\Jobs\PurchasePartyAgentAirtimeJob;
 use App\Models\AirtimePurchase;
 use App\Models\Databoy;
@@ -92,6 +93,87 @@ class AirtimeController extends Controller
         Bus::chain($jobs)->dispatch();
 
         return back()->with('success', "Queued airtime for {$ids->count()} databoy(s). Check Airtime History shortly for results.");
+    }
+
+    /**
+     * Retry a single failed airtime purchase from the history page. Works for
+     * databoy purchases and for imported contacts, which have no databoy and
+     * are retried by phone number instead.
+     *
+     * A retry is refused unless this attempt is a failure AND the recipient has
+     * no live purchase — the jobs re-check too, but there is no reason to queue
+     * work that would only be thrown away.
+     */
+    public function retry(AirtimePurchase $airtimePurchase)
+    {
+        if ($airtimePurchase->status !== 'failed') {
+            return back()->with('error', 'Only failed purchases can be retried.');
+        }
+
+        $amount = (float) $airtimePurchase->amount ?: (float) Setting::get('airtime_amount', 0);
+
+        if ($amount <= 0) {
+            return back()->with('error', 'No airtime amount on this record, and none set in Settings.');
+        }
+
+        if ($airtimePurchase->databoy_id === null) {
+            $alreadyPaid = AirtimePurchase::where('phone_number', $airtimePurchase->phone_number)
+                ->where('status', '!=', 'failed')
+                ->exists();
+
+            if ($alreadyPaid) {
+                return back()->with('error', "{$airtimePurchase->phone_number} already has a successful airtime purchase.");
+            }
+
+            PurchaseImportedAirtimeJob::dispatch(
+                $airtimePurchase->phone_number,
+                $airtimePurchase->network,
+                $amount
+            );
+
+            return back()->with('success', "Retrying airtime for {$airtimePurchase->phone_number}.");
+        }
+
+        $alreadyPaid = AirtimePurchase::where('databoy_id', $airtimePurchase->databoy_id)
+            ->where('status', '!=', 'failed')
+            ->exists();
+
+        if ($alreadyPaid) {
+            return back()->with('error', 'That databoy already has a successful airtime purchase.');
+        }
+
+        PurchaseAirtimeJob::dispatch($airtimePurchase->databoy_id, $amount);
+
+        $name = $airtimePurchase->databoy->full_name ?? $airtimePurchase->phone_number;
+
+        return back()->with('success', "Retrying airtime for {$name}.");
+    }
+
+    public function retryPartyAgent(PartyAgentAirtimePurchase $partyAgentAirtimePurchase)
+    {
+        if ($partyAgentAirtimePurchase->status !== 'failed') {
+            return back()->with('error', 'Only failed purchases can be retried.');
+        }
+
+        $amount = (float) $partyAgentAirtimePurchase->amount ?: (float) Setting::get('airtime_amount', 0);
+
+        if ($amount <= 0) {
+            return back()->with('error', 'No airtime amount on this record, and none set in Settings.');
+        }
+
+        $alreadyPaid = PartyAgentAirtimePurchase::where('party_agent_id', $partyAgentAirtimePurchase->party_agent_id)
+            ->where('status', '!=', 'failed')
+            ->exists();
+
+        if ($alreadyPaid) {
+            return back()->with('error', 'That party agent already has a successful airtime purchase.');
+        }
+
+        PurchasePartyAgentAirtimeJob::dispatch($partyAgentAirtimePurchase->party_agent_id, $amount);
+
+        $name = $partyAgentAirtimePurchase->partyAgent->full_name ?? $partyAgentAirtimePurchase->phone_number;
+
+        return back()->with('success', "Retrying airtime for {$name}.");
     }
 
     public function history(Request $request)
