@@ -44,6 +44,9 @@ class HandleInertiaRequests extends Middleware
                 'success'         => session('success'),
                 'error'           => session('error'),
                 'checkoutFunding' => session('checkoutFunding'),
+                // Phone numbers parsed from an uploaded contact list, handed
+                // back for confirmation before any airtime is bought.
+                'importedContacts' => session('importedContacts'),
             ],
         ];
     }

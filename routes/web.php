@@ -23,6 +23,8 @@ use App\Http\Controllers\Admin\AccreditationPaymentController as AdminAccreditat
 use App\Http\Controllers\Admin\DataboyAccreditationPaymentController as AdminDataboyAccreditationPaymentController;
 use App\Http\Controllers\Admin\DataPlanController as AdminDataPlanController;
 use App\Http\Controllers\Admin\DataPurchaseController as AdminDataPurchaseController;
+use App\Http\Controllers\Admin\ManualDataPurchaseController as AdminManualDataPurchaseController;
+use App\Http\Controllers\Admin\ImportedAirtimeController as AdminImportedAirtimeController;
 use App\Http\Controllers\Admin\EasigatewayFundingController as AdminEasigatewayFundingController;
 use App\Http\Controllers\Admin\AirtimeRecipientController as AdminAirtimeRecipientController;
 use App\Http\Controllers\Admin\AirtimeController as AdminAirtimeController;
@@ -248,6 +250,15 @@ Route::middleware('auth')->group(function () {
     Route::get('/admin/data-purchase', [AdminDataPurchaseController::class, 'index'])->name('admin.data-purchase');
     Route::post('/admin/data-purchase', [AdminDataPurchaseController::class, 'send'])->name('admin.data-purchase.send');
     Route::get('/admin/data-purchase/history', [AdminDataPurchaseController::class, 'history'])->name('admin.data-purchase.history');
+
+    // Airtime for an imported contact list (CSV/Excel, "Phone Number" column)
+    Route::post('/admin/airtime/import/preview', [AdminImportedAirtimeController::class, 'preview'])->name('admin.airtime.import.preview');
+    Route::post('/admin/airtime/import/send', [AdminImportedAirtimeController::class, 'send'])->name('admin.airtime.import.send');
+
+    // Manual data purchase — records purchases made by hand and debits the
+    // balance without calling EasiGateway. Intentionally NOT in the sidebar.
+    Route::get('/admin/manual-data-purchase', [AdminManualDataPurchaseController::class, 'index'])->name('admin.manual-data-purchase');
+    Route::post('/admin/manual-data-purchase', [AdminManualDataPurchaseController::class, 'store'])->name('admin.manual-data-purchase.store');
 
     // EasiGateway Wallet Funding
     Route::get('/admin/easigateway-funding', [AdminEasigatewayFundingController::class, 'index'])->name('admin.easigateway-funding');

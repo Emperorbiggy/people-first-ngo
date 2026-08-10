@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { router, usePage, Link } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import TargetTypeToggle from '@/Components/TargetTypeToggle';
+import ImportContactsModal from '@/Components/ImportContactsModal';
 
 function formatNaira(value) {
     const n = Number(value);
@@ -12,6 +13,7 @@ function formatNaira(value) {
 export default function Airtime({ type = 'databoy', airtimeAmount, balance = 0, databoys = [] }) {
     const { flash, errors } = usePage().props;
     const [selected, setSelected] = useState([]);
+    const [importing, setImporting] = useState(false);
     const [sending, setSending] = useState(false);
     const [retryingId, setRetryingId] = useState(null);
 
@@ -65,6 +67,17 @@ export default function Airtime({ type = 'databoy', airtimeAmount, balance = 0, 
                     </div>
                     <div className="flex items-center gap-3">
                         <TargetTypeToggle type={type} onChange={changeType} />
+                        <button
+                            type="button"
+                            onClick={() => setImporting(true)}
+                            className="px-4 py-2 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition whitespace-nowrap flex items-center gap-2"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                                    d="M12 4v12m0-12l-4 4m4-4l4 4M4 20h16" />
+                            </svg>
+                            Import Contact
+                        </button>
                         <Link
                             href={route('admin.airtime.history', { type })}
                             className="px-4 py-2 text-sm font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition whitespace-nowrap"
@@ -199,6 +212,10 @@ export default function Airtime({ type = 'databoy', airtimeAmount, balance = 0, 
                 </div>
 
             </div>
+
+            {importing && (
+                <ImportContactsModal onClose={() => setImporting(false)} defaultAmount={amount} />
+            )}
         </AdminLayout>
     );
 }
