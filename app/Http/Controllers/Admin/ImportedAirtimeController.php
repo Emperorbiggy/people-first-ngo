@@ -8,7 +8,7 @@ use App\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Bus;
-use PhpOffice\PhpSpreadsheet\IOFactory;
+use App\Support\PhoneListParser;
 
 /**
  * Buys airtime for a list of phone numbers uploaded as CSV/Excel, on a network
@@ -16,7 +16,9 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
  */
 class ImportedAirtimeController extends Controller
 {
-    private const PHONE_ALIASES = ['phonenumber', 'phone', 'phoneno', 'number', 'mobile', 'mobilenumber', 'msisdn', 'tel', 'telephone', 'contact'];
+    public function __construct(private PhoneListParser $parser)
+    {
+    }
 
     /** Preview the file's numbers without buying anything yet. */
     public function preview(Request $request)
@@ -24,7 +26,7 @@ class ImportedAirtimeController extends Controller
         $request->validate(['file' => 'required|file|max:20480']);
 
         try {
-            $numbers = $this->parse($request->file('file'));
+            $numbers = $this->parser->fromFile($request->file('file'));
         } catch (\Throwable $e) {
             return back()->withErrors(['import' => 'Could not read that file: ' . $e->getMessage()]);
         }
@@ -64,72 +66,5 @@ class ImportedAirtimeController extends Controller
         Bus::chain($jobs)->dispatch();
 
         return back()->with('success', "Queued {$numbers->count()} airtime purchase(s) of ₦" . number_format($amount, 2) . " on {$validated['network']}. Check Airtime History shortly for results.");
-    }
-
-    /**
-     * Reads csv/xlsx/xls/ods. Falls back to the first column when the sheet has
-     * no recognisable heading, so a bare list of numbers still works.
-     *
-     * @return array<int, string>
-     */
-    private function parse(UploadedFile $file): array
-    {
-        $sheet = IOFactory::load($file->getRealPath())->getActiveSheet()->toArray(null, true, false, false);
-
-        if (empty($sheet)) {
-            return [];
-        }
-
-        $column   = null;
-        $skipHead = false;
-
-        foreach ($sheet[0] ?? [] as $index => $heading) {
-            $normalised = preg_replace('/[^a-z]/', '', strtolower((string) $heading));
-
-            if ($normalised !== '' && in_array($normalised, self::PHONE_ALIASES, true)) {
-                $column   = $index;
-                $skipHead = true;
-                break;
-            }
-        }
-
-        // No heading matched — treat it as a bare list in the first column.
-        $column ??= 0;
-        $rows = $skipHead ? array_slice($sheet, 1) : $sheet;
-
-        $numbers = [];
-
-        foreach ($rows as $line) {
-            $number = $this->normalise((string) ($line[$column] ?? ''));
-
-            if ($number !== null) {
-                $numbers[$number] = true;
-            }
-        }
-
-        return array_keys($numbers);
-    }
-
-    /**
-     * Restores the leading zero Excel strips from 08012345678, and folds
-     * +234/234 forms into the same local number.
-     */
-    private function normalise(string $value): ?string
-    {
-        $digits = preg_replace('/\D/', '', $value);
-
-        if ($digits === '') {
-            return null;
-        }
-
-        if (str_starts_with($digits, '234') && strlen($digits) === 13) {
-            $digits = '0' . substr($digits, 3);
-        }
-
-        if (strlen($digits) === 10 && $digits[0] !== '0') {
-            $digits = '0' . $digits;
-        }
-
-        return strlen($digits) >= 10 ? $digits : null;
     }
 }

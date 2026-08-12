@@ -25,6 +25,7 @@ use App\Http\Controllers\Admin\DataPlanController as AdminDataPlanController;
 use App\Http\Controllers\Admin\DataPurchaseController as AdminDataPurchaseController;
 use App\Http\Controllers\Admin\ManualDataPurchaseController as AdminManualDataPurchaseController;
 use App\Http\Controllers\Admin\ImportedAirtimeController as AdminImportedAirtimeController;
+use App\Http\Controllers\Admin\ManualAirtimePurchaseController as AdminManualAirtimePurchaseController;
 use App\Http\Controllers\Admin\EasigatewayFundingController as AdminEasigatewayFundingController;
 use App\Http\Controllers\Admin\AirtimeRecipientController as AdminAirtimeRecipientController;
 use App\Http\Controllers\Admin\AirtimeController as AdminAirtimeController;
@@ -36,6 +37,7 @@ use App\Http\Controllers\Databoy\ApplicationController as DataboyApplicationCont
 use App\Http\Controllers\Databoy\PartyAgentController as DataboyPartyAgentController;
 use App\Http\Controllers\Databoy\ApoOfficerController as DataboyApoOfficerController;
 use App\Http\Controllers\Databoy\AttendanceController as DataboyAttendanceController;
+use App\Http\Controllers\Databoy\PoCheckInController as DataboyPoCheckInController;
 use App\Http\Controllers\Admin\ApoOfficerController as AdminApoOfficerController;
 use App\Http\Controllers\Admin\ApoRecipientController as AdminApoRecipientController;
 use App\Http\Controllers\Admin\ApoPaymentController as AdminApoPaymentController;
@@ -43,6 +45,7 @@ use App\Http\Controllers\Admin\AccreditationOfficerController as AdminAccreditat
 use App\Http\Controllers\Admin\AttendanceController as AdminAttendanceController;
 use App\Http\Controllers\Admin\EFormController as AdminEFormController;
 use App\Http\Controllers\Admin\PoOfficerController as AdminPoOfficerController;
+use App\Http\Controllers\Admin\PoCheckInOfficerController as AdminPoCheckInOfficerController;
 use App\Http\Controllers\Admin\BulkTransferImportController as AdminBulkTransferImportController;
 use App\Http\Controllers\Databoy\ApoAccreditationController as DataboyApoAccreditationController;
 use App\Http\Controllers\Databoy\AccreditationController as DataboyAccreditationController;
@@ -240,12 +243,19 @@ Route::middleware('auth')->group(function () {
     Route::delete('/admin/bulk-transfer-import/clear-unpaid', [AdminBulkTransferImportController::class, 'clearUnpaid'])->name('admin.bulk-transfer-import.clear-unpaid');
     Route::delete('/admin/bulk-transfer-import/{bulkTransferRecipient}', [AdminBulkTransferImportController::class, 'destroy'])->name('admin.bulk-transfer-import.destroy');
 
+    // Logins for APO/PO check-in officers (LGA-scoped)
+    Route::get('/admin/po-checkin-officers', [AdminPoCheckInOfficerController::class, 'index'])->name('admin.po-checkin-officers');
+    Route::post('/admin/po-checkin-officers', [AdminPoCheckInOfficerController::class, 'store'])->name('admin.po-checkin-officers.store');
+    Route::post('/admin/po-checkin-officers/{databoy}/toggle', [AdminPoCheckInOfficerController::class, 'toggle'])->name('admin.po-checkin-officers.toggle');
+    Route::delete('/admin/po-checkin-officers/{databoy}', [AdminPoCheckInOfficerController::class, 'destroy'])->name('admin.po-checkin-officers.destroy');
+
     // APO/PO officers — standalone roster, bank matching, recipients, payments
     Route::get('/admin/po-officers', [AdminPoOfficerController::class, 'index'])->name('admin.po-officers');
+    Route::post('/admin/po-officers/preview', [AdminPoOfficerController::class, 'preview'])->name('admin.po-officers.preview');
     Route::post('/admin/po-officers/import', [AdminPoOfficerController::class, 'import'])->name('admin.po-officers.import');
+    Route::post('/admin/po-officers/cancel-import', [AdminPoOfficerController::class, 'cancelImport'])->name('admin.po-officers.cancel-import');
     Route::post('/admin/po-officers/match-bank-codes', [AdminPoOfficerController::class, 'matchBankCodes'])->name('admin.po-officers.match-bank-codes');
     Route::post('/admin/po-officers/generate-recipients', [AdminPoOfficerController::class, 'generateRecipients'])->name('admin.po-officers.generate-recipients');
-    Route::post('/admin/po-officers/send-bulk-transfer', [AdminPoOfficerController::class, 'sendBulkTransfer'])->name('admin.po-officers.send-bulk-transfer');
     Route::post('/admin/po-officers/{poOfficer}/retry', [AdminPoOfficerController::class, 'retry'])->name('admin.po-officers.retry');
     Route::delete('/admin/po-officers/{poOfficer}', [AdminPoOfficerController::class, 'destroy'])->name('admin.po-officers.destroy');
 
@@ -274,6 +284,12 @@ Route::middleware('auth')->group(function () {
     // Airtime for an imported contact list (CSV/Excel, "Phone Number" column)
     Route::post('/admin/airtime/import/preview', [AdminImportedAirtimeController::class, 'preview'])->name('admin.airtime.import.preview');
     Route::post('/admin/airtime/import/send', [AdminImportedAirtimeController::class, 'send'])->name('admin.airtime.import.send');
+
+    // Manual airtime purchase — records airtime sent by hand and debits the
+    // balance without calling EasiGateway. Intentionally NOT in the sidebar.
+    Route::get('/admin/manual-airtime-purchase', [AdminManualAirtimePurchaseController::class, 'index'])->name('admin.manual-airtime-purchase');
+    Route::post('/admin/manual-airtime-purchase/preview', [AdminManualAirtimePurchaseController::class, 'preview'])->name('admin.manual-airtime-purchase.preview');
+    Route::post('/admin/manual-airtime-purchase', [AdminManualAirtimePurchaseController::class, 'store'])->name('admin.manual-airtime-purchase.store');
 
     // Manual data purchase — records purchases made by hand and debits the
     // balance without calling EasiGateway. Intentionally NOT in the sidebar.
@@ -335,6 +351,10 @@ Route::prefix('databoy')->name('databoy.')->group(function () {
         Route::get('/applications/create', [DataboyApplicationController::class, 'create'])->name('applications.create');
         Route::post('/applications', [DataboyApplicationController::class, 'store'])->name('applications.store');
         Route::put('/applications/{databoyApplication}/polling-unit', [DataboyApplicationController::class, 'updatePollingUnit'])->name('applications.update-polling-unit');
+
+        // APO/PO check-in — check-in officers only, scoped to their own LGA
+        Route::get('/po-checkin', [DataboyPoCheckInController::class, 'index'])->name('po-checkin.index');
+        Route::post('/po-checkin/{poOfficer}/check-in', [DataboyPoCheckInController::class, 'checkIn'])->name('po-checkin.check-in');
 
         // Attendance register — accreditation boys only (enforced in controller)
         Route::get('/attendance', [DataboyAttendanceController::class, 'index'])->name('attendance.index');

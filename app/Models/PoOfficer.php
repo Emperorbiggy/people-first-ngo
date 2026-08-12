@@ -11,7 +11,10 @@ class PoOfficer extends Model
         'bank_name', 'bank_code', 'account_number', 'account_name',
         'final_lga', 'final_pu', 'final_ra_ward', 'final_role',
         'recipient_code', 'recipient_status', 'recipient_message',
+        'checked_in_at', 'checked_in_by',
     ];
+
+    protected $casts = ['checked_in_at' => 'datetime'];
 
     protected $appends = ['full_name'];
 
@@ -21,7 +24,34 @@ class PoOfficer extends Model
         return trim("{$this->final_surname} {$this->final_first_name} {$this->final_other_name}");
     }
 
-    public function payments() { return $this->hasMany(PoPayment::class, 'po_officer_id'); }
+    public function payments()   { return $this->hasMany(PoPayment::class, 'po_officer_id'); }
+    public function checkedInBy(){ return $this->belongsTo(Databoy::class, 'checked_in_by'); }
+
+    /**
+     * A check-in officer only ever sees their own LGA. final_lga is free text
+     * (this roster has no geo foreign keys), so the comparison is done on a
+     * normalised form — "Ede North", "EDE NORTH" and "ede-north" are one place.
+     */
+    public function scopeForLga($query, ?string $lgaName)
+    {
+        $needle = preg_replace('/[^a-z0-9]/', '', strtolower((string) $lgaName));
+
+        if ($needle === '') {
+            // No LGA on the login means no roster — never the whole state.
+            return $query->whereRaw('1 = 0');
+        }
+
+        // Nested REPLACE rather than REGEXP_REPLACE: the latter needs MySQL 8+
+        // and would fail outright on 5.7. This strips the punctuation that
+        // actually varies in LGA names — spaces, hyphens, underscores, dots.
+        return $query->whereRaw(
+            "LOWER(REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(final_lga, ''), ' ', ''), '-', ''), '_', ''), '.', '')) = ?",
+            [$needle]
+        );
+    }
+
+    public function scopeCheckedIn($query)  { return $query->whereNotNull('checked_in_at'); }
+    public function scopeNotCheckedIn($query) { return $query->whereNull('checked_in_at'); }
 
     /**
      * A payment that is not a definite failure — it holds this officer's

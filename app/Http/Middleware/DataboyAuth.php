@@ -23,6 +23,16 @@ class DataboyAuth
         'databoy.logout',
     ];
 
+    /**
+     * A check-in officer's entire portal: their LGA's APO/PO roster, nothing
+     * else. Same confinement idea as the APO accreditation officer above.
+     */
+    private const PO_CHECKIN_ROUTES = [
+        'databoy.po-checkin.index',
+        'databoy.po-checkin.check-in',
+        'databoy.logout',
+    ];
+
     public function handle(Request $request, Closure $next)
     {
         if (!Auth::guard('databoy')->check()) {
@@ -33,6 +43,10 @@ class DataboyAuth
 
         if ($databoy->isApoAccreditationOfficer() && !in_array($request->route()?->getName(), self::APO_OFFICER_ROUTES, true)) {
             return redirect()->route('databoy.apo-accreditation.index');
+        }
+
+        if ($databoy->isPoCheckInOfficer() && !in_array($request->route()?->getName(), self::PO_CHECKIN_ROUTES, true)) {
+            return redirect()->route('databoy.po-checkin.index');
         }
 
         return $next($request);

@@ -39,6 +39,7 @@ function Badge({ status, fallback = '—' }) {
 
 export default function PoOfficers({ officers = [], stats, amount = 0 }) {
     const { flash, errors } = usePage().props;
+    const preview = flash?.poPreview;
     const [search, setSearch] = useState('');
     const [filter, setFilter] = useState('all');
     const [busy, setBusy] = useState(null);
@@ -50,6 +51,7 @@ export default function PoOfficers({ officers = [], stats, amount = 0 }) {
         return officers.filter((o) => {
             if (filter === 'no_code' && o.bank_code) return false;
             if (filter === 'no_recipient' && o.recipient_status === 'success') return false;
+            if (filter === 'checked_in' && !o.checked_in_at) return false;
             if (filter === 'paid' && !o.paid) return false;
             if (filter === 'unpaid' && o.paid) return false;
             if (terms.length === 0) return true;
@@ -71,11 +73,24 @@ export default function PoOfficers({ officers = [], stats, amount = 0 }) {
         const file = e.target.files?.[0];
         if (!file) return;
         setBusy('import');
-        router.post(route('admin.po-officers.import'), { file }, {
+        // Preview first — nothing is written until it is confirmed.
+        router.post(route('admin.po-officers.preview'), { file }, {
             forceFormData: true,
             preserveScroll: true,
             onFinish: () => { setBusy(null); if (fileRef.current) fileRef.current.value = ''; },
         });
+    };
+
+    const confirmImport = () => {
+        setBusy('confirm');
+        router.post(route('admin.po-officers.import'), { token: preview.token }, {
+            preserveScroll: true,
+            onFinish: () => setBusy(null),
+        });
+    };
+
+    const cancelImport = () => {
+        router.post(route('admin.po-officers.cancel-import'), { token: preview.token }, { preserveScroll: true });
     };
 
     const retry = (o) => {
@@ -102,7 +117,7 @@ export default function PoOfficers({ officers = [], stats, amount = 0 }) {
                         <input ref={fileRef} type="file" className="hidden" accept=".csv,.txt,.xlsx,.xls,.ods" onChange={upload} />
                         <button onClick={() => fileRef.current?.click()} disabled={busy === 'import'}
                             className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 rounded-xl transition">
-                            {busy === 'import' ? 'Importing…' : 'Import Roster'}
+                            {busy === 'import' ? 'Reading…' : 'Import Roster'}
                         </button>
                     </div>
                 </div>
@@ -111,12 +126,112 @@ export default function PoOfficers({ officers = [], stats, amount = 0 }) {
                 {flash?.error && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3">{flash.error}</div>}
                 {errors?.file && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3">{errors.file}</div>}
 
+                {preview && (
+                    <div className="bg-white rounded-2xl border-2 border-indigo-200 shadow-sm overflow-hidden">
+                        <div className="px-5 py-4 bg-indigo-50 border-b border-indigo-100">
+                            <p className="text-sm font-bold text-indigo-900">Preview — nothing has been imported yet</p>
+                            <p className="text-xs text-indigo-700/70 mt-0.5 break-all">{preview.file}</p>
+                        </div>
+
+                        <div className="p-5 space-y-4">
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                <div className="rounded-xl bg-gray-50 px-3 py-2.5">
+                                    <p className="text-xl font-bold text-gray-800">{preview.total}</p>
+                                    <p className="text-[11px] font-semibold uppercase text-gray-400">Rows read</p>
+                                </div>
+                                <div className="rounded-xl bg-emerald-50 px-3 py-2.5">
+                                    <p className="text-xl font-bold text-emerald-700">{preview.new}</p>
+                                    <p className="text-[11px] font-semibold uppercase text-emerald-600/70">New</p>
+                                </div>
+                                <div className="rounded-xl bg-blue-50 px-3 py-2.5">
+                                    <p className="text-xl font-bold text-blue-700">{preview.updating}</p>
+                                    <p className="text-[11px] font-semibold uppercase text-blue-600/70">Will update</p>
+                                </div>
+                                <div className="rounded-xl bg-amber-50 px-3 py-2.5">
+                                    <p className="text-xl font-bold text-amber-700">{preview.skipped}</p>
+                                    <p className="text-[11px] font-semibold uppercase text-amber-600/70">Will skip</p>
+                                </div>
+                            </div>
+
+                            <div>
+                                <p className="text-xs font-bold text-gray-600 mb-1.5">Columns detected</p>
+                                <div className="flex flex-wrap gap-1.5">
+                                    {Object.entries(preview.columns ?? {}).map(([field, heading]) => (
+                                        <span key={field} className="px-2 py-1 bg-gray-50 border border-gray-200 rounded-lg text-[11px] text-gray-600">
+                                            <span className="font-semibold text-gray-700">{field}</span> ← {heading}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {preview.sample?.length > 0 && (
+                                <div>
+                                    <p className="text-xs font-bold text-gray-600 mb-1.5">First {preview.sample.length} of {preview.ready} importable</p>
+                                    <div className="overflow-x-auto border border-gray-200 rounded-xl">
+                                        <table className="min-w-full text-xs">
+                                            <thead className="bg-gray-50">
+                                                <tr>
+                                                    {['Surname', 'First', 'Other', 'Phone', 'Bank', 'Code', 'Account', 'Account Name', 'LGA'].map((h) => (
+                                                        <th key={h} className="px-2.5 py-2 text-left font-semibold text-gray-500 whitespace-nowrap">{h}</th>
+                                                    ))}
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-gray-50">
+                                                {preview.sample.map((r, i) => (
+                                                    <tr key={i}>
+                                                        <td className="px-2.5 py-2 font-semibold text-gray-800 whitespace-nowrap uppercase">{r.final_surname}</td>
+                                                        <td className="px-2.5 py-2 text-gray-700 whitespace-nowrap">{r.final_first_name || '—'}</td>
+                                                        <td className="px-2.5 py-2 text-gray-500 whitespace-nowrap">{r.final_other_name || '—'}</td>
+                                                        <td className="px-2.5 py-2 text-gray-600 whitespace-nowrap tabular-nums">{r.phone_number || '—'}</td>
+                                                        <td className="px-2.5 py-2 text-gray-600 whitespace-nowrap">{r.bank_name || '—'}</td>
+                                                        <td className="px-2.5 py-2 text-gray-600 whitespace-nowrap">{r.bank_code || '—'}</td>
+                                                        <td className="px-2.5 py-2 text-gray-600 whitespace-nowrap tabular-nums">{r.account_number}</td>
+                                                        <td className="px-2.5 py-2 text-gray-500 whitespace-nowrap">{r.account_name || '—'}</td>
+                                                        <td className="px-2.5 py-2 text-gray-600 whitespace-nowrap">{r.final_lga || '—'}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            )}
+
+                            {preview.skippedSample?.length > 0 && (
+                                <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3">
+                                    <p className="text-xs font-bold text-amber-900 mb-1.5">
+                                        {preview.skipped} row(s) will be skipped
+                                    </p>
+                                    <ul className="text-[11px] text-amber-800/80 space-y-0.5">
+                                        {preview.skippedSample.map((r, i) => (
+                                            <li key={i}>{r.name} — {r.reason}</li>
+                                        ))}
+                                    </ul>
+                                    {preview.skipped > preview.skippedSample.length && (
+                                        <p className="text-[11px] text-amber-700/60 mt-1">…and {preview.skipped - preview.skippedSample.length} more.</p>
+                                    )}
+                                </div>
+                            )}
+
+                            <div className="flex gap-2.5 pt-1">
+                                <button onClick={cancelImport}
+                                    className="flex-1 py-3 rounded-xl text-sm font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 transition">
+                                    Cancel
+                                </button>
+                                <button onClick={confirmImport} disabled={busy === 'confirm' || preview.ready === 0}
+                                    className="flex-1 py-3 rounded-xl text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 transition">
+                                    {busy === 'confirm' ? 'Importing…' : `Import ${preview.ready} officer(s)`}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                     <Stat label="On Roster" value={stats.total} />
                     <Stat label="No Bank Code" value={stats.missing_code} tone="amber" />
                     <Stat label="Recipients" value={stats.with_recipient} tone="violet" />
+                    <Stat label="Checked In" value={stats.checked_in} tone="violet" />
                     <Stat label="Paid" value={stats.paid} tone="green" />
-                    <Stat label="Unpaid" value={stats.unpaid} tone="amber" />
                     <Stat label="Disbursed" value={naira(stats.amount_paid)} tone="green" />
                 </div>
 
@@ -150,27 +265,21 @@ export default function PoOfficers({ officers = [], stats, amount = 0 }) {
 
                     <div className="flex items-center justify-between gap-3 flex-wrap border-t border-gray-50 pt-3">
                         <div>
-                            <p className="text-sm font-bold text-gray-800">4 · Send Bulk Transfer</p>
+                            <p className="text-sm font-bold text-gray-800">4 · Payment happens at check-in</p>
                             <p className="text-xs text-gray-500 mt-0.5">
                                 {amount > 0
-                                    ? <>Pays <span className="font-bold text-gray-700">{naira(amount)}</span> to each of the {stats.unpaid} unpaid officer(s) with a recipient.</>
-                                    : <span className="text-red-600 font-semibold">Set the APO/PO amount in Settings first.</span>}
+                                    ? <>Check-in officers pay <span className="font-bold text-gray-700">{naira(amount)}</span> as they confirm each officer present, from their own LGA list. There is no bulk transfer.</>
+                                    : <span className="text-red-600 font-semibold">Set the APO/PO amount in Settings — check-ins cannot pay without it.</span>}
                             </p>
                         </div>
                         <div className="flex items-center gap-2">
                             <Link href={route('admin.settings')} className="px-3 py-2 text-xs font-semibold text-gray-500 hover:text-indigo-600 transition">
                                 Settings →
                             </Link>
-                            <button
-                                onClick={() => post(
-                                    'admin.po-officers.send-bulk-transfer',
-                                    null,
-                                    `Send ${naira(amount)} to each unpaid officer with a recipient?\n\nThis moves real money. Each officer can only ever be paid once.`
-                                )}
-                                disabled={busy === 'admin.po-officers.send-bulk-transfer' || amount <= 0}
-                                className="px-4 py-2 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 rounded-xl transition whitespace-nowrap">
-                                {busy === 'admin.po-officers.send-bulk-transfer' ? 'Queueing…' : 'Send Bulk Transfer'}
-                            </button>
+                            <Link href={route('admin.po-checkin-officers')}
+                                className="px-4 py-2 text-sm font-semibold text-violet-700 bg-violet-50 hover:bg-violet-100 rounded-xl transition whitespace-nowrap">
+                                Check-In Officers
+                            </Link>
                         </div>
                     </div>
                 </div>
@@ -181,7 +290,7 @@ export default function PoOfficers({ officers = [], stats, amount = 0 }) {
                             placeholder="Search name, phone, account, LGA, PU, role…"
                             className="flex-1 min-w-[220px] px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                         <div className="flex gap-1.5 flex-wrap">
-                            {[['all', 'All'], ['no_code', 'No code'], ['no_recipient', 'No recipient'], ['unpaid', 'Unpaid'], ['paid', 'Paid']].map(([f, labelText]) => (
+                            {[['all', 'All'], ['no_code', 'No code'], ['no_recipient', 'No recipient'], ['checked_in', 'Checked in'], ['unpaid', 'Unpaid'], ['paid', 'Paid']].map(([f, labelText]) => (
                                 <button key={f} onClick={() => setFilter(f)}
                                     className={`px-3 py-2.5 text-xs font-semibold rounded-lg transition ${
                                         filter === f ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -208,7 +317,7 @@ export default function PoOfficers({ officers = [], stats, amount = 0 }) {
                             <table className="min-w-full divide-y divide-gray-100">
                                 <thead className="bg-gray-50">
                                     <tr>
-                                        {['#', 'Surname', 'First Name', 'Other Name', 'Phone', 'Bank', 'Code', 'Account No.', 'Account Name', 'LGA', 'RA/Ward', 'PU', 'Role', 'Recipient', 'Payment', ''].map((h) => (
+                                        {['#', 'Surname', 'First Name', 'Other Name', 'Phone', 'Bank', 'Code', 'Account No.', 'Account Name', 'LGA', 'RA/Ward', 'PU', 'Role', 'Recipient', 'Checked In', 'Payment', ''].map((h) => (
                                             <th key={h} className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">{h}</th>
                                         ))}
                                     </tr>
@@ -240,16 +349,24 @@ export default function PoOfficers({ officers = [], stats, amount = 0 }) {
                                                 )}
                                             </td>
                                             <td className="px-3 py-3 whitespace-nowrap">
+                                                {o.checked_in_at ? (
+                                                    <div>
+                                                        <span className="inline-flex px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-lg">✓</span>
+                                                        {o.checked_in_by && <p className="text-[11px] text-gray-400 mt-1 max-w-[120px] truncate" title={o.checked_in_by}>{o.checked_in_by}</p>}
+                                                    </div>
+                                                ) : <span className="text-xs text-gray-400">—</span>}
+                                            </td>
+                                            <td className="px-3 py-3 whitespace-nowrap">
                                                 <Badge status={o.payment_status} fallback="not paid" />
                                                 {o.payment_status === 'failed' && o.payment_message && (
                                                     <p className="text-[11px] text-red-400 mt-1 max-w-[180px] truncate" title={o.payment_message}>{o.payment_message}</p>
                                                 )}
                                             </td>
                                             <td className="px-3 py-3 whitespace-nowrap">
-                                                {!o.paid && o.recipient_status === 'success' && (
+                                                {!o.paid && o.checked_in_at && o.recipient_status === 'success' && (
                                                     <button onClick={() => retry(o)} disabled={busy === `retry-${o.id}`}
                                                         className="px-3 py-1.5 text-xs font-bold rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 disabled:opacity-40 transition">
-                                                        {busy === `retry-${o.id}` ? '…' : 'Pay'}
+                                                        {busy === `retry-${o.id}` ? '…' : 'Retry Pay'}
                                                     </button>
                                                 )}
                                                 {!o.paid && (

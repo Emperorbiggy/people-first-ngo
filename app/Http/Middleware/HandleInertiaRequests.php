@@ -47,6 +47,9 @@ class HandleInertiaRequests extends Middleware
                 // Phone numbers parsed from an uploaded contact list, handed
                 // back for confirmation before any airtime is bought.
                 'importedContacts' => session('importedContacts'),
+                // Parsed APO/PO roster summary, shown for confirmation before
+                // anything is written to the roster.
+                'poPreview'        => session('poPreview'),
             ],
         ];
     }

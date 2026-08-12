@@ -38,6 +38,16 @@ class Databoy extends Authenticatable
         return $this->role === 'apo_accreditation_officer';
     }
 
+    /**
+     * Checks APO/PO officers in on the day, restricted to their own LGA.
+     * Distinct from isApoAccreditationOfficer(), which accredits APO officers
+     * with photos and has nothing to do with the standalone PO roster.
+     */
+    public function isPoCheckInOfficer(): bool
+    {
+        return $this->role === 'po_checkin_officer';
+    }
+
     public function getAuthIdentifierName(): string { return 'login_email'; }
 
     public function state()   { return $this->belongsTo(State::class); }

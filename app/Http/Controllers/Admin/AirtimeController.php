@@ -117,14 +117,8 @@ class AirtimeController extends Controller
         }
 
         if ($airtimePurchase->databoy_id === null) {
-            $alreadyPaid = AirtimePurchase::where('phone_number', $airtimePurchase->phone_number)
-                ->where('status', '!=', 'failed')
-                ->exists();
-
-            if ($alreadyPaid) {
-                return back()->with('error', "{$airtimePurchase->phone_number} already has a successful airtime purchase.");
-            }
-
+            // Imported numbers may legitimately be topped up more than once,
+            // so a previous success does not block a retry here.
             PurchaseImportedAirtimeJob::dispatch(
                 $airtimePurchase->phone_number,
                 $airtimePurchase->network,

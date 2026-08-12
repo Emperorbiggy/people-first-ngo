@@ -15,6 +15,10 @@ use Illuminate\Queue\SerializesModels;
  * Buys airtime for a phone number that came from an imported list rather than
  * from a databoy or party agent. Recorded in airtime_purchases with a null
  * databoy_id, so imported top-ups sit in the same history as every other one.
+ *
+ * Repeat purchases for the same number are allowed by design: a list may
+ * legitimately be topped up more than once, so nothing here blocks a number
+ * that already has a purchase on record.
  */
 class PurchaseImportedAirtimeJob implements ShouldQueue
 {
@@ -32,16 +36,6 @@ class PurchaseImportedAirtimeJob implements ShouldQueue
 
     public function handle(EasiGatewayService $easiGateway): void
     {
-        // Already bought for this number? Don't top it up twice.
-        $existing = AirtimePurchase::where('phone_number', $this->phoneNumber)
-            ->where('status', '!=', 'failed')
-            ->exists();
-
-        if ($existing) {
-            $this->record(null, 'failed', 'Skipped — this number already has an airtime purchase on record.');
-            return;
-        }
-
         $categories = $easiGateway->getServiceCategories();
 
         if (($categories['status'] ?? null) !== 'success' || empty($categories['data'])) {

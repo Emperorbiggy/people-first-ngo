@@ -76,7 +76,7 @@ export default function Airtime({ type = 'databoy', airtimeAmount, balance = 0, 
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
                                     d="M12 4v12m0-12l-4 4m4-4l4 4M4 20h16" />
                             </svg>
-                            Import Contact
+                            Buy for Contacts
                         </button>
                         <Link
                             href={route('admin.airtime.history', { type })}
