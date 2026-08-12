@@ -166,16 +166,18 @@ class PoOfficerController extends Controller
 
         foreach ($ready as $row) {
             $account = $row['account_number'];
+            $name    = trim("{$row['final_surname']} {$row['final_first_name']}");
 
             if (isset($seen[$account])) {
                 $duplicates[] = [
                     'account' => $account,
-                    'names'   => $seen[$account] . ' / ' . trim("{$row['final_surname']} {$row['final_first_name']}"),
+                    'kept'    => $seen[$account],
+                    'skipped' => $name,
                 ];
                 continue;
             }
 
-            $seen[$account] = trim("{$row['final_surname']} {$row['final_first_name']}");
+            $seen[$account] = $name;
         }
 
         return back()->with('poPreview', [
@@ -183,9 +185,9 @@ class PoOfficerController extends Controller
             'file'     => $file->getClientOriginalName(),
             'columns'  => $this->mappedColumnLabels($this->storedFile($token)),
             'total'    => count($rows),
-            'ready'    => count($ready),
-            // Distinct accounts, minus those already on the roster — a repeat
-            // inside the file does not become a second row.
+            // Repeats within the file are not imported at all, so what will
+            // actually be written is the distinct-account count.
+            'ready'    => count($seen),
             'new'      => max(0, count($seen) - $existing),
             'updating' => $existing,
             'skipped'  => count($skipped),
@@ -216,7 +218,9 @@ class PoOfficerController extends Controller
         $created = 0;
         $updated = 0;
         $skipped = 0;
+        $duplicateSkipped = 0;
         $skippedExamples = [];
+        $seenAccounts = [];
 
         foreach ($rows as $row) {
             $reason = $this->rejectionReason($row);
@@ -230,6 +234,16 @@ class PoOfficerController extends Controller
 
                 continue;
             }
+
+            // The same account number twice in one file: keep the first row and
+            // drop the rest. Letting a repeat through would overwrite the row
+            // before it, which silently loses one of two different people.
+            if (isset($seenAccounts[$row['account_number']])) {
+                $duplicateSkipped++;
+                continue;
+            }
+
+            $seenAccounts[$row['account_number']] = true;
 
             // Account number identifies the officer, so a corrected re-upload
             // updates in place instead of creating a rival payout row.
@@ -250,6 +264,10 @@ class PoOfficerController extends Controller
         $this->discardStored($validated['token']);
 
         $message = "Imported {$created} officer(s)" . ($updated ? ", updated {$updated} existing" : '') . '.';
+
+        if ($duplicateSkipped) {
+            $message .= " {$duplicateSkipped} duplicate row(s) ignored — that account number already appeared earlier in the file.";
+        }
 
         if ($skipped) {
             $message .= " {$skipped} row(s) skipped — a surname and an account number are required."

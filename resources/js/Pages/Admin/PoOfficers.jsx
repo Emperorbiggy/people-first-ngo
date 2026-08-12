@@ -197,17 +197,20 @@ export default function PoOfficers({ officers = [], stats, amount = 0 }) {
                             )}
 
                             {preview.duplicates > 0 && (
-                                <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3">
-                                    <p className="text-xs font-bold text-red-900 mb-1.5">
-                                        {preview.duplicates} account number(s) appear more than once in this file
+                                <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3">
+                                    <p className="text-xs font-bold text-amber-900 mb-1.5">
+                                        {preview.duplicates} duplicate row(s) will be ignored
                                     </p>
-                                    <p className="text-[11px] text-red-800/80 mb-1.5">
-                                        Only the last row for each will survive — if these are different people, one of them is lost.
-                                        Fix the sheet if that isn't intended.
+                                    <p className="text-[11px] text-amber-800/80 mb-1.5">
+                                        These account numbers appear more than once. The first row for each is imported and the
+                                        repeats are dropped — nothing gets overwritten.
                                     </p>
-                                    <ul className="text-[11px] text-red-800/80 space-y-0.5">
+                                    <ul className="text-[11px] text-amber-800/80 space-y-0.5">
                                         {preview.duplicateSample.map((d, i) => (
-                                            <li key={i}><span className="font-mono">{d.account}</span> — {d.names}</li>
+                                            <li key={i}>
+                                                <span className="font-mono">{d.account}</span> — keeping <span className="font-semibold">{d.kept}</span>
+                                                {d.skipped !== d.kept && <>, ignoring <span className="font-semibold">{d.skipped}</span></>}
+                                            </li>
                                         ))}
                                     </ul>
                                     {preview.duplicates > preview.duplicateSample.length && (
