@@ -227,7 +227,7 @@ class PoOfficerController extends Controller
         $message = "Imported {$created} officer(s)" . ($updated ? ", updated {$updated} existing" : '') . '.';
 
         if ($skipped) {
-            $message .= " {$skipped} row(s) skipped — a surname, a first or other name, and an account number are required."
+            $message .= " {$skipped} row(s) skipped — a surname and an account number are required."
                 . ($skippedExamples ? ' e.g. ' . implode('; ', $skippedExamples) . '.' : '');
         }
 
@@ -243,17 +243,16 @@ class PoOfficerController extends Controller
     }
 
     /**
-     * Why this row cannot be imported, or null if it can. A surname, SOME
-     * given name (first or other — many sheets carry only one of the two), and
-     * an account number to pay into.
+     * Why this row cannot be imported, or null if it can.
+     *
+     * Only two things actually matter: something to call the person by, and an
+     * account to pay into. First and other name are both optional — plenty of
+     * rows carry neither — so a surname alone is enough to import.
      */
     private function rejectionReason(array $row): ?string
     {
-        $hasGivenName = $row['final_first_name'] !== '' || !empty($row['final_other_name']);
-
         return match (true) {
             $row['final_surname'] === ''    => 'no surname',
-            !$hasGivenName                  => 'no first or other name',
             $row['account_number'] === null => 'no account number',
             default                         => null,
         };

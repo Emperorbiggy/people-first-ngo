@@ -18,10 +18,14 @@ class PoOfficer extends Model
 
     protected $appends = ['full_name'];
 
-    /** Surname first, the way the roster is read. */
+    /**
+     * Surname first, the way the roster is read. Collapses whitespace: first
+     * and other name are both optional, so a missing one must not leave a
+     * double space in the middle of the name.
+     */
     public function getFullNameAttribute(): string
     {
-        return trim("{$this->final_surname} {$this->final_first_name} {$this->final_other_name}");
+        return trim(preg_replace('/\s+/', ' ', "{$this->final_surname} {$this->final_first_name} {$this->final_other_name}"));
     }
 
     public function payments()   { return $this->hasMany(PoPayment::class, 'po_officer_id'); }
