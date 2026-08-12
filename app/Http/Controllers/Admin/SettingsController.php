@@ -39,6 +39,7 @@ class SettingsController extends Controller
             'accreditationDataboyAmount' => Setting::get('accreditation_databoy_amount', ''),
             'partyAgentPaymentAmount'    => Setting::get('party_agent_payment_amount', ''),
             'apoPaymentAmount'           => Setting::get('apo_payment_amount', ''),
+            'poPaymentAmount'            => Setting::get('po_payment_amount', ''),
         ]);
     }
 
@@ -73,6 +74,7 @@ class SettingsController extends Controller
             'accreditation_databoy_amount' => 'nullable|numeric|min:0',
             'party_agent_payment_amount'   => 'nullable|numeric|min:0',
             'apo_payment_amount'           => 'nullable|numeric|min:0',
+            'po_payment_amount'            => 'nullable|numeric|min:0',
             'passcode'                => 'required|string',
         ]);
 
@@ -108,6 +110,10 @@ class SettingsController extends Controller
 
         if ($request->filled('apo_payment_amount')) {
             Setting::set('apo_payment_amount', $request->apo_payment_amount);
+        }
+
+        if ($request->filled('po_payment_amount')) {
+            Setting::set('po_payment_amount', $request->po_payment_amount);
         }
 
         if ($request->filled('paystack_secret_key')) {

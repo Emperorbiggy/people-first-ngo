@@ -310,11 +310,12 @@ function AirtimeSettingsSection({ airtimeAmount, paymentGateway }) {
     );
 }
 
-function AccreditationPaymentSection({ accreditationGeneralAmount, accreditationDataboyAmount, partyAgentPaymentAmount, apoPaymentAmount, paymentGateway }) {
+function AccreditationPaymentSection({ accreditationGeneralAmount, accreditationDataboyAmount, partyAgentPaymentAmount, apoPaymentAmount, poPaymentAmount, paymentGateway }) {
     const [applicantAmount, setApplicantAmount] = useState(accreditationGeneralAmount || '');
     const [databoyAmount, setDataboyAmount] = useState(accreditationDataboyAmount || '');
     const [partyAgentAmount, setPartyAgentAmount] = useState(partyAgentPaymentAmount || '');
     const [apoAmount, setApoAmount] = useState(apoPaymentAmount || '');
+    const [poAmount, setPoAmount] = useState(poPaymentAmount || '');
     const [saving, setSaving] = useState(false);
     const passcodeGate = usePasscodeGate();
 
@@ -326,6 +327,7 @@ function AccreditationPaymentSection({ accreditationGeneralAmount, accreditation
             accreditation_databoy_amount: databoyAmount,
             party_agent_payment_amount: partyAgentAmount,
             apo_payment_amount: apoAmount,
+            po_payment_amount: poAmount,
             passcode,
         }, {
             preserveScroll: true,
@@ -406,6 +408,22 @@ function AccreditationPaymentSection({ accreditationGeneralAmount, accreditation
                     />
                 </div>
                 <p className="text-xs text-gray-500 mt-1">Flat amount paid automatically when an APO officer is checked out and accredited. Each officer is paid once, ever — enforced by the database.</p>
+            </div>
+            <div>
+                <label className="text-xs font-medium text-gray-600">APO/PO Officer Bulk Transfer</label>
+                <div className="relative mt-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">₦</span>
+                    <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={poAmount}
+                        onChange={(e) => setPoAmount(e.target.value)}
+                        placeholder="0.00"
+                        className="w-full rounded-xl border border-gray-200 pl-7 pr-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                </div>
+                <p className="text-xs text-gray-500 mt-1">Amount sent to each officer on the standalone APO/PO roster when you run Send Bulk Transfer. Each officer can only be paid once, ever — enforced by the database.</p>
             </div>
             <button
                 type="button"
@@ -751,6 +769,7 @@ export default function Settings({
     accreditationDataboyAmount,
     partyAgentPaymentAmount,
     apoPaymentAmount,
+    poPaymentAmount,
     apoPaymentEnabled,
 }) {
     const { flash } = usePage().props;
@@ -879,6 +898,7 @@ export default function Settings({
                     accreditationDataboyAmount={accreditationDataboyAmount}
                     partyAgentPaymentAmount={partyAgentPaymentAmount}
                     apoPaymentAmount={apoPaymentAmount}
+                    poPaymentAmount={poPaymentAmount}
                     paymentGateway={paymentGateway}
                 />
 

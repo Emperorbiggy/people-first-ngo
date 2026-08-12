@@ -42,6 +42,8 @@ use App\Http\Controllers\Admin\ApoPaymentController as AdminApoPaymentController
 use App\Http\Controllers\Admin\AccreditationOfficerController as AdminAccreditationOfficerController;
 use App\Http\Controllers\Admin\AttendanceController as AdminAttendanceController;
 use App\Http\Controllers\Admin\EFormController as AdminEFormController;
+use App\Http\Controllers\Admin\PoOfficerController as AdminPoOfficerController;
+use App\Http\Controllers\Admin\BulkTransferImportController as AdminBulkTransferImportController;
 use App\Http\Controllers\Databoy\ApoAccreditationController as DataboyApoAccreditationController;
 use App\Http\Controllers\Databoy\AccreditationController as DataboyAccreditationController;
 use App\Http\Controllers\NewFormController;
@@ -228,6 +230,24 @@ Route::middleware('auth')->group(function () {
     Route::post('/admin/accreditation-officers', [AdminAccreditationOfficerController::class, 'store'])->name('admin.accreditation-officers.store');
     Route::post('/admin/accreditation-officers/{databoy}/toggle', [AdminAccreditationOfficerController::class, 'toggle'])->name('admin.accreditation-officers.toggle');
     Route::delete('/admin/accreditation-officers/{databoy}', [AdminAccreditationOfficerController::class, 'destroy'])->name('admin.accreditation-officers.destroy');
+
+    // Import Bulk Transfer — import people, resolve recipients, pay them
+    Route::get('/admin/bulk-transfer-import', [AdminBulkTransferImportController::class, 'index'])->name('admin.bulk-transfer-import');
+    Route::post('/admin/bulk-transfer-import/import', [AdminBulkTransferImportController::class, 'import'])->name('admin.bulk-transfer-import.import');
+    Route::post('/admin/bulk-transfer-import/retry-recipients', [AdminBulkTransferImportController::class, 'retryRecipients'])->name('admin.bulk-transfer-import.retry-recipients');
+    Route::post('/admin/bulk-transfer-import/send', [AdminBulkTransferImportController::class, 'sendBulkTransfer'])->name('admin.bulk-transfer-import.send');
+    Route::post('/admin/bulk-transfer-import/{bulkTransferRecipient}/pay', [AdminBulkTransferImportController::class, 'pay'])->name('admin.bulk-transfer-import.pay');
+    Route::delete('/admin/bulk-transfer-import/clear-unpaid', [AdminBulkTransferImportController::class, 'clearUnpaid'])->name('admin.bulk-transfer-import.clear-unpaid');
+    Route::delete('/admin/bulk-transfer-import/{bulkTransferRecipient}', [AdminBulkTransferImportController::class, 'destroy'])->name('admin.bulk-transfer-import.destroy');
+
+    // APO/PO officers — standalone roster, bank matching, recipients, payments
+    Route::get('/admin/po-officers', [AdminPoOfficerController::class, 'index'])->name('admin.po-officers');
+    Route::post('/admin/po-officers/import', [AdminPoOfficerController::class, 'import'])->name('admin.po-officers.import');
+    Route::post('/admin/po-officers/match-bank-codes', [AdminPoOfficerController::class, 'matchBankCodes'])->name('admin.po-officers.match-bank-codes');
+    Route::post('/admin/po-officers/generate-recipients', [AdminPoOfficerController::class, 'generateRecipients'])->name('admin.po-officers.generate-recipients');
+    Route::post('/admin/po-officers/send-bulk-transfer', [AdminPoOfficerController::class, 'sendBulkTransfer'])->name('admin.po-officers.send-bulk-transfer');
+    Route::post('/admin/po-officers/{poOfficer}/retry', [AdminPoOfficerController::class, 'retry'])->name('admin.po-officers.retry');
+    Route::delete('/admin/po-officers/{poOfficer}', [AdminPoOfficerController::class, 'destroy'])->name('admin.po-officers.destroy');
 
     // E-Form submissions
     Route::get('/admin/e-forms', [AdminEFormController::class, 'index'])->name('admin.e-forms');
