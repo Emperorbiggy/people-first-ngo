@@ -157,15 +157,40 @@ class PoOfficerController extends Controller
 
         $existing = PoOfficer::whereIn('account_number', array_column($ready, 'account_number'))->count();
 
+        // Account numbers repeated INSIDE this one file. Each repeat overwrites
+        // the row before it, so the roster ends up smaller than the sheet and
+        // one of the two people silently vanishes — worth showing up front
+        // rather than leaving it to be discovered in the import totals.
+        $seen       = [];
+        $duplicates = [];
+
+        foreach ($ready as $row) {
+            $account = $row['account_number'];
+
+            if (isset($seen[$account])) {
+                $duplicates[] = [
+                    'account' => $account,
+                    'names'   => $seen[$account] . ' / ' . trim("{$row['final_surname']} {$row['final_first_name']}"),
+                ];
+                continue;
+            }
+
+            $seen[$account] = trim("{$row['final_surname']} {$row['final_first_name']}");
+        }
+
         return back()->with('poPreview', [
             'token'    => $token,
             'file'     => $file->getClientOriginalName(),
             'columns'  => $this->mappedColumnLabels($this->storedFile($token)),
             'total'    => count($rows),
             'ready'    => count($ready),
-            'new'      => max(0, count($ready) - $existing),
+            // Distinct accounts, minus those already on the roster — a repeat
+            // inside the file does not become a second row.
+            'new'      => max(0, count($seen) - $existing),
             'updating' => $existing,
             'skipped'  => count($skipped),
+            'duplicates'       => count($duplicates),
+            'duplicateSample'  => array_slice($duplicates, 0, 10),
             // Enough to see the shape of the data without shipping 1500 rows.
             'sample'        => array_slice($ready, 0, 10),
             'skippedSample' => array_slice($skipped, 0, 10),

@@ -196,6 +196,26 @@ export default function PoOfficers({ officers = [], stats, amount = 0 }) {
                                 </div>
                             )}
 
+                            {preview.duplicates > 0 && (
+                                <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3">
+                                    <p className="text-xs font-bold text-red-900 mb-1.5">
+                                        {preview.duplicates} account number(s) appear more than once in this file
+                                    </p>
+                                    <p className="text-[11px] text-red-800/80 mb-1.5">
+                                        Only the last row for each will survive — if these are different people, one of them is lost.
+                                        Fix the sheet if that isn't intended.
+                                    </p>
+                                    <ul className="text-[11px] text-red-800/80 space-y-0.5">
+                                        {preview.duplicateSample.map((d, i) => (
+                                            <li key={i}><span className="font-mono">{d.account}</span> — {d.names}</li>
+                                        ))}
+                                    </ul>
+                                    {preview.duplicates > preview.duplicateSample.length && (
+                                        <p className="text-[11px] text-red-700/60 mt-1">…and {preview.duplicates - preview.duplicateSample.length} more.</p>
+                                    )}
+                                </div>
+                            )}
+
                             {preview.skippedSample?.length > 0 && (
                                 <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3">
                                     <p className="text-xs font-bold text-amber-900 mb-1.5">
