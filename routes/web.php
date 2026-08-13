@@ -256,6 +256,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/admin/po-officers/cancel-import', [AdminPoOfficerController::class, 'cancelImport'])->name('admin.po-officers.cancel-import');
     Route::post('/admin/po-officers/match-bank-codes', [AdminPoOfficerController::class, 'matchBankCodes'])->name('admin.po-officers.match-bank-codes');
     Route::post('/admin/po-officers/generate-recipients', [AdminPoOfficerController::class, 'generateRecipients'])->name('admin.po-officers.generate-recipients');
+    Route::post('/admin/po-officers/refresh-payment-statuses', [AdminPoOfficerController::class, 'refreshPaymentStatuses'])->name('admin.po-officers.refresh-payment-statuses');
     Route::post('/admin/po-officers/{poOfficer}/retry', [AdminPoOfficerController::class, 'retry'])->name('admin.po-officers.retry');
     Route::delete('/admin/po-officers/{poOfficer}', [AdminPoOfficerController::class, 'destroy'])->name('admin.po-officers.destroy');
 

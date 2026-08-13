@@ -299,6 +299,12 @@ export default function PoOfficers({ officers = [], stats, amount = 0 }) {
                             <Link href={route('admin.settings')} className="px-3 py-2 text-xs font-semibold text-gray-500 hover:text-indigo-600 transition">
                                 Settings →
                             </Link>
+                            <button onClick={() => post('admin.po-officers.refresh-payment-statuses')}
+                                disabled={busy === 'admin.po-officers.refresh-payment-statuses'}
+                                title="Paystack settles transfers asynchronously — this asks it for the current state of anything still pending"
+                                className="px-4 py-2 text-sm font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 disabled:opacity-40 rounded-xl transition whitespace-nowrap">
+                                {busy === 'admin.po-officers.refresh-payment-statuses' ? 'Checking…' : 'Refresh Payment Status'}
+                            </button>
                             <Link href={route('admin.po-checkin-officers')}
                                 className="px-4 py-2 text-sm font-semibold text-violet-700 bg-violet-50 hover:bg-violet-100 rounded-xl transition whitespace-nowrap">
                                 Check-In Officers

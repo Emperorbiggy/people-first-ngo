@@ -242,6 +242,43 @@ class PaystackService
     }
 
     /**
+     * Current state of a transfer.
+     *
+     * Paystack settles transfers asynchronously: initiateTransfer usually
+     * answers "pending" and the real outcome lands later. With no webhook
+     * configured, this is how a payment row learns it has succeeded.
+     */
+    public function fetchTransfer(string $transferCodeOrId)
+    {
+        try {
+            $response = Http::withHeaders([
+                'Authorization' => 'Bearer ' . $this->secretKey,
+            ])->get($this->baseUrl . '/transfer/' . $transferCodeOrId);
+
+            $this->logResponse('fetchTransfer', $response);
+
+            if ($response->successful()) {
+                return [
+                    'status' => true,
+                    'data'   => $response->json()['data'],
+                ];
+            }
+
+            return [
+                'status'  => false,
+                'message' => $response->json()['message'] ?? 'Unable to fetch transfer',
+            ];
+        } catch (\Exception $e) {
+            Log::error('Paystack fetchTransfer exception: ' . $e->getMessage());
+
+            return [
+                'status'  => false,
+                'message' => 'Network error. Please try again.',
+            ];
+        }
+    }
+
+    /**
      * Finalize a transfer that requires an OTP
      */
     public function finalizeTransfer($transferCode, $otp)

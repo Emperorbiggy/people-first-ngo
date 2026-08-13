@@ -430,6 +430,72 @@ class PoOfficerController extends Controller
     // their own LGA-scoped portal. There is no bulk transfer and no checkout;
     // retry() below is only for a check-in whose payment failed.
 
+    /**
+     * Ask Paystack for the current state of every payment still sitting at
+     * pending/unknown.
+     *
+     * Transfers settle asynchronously, so the status captured at initiation is
+     * usually "pending" even when the money later lands. Without a webhook
+     * those rows never move on their own.
+     */
+    public function refreshPaymentStatuses(PaystackService $paystack)
+    {
+        $payments = PoPayment::whereIn('status', ['pending', 'unknown'])
+            ->whereNotNull('transfer_code')
+            ->get();
+
+        if ($payments->isEmpty()) {
+            return back()->with('success', 'No payments are awaiting confirmation.');
+        }
+
+        $settled = 0;
+        $failed  = 0;
+        $still   = 0;
+
+        foreach ($payments as $payment) {
+            $result = $paystack->fetchTransfer($payment->transfer_code);
+
+            if (!($result['status'] ?? false)) {
+                $still++;
+                continue;
+            }
+
+            $status = $this->normalizeTransferStatus($result['data']['status'] ?? null);
+
+            if ($status === $payment->status) {
+                $still++;
+                continue;
+            }
+
+            // A confirmed failure frees the officer for a genuine retry; the
+            // claim is only released once Paystack says no money moved.
+            $payment->update([
+                'status'   => $status,
+                'message'  => $result['data']['reason'] ?? $payment->message,
+                'paid_key' => $status === 'failed' ? null : $payment->paid_key,
+            ]);
+
+            $status === 'success' ? $settled++ : ($status === 'failed' ? $failed++ : $still++);
+        }
+
+        return back()->with('success', "Checked {$payments->count()} payment(s): {$settled} confirmed paid, {$failed} failed, {$still} still pending.");
+    }
+
+    /**
+     * Anything not clearly success/failed stays 'unknown' — it must never be
+     * auto-retried, because retrying a transfer that actually went through is
+     * how someone gets paid twice.
+     */
+    private function normalizeTransferStatus(?string $status): string
+    {
+        return match (strtolower((string) $status)) {
+            'success', 'successful' => 'success',
+            'failed', 'abandoned', 'reversed' => 'failed',
+            'pending', 'otp', 'processing', 'queued' => 'pending',
+            default => 'unknown',
+        };
+    }
+
     public function retry(PoOfficer $poOfficer)
     {
         $amount = (float) Setting::get('po_payment_amount', 0);
