@@ -84,11 +84,4 @@ class PoOfficer extends Model
     {
         return $query->where(fn ($q) => $q->whereNull('recipient_code')->orWhere('recipient_code', ''));
     }
-
-    public function scopePayable($query)
-    {
-        return $query->where('recipient_status', 'success')
-            ->whereNotNull('recipient_code')
-            ->whereDoesntHave('payments', fn ($q) => $q->whereNotNull('paid_key'));
-    }
 }

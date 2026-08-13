@@ -91,6 +91,10 @@ class CreatePoRecipientJob implements ShouldQueue, ShouldBeUnique
             $log('Bank matched.', ['bank_name' => $officer->bank_name, 'bank_code' => $code]);
         }
 
+        // Pace recipient-creation calls so a large "create all" run doesn't
+        // burst past Paystack's rate limit — same as CreateApplicantRecipientJob.
+        usleep(1000000);
+
         $log('Calling Paystack createRecipient.', [
             'bank_code'      => $officer->bank_code,
             'account_number' => $officer->account_number,

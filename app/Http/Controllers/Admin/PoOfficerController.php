@@ -12,25 +12,27 @@ use App\Services\PaystackService;
 use App\Support\BankMatcher;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 
 /**
- * Standalone APO/PO officer roster: import, bank-code matching, recipient
- * creation and bulk payment. Postings (LGA / PU / RA-Ward / role) are stored as
- * plain text — this module is deliberately not joined to the geo tables.
+ * Standalone APO/PO officer roster: import, bank-code matching and recipient
+ * creation. Payment itself happens at check-in, from the check-in officer's
+ * LGA-scoped portal — there is no bulk transfer and no checkout.
+ *
+ * Postings (LGA / PU / RA-Ward / role) are stored as plain text; this module is
+ * deliberately not joined to the geo tables.
  */
 class PoOfficerController extends Controller
 {
-    /**
-     * Sheet headings, normalised to letters only. Bank details arrive under
-     * either databoy or NGO headings; whichever is present wins, databoy first.
-     */
     /** Where a previewed upload waits until it is confirmed or discarded. */
     private const IMPORT_DIR = 'po-imports';
 
+    /**
+     * Sheet headings, normalised to letters only. Bank details arrive under
+     * either databoy or NGO headings; whichever is present wins.
+     */
     private const HEADER_ALIASES = [
         'final_surname'    => ['finalsurname', 'surname', 'lastname', 'familyname'],
         'final_first_name' => ['finalfirstname', 'firstname', 'finalfirst', 'givenname'],
@@ -426,10 +428,10 @@ class PoOfficerController extends Controller
         return back()->with('success', "Queued recipient creation for {$officers->count()} officer(s). Refresh shortly to see results.");
     }
 
-    // ── 4. Payment happens at check-in ──────────────────────────────────────
+    // ── 4. Payment ──────────────────────────────────────────────────────────
     // Officers are paid when a check-in officer confirms them present, from
-    // their own LGA-scoped portal. There is no bulk transfer and no checkout;
-    // retry() below is only for a check-in whose payment failed.
+    // their own LGA-scoped portal. retry() below is only for a check-in whose
+    // payment failed.
 
     /**
      * Ask Paystack for the current state of every payment still sitting at

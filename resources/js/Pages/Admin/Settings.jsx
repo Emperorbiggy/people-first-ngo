@@ -410,7 +410,7 @@ function AccreditationPaymentSection({ accreditationGeneralAmount, accreditation
                 <p className="text-xs text-gray-500 mt-1">Flat amount paid automatically when an APO officer is checked out and accredited. Each officer is paid once, ever — enforced by the database.</p>
             </div>
             <div>
-                <label className="text-xs font-medium text-gray-600">APO/PO Officer Bulk Transfer</label>
+                <label className="text-xs font-medium text-gray-600">APO/PO Officer Check-In Payment</label>
                 <div className="relative mt-1">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">₦</span>
                     <input
@@ -423,7 +423,7 @@ function AccreditationPaymentSection({ accreditationGeneralAmount, accreditation
                         className="w-full rounded-xl border border-gray-200 pl-7 pr-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
                     />
                 </div>
-                <p className="text-xs text-gray-500 mt-1">Amount sent to each officer on the standalone APO/PO roster when you run Send Bulk Transfer. Each officer can only be paid once, ever — enforced by the database.</p>
+                <p className="text-xs text-gray-500 mt-1">Paid to an APO/PO officer the moment a check-in officer confirms them present. Each officer can only be paid once, ever — enforced by the database.</p>
             </div>
             <button
                 type="button"

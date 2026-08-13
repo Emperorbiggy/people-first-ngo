@@ -67,6 +67,10 @@ class CreateBulkTransferRecipientJob implements ShouldQueue
             $row->update(['bank_code' => $code]);
         }
 
+        // Pace recipient-creation calls so a large import doesn't burst past
+        // Paystack's rate limit — same as CreateApplicantRecipientJob.
+        usleep(1000000);
+
         $result = $paystack->createRecipient([
             'name'           => $row->account_name ?: $row->full_name,
             'account_number' => $row->account_number,

@@ -110,7 +110,7 @@ export default function PoOfficers({ officers = [], stats, amount = 0 }) {
                     <div>
                         <h1 className="text-xl font-bold text-gray-800">APO/PO Officers</h1>
                         <p className="text-sm text-gray-500 mt-0.5">
-                            Standalone roster — import, match bank codes, create recipients, then pay.
+                            Standalone roster — import, match bank codes, create recipients. Officers are paid at check-in.
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -291,7 +291,7 @@ export default function PoOfficers({ officers = [], stats, amount = 0 }) {
                             <p className="text-sm font-bold text-gray-800">4 · Payment happens at check-in</p>
                             <p className="text-xs text-gray-500 mt-0.5">
                                 {amount > 0
-                                    ? <>Check-in officers pay <span className="font-bold text-gray-700">{naira(amount)}</span> as they confirm each officer present, from their own LGA list. There is no bulk transfer.</>
+                                    ? <>Check-in officers pay <span className="font-bold text-gray-700">{naira(amount)}</span> as they confirm each officer present, from their own LGA list.</>
                                     : <span className="text-red-600 font-semibold">Set the APO/PO amount in Settings — check-ins cannot pay without it.</span>}
                             </p>
                         </div>
