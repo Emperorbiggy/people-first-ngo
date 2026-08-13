@@ -119,9 +119,12 @@ class BulkTransferImportController extends Controller
         }
 
         if ($queue) {
-            // Chained so recipient creation runs one at a time rather than
-            // firing the whole list at Paystack at once.
-            Bus::chain(array_map(fn ($id) => new CreateBulkTransferRecipientJob($id), $queue))->dispatch();
+            // Dispatched individually, not chained: one dead job in a chain
+            // orphans every job after it, so a single failure would leave most
+            // of the list with no recipient at all.
+            foreach ($queue as $id) {
+                CreateBulkTransferRecipientJob::dispatch($id);
+            }
         }
 
         $message = "Imported {$created} row(s)" . ($updated ? ", updated {$updated} existing" : '') . '.';
@@ -146,7 +149,7 @@ class BulkTransferImportController extends Controller
             return back()->with('success', 'Every row already has a transfer recipient.');
         }
 
-        Bus::chain($rows->map(fn ($row) => new CreateBulkTransferRecipientJob($row->id))->all())->dispatch();
+        $rows->each(fn ($row) => CreateBulkTransferRecipientJob::dispatch($row->id));
 
         return back()->with('success', "Retrying recipient creation for {$rows->count()} row(s).");
     }
@@ -177,10 +180,11 @@ class BulkTransferImportController extends Controller
             return back()->with('error', 'Nobody is payable' . ($reasons ? ' — ' . implode(', ', $reasons) . '.' : '.'));
         }
 
-        // One job per recipient, chained so transfers go out one after another.
-        // Each claims a unique key before transferring, so even a duplicate
-        // dispatch cannot pay anyone twice.
-        Bus::chain($rows->map(fn ($row) => new PayBulkTransferRecipientJob($row->id, $amount))->all())->dispatch();
+        // One job per recipient, queued individually rather than chained: a
+        // broken chain would silently leave most of the list unpaid. Each job
+        // claims a unique key before transferring, so nobody can be paid twice
+        // however the jobs are scheduled.
+        $rows->each(fn ($row) => PayBulkTransferRecipientJob::dispatch($row->id, $amount));
 
         return back()->with('success', 'Queued ₦' . number_format($amount, 2) . " for {$rows->count()} recipient(s). Total ₦" . number_format($amount * $rows->count(), 2) . '.');
     }

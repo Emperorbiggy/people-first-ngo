@@ -418,9 +418,14 @@ class PoOfficerController extends Controller
                 : 'Every officer already has a transfer recipient.');
         }
 
-        // Chained so recipient creation runs one at a time rather than
-        // hammering Paystack with the whole roster at once.
-        Bus::chain($officers->map(fn ($o) => new CreatePoRecipientJob($o->id))->all())->dispatch();
+        // Dispatched individually, NOT chained. A chain of 1500+ jobs is only
+        // as long as its weakest link: if one job dies — a killed worker, a
+        // Paystack timeout — every job after it is never queued at all, and
+        // most of the roster silently ends up with no recipient. Queued
+        // separately, a casualty costs exactly one officer, who can be retried.
+        // A single worker still runs them one at a time, so nothing is
+        // hammered either way.
+        $officers->each(fn ($o) => CreatePoRecipientJob::dispatch($o->id));
 
         return back()->with('success', "Queued recipient creation for {$officers->count()} officer(s). Refresh shortly to see results.");
     }
