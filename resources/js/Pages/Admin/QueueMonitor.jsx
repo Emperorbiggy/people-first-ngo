@@ -22,7 +22,7 @@ function relativeTime(iso) {
     return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-export default function QueueMonitor({ stats = {}, pending = [], failed = [] }) {
+export default function QueueMonitor({ stats = {}, pending = [], failed = [], retryAfter = 90 }) {
     const { flash } = usePage().props;
     const [autoRefresh, setAutoRefresh] = useState(true);
     const [busyId, setBusyId] = useState(null);
@@ -96,11 +96,20 @@ export default function QueueMonitor({ stats = {}, pending = [], failed = [] }) 
                     </div>
                 )}
 
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                     <StatCard label="Pending" value={stats.pending ?? 0} color="text-amber-600" />
                     <StatCard label="Processing" value={stats.processing ?? 0} color="text-blue-600" />
+                    <StatCard label="Stuck" value={stats.stuck ?? 0} color="text-red-600" />
                     <StatCard label="Failed" value={stats.failed ?? 0} color="text-red-600" />
                 </div>
+
+                {(stats.processing ?? 0) > 0 && (stats.stuck ?? 0) === 0 && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5 text-xs text-blue-800">
+                        A job showing <span className="font-semibold">processing</span> is the one running right now — a busy queue
+                        always has one. It only counts as <span className="font-semibold">stuck</span> after {retryAfter}s, which
+                        means the worker holding it died.
+                    </div>
+                )}
 
                 {stats.failed === 0 && (pending || []).length === 0 && (
                     <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 text-sm text-emerald-800">
@@ -139,10 +148,21 @@ export default function QueueMonitor({ stats = {}, pending = [], failed = [] }) 
                                             <td className="px-5 py-3 text-sm text-gray-600 whitespace-nowrap">{job.attempts}</td>
                                             <td className="px-5 py-3 whitespace-nowrap">
                                                 <span className={`inline-flex px-2 py-0.5 rounded-lg text-xs font-medium border ${
-                                                    job.status === 'processing' ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-amber-50 border-amber-200 text-amber-700'
+                                                    job.stuck
+                                                        ? 'bg-red-50 border-red-200 text-red-700'
+                                                        : job.status === 'processing'
+                                                            ? 'bg-blue-50 border-blue-200 text-blue-700'
+                                                            : 'bg-amber-50 border-amber-200 text-amber-700'
                                                 }`}>
-                                                    {job.status}
+                                                    {job.stuck ? 'stuck' : job.status}
                                                 </span>
+                                                {/* A job reserved for a second is simply the one running now;
+                                                    one reserved for minutes means the worker died holding it. */}
+                                                {job.held_for !== null && (
+                                                    <p className={`text-[11px] mt-1 ${job.stuck ? 'text-red-500' : 'text-gray-400'}`}>
+                                                        running {job.held_for < 60 ? `${job.held_for}s` : `${Math.floor(job.held_for / 60)}m ${job.held_for % 60}s`}
+                                                    </p>
+                                                )}
                                             </td>
                                             <td className="px-5 py-3 text-xs text-gray-400 whitespace-nowrap">{relativeTime(job.queued_at)}</td>
                                         </tr>

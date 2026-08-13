@@ -11,18 +11,29 @@ class QueueMonitorController extends Controller
 {
     public function index()
     {
+        // A healthy queue always shows one reserved job — the one running right
+        // now. What matters is how LONG it has been reserved: past retry_after
+        // the worker that claimed it is presumed dead and the job is stuck.
+        $retryAfter = (int) config('queue.connections.' . config('queue.default') . '.retry_after', 90);
+
         $pending = DB::table('jobs')
             ->orderBy('id')
             ->get()
-            ->map(fn ($row) => [
-                'id'           => $row->id,
-                'queue'        => $row->queue,
-                'job_class'    => $this->jobClassName($row->payload),
-                'attempts'     => $row->attempts,
-                'status'       => $row->reserved_at ? 'processing' : 'pending',
-                'queued_at'    => Carbon::createFromTimestamp($row->created_at)->toIso8601String(),
-                'available_at' => Carbon::createFromTimestamp($row->available_at)->toIso8601String(),
-            ]);
+            ->map(function ($row) use ($retryAfter) {
+                $heldFor = $row->reserved_at ? max(0, time() - $row->reserved_at) : null;
+
+                return [
+                    'id'           => $row->id,
+                    'queue'        => $row->queue,
+                    'job_class'    => $this->jobClassName($row->payload),
+                    'attempts'     => $row->attempts,
+                    'status'       => $row->reserved_at ? 'processing' : 'pending',
+                    'held_for'     => $heldFor,
+                    'stuck'        => $heldFor !== null && $heldFor > $retryAfter,
+                    'queued_at'    => Carbon::createFromTimestamp($row->created_at)->toIso8601String(),
+                    'available_at' => Carbon::createFromTimestamp($row->available_at)->toIso8601String(),
+                ];
+            });
 
         $failed = DB::table('failed_jobs')
             ->orderByDesc('failed_at')
@@ -39,8 +50,10 @@ class QueueMonitorController extends Controller
             'stats' => [
                 'pending'    => $pending->count(),
                 'processing' => $pending->where('status', 'processing')->count(),
+                'stuck'      => $pending->where('stuck', true)->count(),
                 'failed'     => $failed->count(),
             ],
+            'retryAfter' => $retryAfter,
             'pending' => $pending->values(),
             'failed'  => $failed->values(),
         ]);
