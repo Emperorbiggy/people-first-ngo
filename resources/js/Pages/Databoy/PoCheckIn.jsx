@@ -141,14 +141,9 @@ export default function PoCheckIn({ lga, roster = [], stats, amount = 0 }) {
 
                                     <div className="shrink-0">
                                         {o.checked_in_at ? (
-                                            <div className="text-right">
-                                                <span className="inline-flex px-2.5 py-1 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-lg">
-                                                    ✓ Checked in
-                                                </span>
-                                                <p className="text-[10px] text-emerald-600/70 mt-1">
-                                                    {o.payment_status === 'success' ? 'Paid' : (o.payment_status ?? 'payment queued')}
-                                                </p>
-                                            </div>
+                                            <span className="inline-flex px-2.5 py-1 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-lg">
+                                                ✓ Checked in
+                                            </span>
                                         ) : o.ready ? (
                                             <button
                                                 onClick={() => setConfirming(o)}
@@ -204,14 +199,6 @@ export default function PoCheckIn({ lga, roster = [], stats, amount = 0 }) {
                                 )}
                             </div>
 
-                            <div className="rounded-2xl bg-emerald-50 border border-emerald-100 px-4 py-3 text-center">
-                                <p className="text-[11px] font-semibold uppercase text-emerald-600/70">Will be paid</p>
-                                <p className="text-2xl font-bold text-emerald-700 mt-0.5">{naira(amount)}</p>
-                                <p className="text-[11px] text-emerald-700/70 mt-1">
-                                    {confirming.bank_name} · {confirming.account_number}
-                                </p>
-                            </div>
-
                             <div className="flex gap-2.5 pt-1">
                                 <button
                                     onClick={() => setConfirming(null)}
@@ -233,7 +220,7 @@ export default function PoCheckIn({ lga, roster = [], stats, amount = 0 }) {
                                             </svg>
                                             Checking in…
                                         </>
-                                    ) : 'Check In & Pay'}
+                                    ) : 'Check In'}
                                 </button>
                             </div>
                         </div>
