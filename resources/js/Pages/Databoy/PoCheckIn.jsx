@@ -8,6 +8,7 @@ export default function PoCheckIn({ lga, roster = [], stats, amount = 0 }) {
     const [search, setSearch] = useState('');
     const [filter, setFilter] = useState('pending');
     const [busyId, setBusyId] = useState(null);
+    const [confirming, setConfirming] = useState(null);
 
     const filtered = useMemo(() => {
         const terms = search.trim().toLowerCase().split(/\s+/).filter(Boolean);
@@ -24,12 +25,15 @@ export default function PoCheckIn({ lga, roster = [], stats, amount = 0 }) {
         });
     }, [roster, search, filter]);
 
-    const checkIn = (o) => {
-        if (!confirm(`Check in ${o.full_name}?\n\nThis pays them ${naira(amount)} straight away and cannot be undone.`)) return;
+    // Paying is irreversible, so the confirm step shows exactly who and how
+    // much rather than a browser dialog that says neither clearly.
+    const confirmCheckIn = () => {
+        const officer = confirming;
+        setBusyId(officer.id);
 
-        setBusyId(o.id);
-        router.post(route('databoy.po-checkin.check-in', o.id), {}, {
+        router.post(route('databoy.po-checkin.check-in', officer.id), {}, {
             preserveScroll: true,
+            onSuccess: () => setConfirming(null),
             onFinish: () => setBusyId(null),
         });
     };
@@ -147,7 +151,7 @@ export default function PoCheckIn({ lga, roster = [], stats, amount = 0 }) {
                                             </div>
                                         ) : o.ready ? (
                                             <button
-                                                onClick={() => checkIn(o)}
+                                                onClick={() => setConfirming(o)}
                                                 disabled={busyId === o.id}
                                                 className="px-4 py-2.5 text-xs font-bold rounded-xl bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-40 transition"
                                             >
@@ -165,6 +169,79 @@ export default function PoCheckIn({ lga, roster = [], stats, amount = 0 }) {
                     </div>
                 )}
             </div>
+
+            {/* Confirm check-in — money moves on OK, so the person and the
+                amount are both spelled out before the button is reachable. */}
+            {confirming && (
+                <div
+                    className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4"
+                    onClick={() => busyId === null && setConfirming(null)}
+                >
+                    <div
+                        className="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-[slideUp_.2s_ease-out]"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="bg-violet-700 px-6 py-5 text-center">
+                            <div className="inline-flex items-center justify-center w-14 h-14 bg-white/15 rounded-full mb-3">
+                                <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            </div>
+                            <p className="text-white font-bold text-lg leading-tight">Confirm Check-In</p>
+                            <p className="text-violet-200 text-xs mt-1">This cannot be undone</p>
+                        </div>
+
+                        <div className="px-6 py-5 space-y-4">
+                            <div className="text-center">
+                                <p className="text-lg font-bold text-gray-800 leading-tight">{confirming.full_name}</p>
+                                <p className="text-sm text-gray-500 mt-1 tabular-nums">
+                                    {confirming.phone_number || 'No phone'}{confirming.final_role ? ` · ${confirming.final_role}` : ''}
+                                </p>
+                                {(confirming.final_ra_ward || confirming.final_pu) && (
+                                    <p className="text-xs text-gray-400 mt-1">
+                                        {[confirming.final_ra_ward, confirming.final_pu].filter(Boolean).join(' · ')}
+                                    </p>
+                                )}
+                            </div>
+
+                            <div className="rounded-2xl bg-emerald-50 border border-emerald-100 px-4 py-3 text-center">
+                                <p className="text-[11px] font-semibold uppercase text-emerald-600/70">Will be paid</p>
+                                <p className="text-2xl font-bold text-emerald-700 mt-0.5">{naira(amount)}</p>
+                                <p className="text-[11px] text-emerald-700/70 mt-1">
+                                    {confirming.bank_name} · {confirming.account_number}
+                                </p>
+                            </div>
+
+                            <div className="flex gap-2.5 pt-1">
+                                <button
+                                    onClick={() => setConfirming(null)}
+                                    disabled={busyId !== null}
+                                    className="flex-1 py-3.5 rounded-2xl text-sm font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 disabled:opacity-40 transition"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={confirmCheckIn}
+                                    disabled={busyId !== null}
+                                    className="flex-1 py-3.5 rounded-2xl text-sm font-bold text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-60 transition flex items-center justify-center gap-2"
+                                >
+                                    {busyId !== null ? (
+                                        <>
+                                            <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                            </svg>
+                                            Checking in…
+                                        </>
+                                    ) : 'Check In & Pay'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <style>{`@keyframes slideUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}`}</style>
         </div>
     );
 }
