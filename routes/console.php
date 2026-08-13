@@ -22,6 +22,17 @@ Artisan::command('inspire', function () {
  * the rest of the day and the queue just sits there. Five minutes is long
  * enough to prevent genuine overlap and short enough to self-heal.
  */
-Schedule::command('queue:work --stop-when-empty --tries=1 --max-time=55')
+Schedule::call(function () {
+    // Artisan::call runs the worker INSIDE this process. Schedule::command()
+    // would spawn `php artisan queue:work` as a subprocess via proc_open, which
+    // plenty of shared hosts disable — the scheduler then reports success while
+    // silently starting no worker at all, and the queue sits untouched.
+    Artisan::call('queue:work', [
+        '--stop-when-empty' => true,
+        '--tries'           => 1,
+        '--max-time'        => 55,
+    ]);
+})
+    ->name('drain-queue')   // must precede withoutOverlapping() on a closure
     ->everyMinute()
     ->withoutOverlapping(5);
