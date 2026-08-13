@@ -56,6 +56,30 @@ class PayPoOfficerJob implements ShouldQueue
             return;
         }
 
+        // The account itself, checked against what has actually been paid.
+        // po_officers.account_number is unique, so two live rows cannot share
+        // an account — but a row deleted and re-imported, or an account moved
+        // between rows, would slip past that. This asks the payment ledger
+        // directly, which is the only record that survives roster edits.
+        $paidToAccount = PoPayment::whereNotNull('paid_key')
+            ->where('account_number', $officer->account_number)
+            ->where('po_officer_id', '!=', $officer->id)
+            ->first();
+
+        if ($paidToAccount) {
+            $log('Aborted: this account number has already been paid.', [
+                'account_number' => $officer->account_number,
+                'paid_reference' => $paidToAccount->reference,
+            ]);
+
+            $this->recordSkip(
+                $officer,
+                "Not paid — account {$officer->account_number} has already been paid (reference {$paidToAccount->reference}). Two people cannot share a payout account."
+            );
+
+            return;
+        }
+
         // paid_key stops one ROSTER ROW being paid twice. It cannot stop the
         // same PERSON being paid twice under two rows — the roster keys on
         // account number, so the same name with two different accounts is two
@@ -67,22 +91,10 @@ class PayPoOfficerJob implements ShouldQueue
                 'paid_account' => $twin->account_number,
             ]);
 
-            // Recorded, not silent: an admin has to be able to see that this
-            // person was skipped and why, in case the two really are different
-            // people who happen to share a name.
-            PoPayment::create([
-                'po_officer_id'  => $officer->id,
-                'paid_key'       => null,
-                'amount'         => $this->amount,
-                'bank_name'      => $officer->bank_name,
-                'bank_code'      => $officer->bank_code,
-                'account_number' => $officer->account_number,
-                'account_name'   => $officer->account_name,
-                'recipient_code' => $officer->recipient_code,
-                'reference'      => 'po-dup-' . $officer->id . '-' . now()->timestamp . '-' . Str::random(6),
-                'status'         => 'failed',
-                'message'        => "Not paid — {$officer->full_name} was already paid under account {$twin->account_number} (roster #{$twin->id}). If these are different people, correct the roster and retry.",
-            ]);
+            $this->recordSkip(
+                $officer,
+                "Not paid — {$officer->full_name} was already paid under account {$twin->account_number} (roster #{$twin->id}). If these are different people, correct the roster and retry."
+            );
 
             return;
         }
@@ -122,6 +134,28 @@ class PayPoOfficerJob implements ShouldQueue
         ]);
 
         $log('Finished.', ['status' => $payment->status]);
+    }
+
+    /**
+     * Record a skipped payment so it is visible on the admin page rather than
+     * silently absent. paid_key stays null: no money moved and no claim is
+     * held, so the officer can still be paid if the roster is corrected.
+     */
+    private function recordSkip(PoOfficer $officer, string $message): void
+    {
+        PoPayment::create([
+            'po_officer_id'  => $officer->id,
+            'paid_key'       => null,
+            'amount'         => $this->amount,
+            'bank_name'      => $officer->bank_name,
+            'bank_code'      => $officer->bank_code,
+            'account_number' => $officer->account_number,
+            'account_name'   => $officer->account_name,
+            'recipient_code' => $officer->recipient_code,
+            'reference'      => 'po-skip-' . $officer->id . '-' . now()->timestamp . '-' . Str::random(6),
+            'status'         => 'failed',
+            'message'        => $message,
+        ]);
     }
 
     /**
