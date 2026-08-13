@@ -411,11 +411,7 @@ class PoOfficerController extends Controller
         $officers = PoOfficer::readyForRecipient()->get();
 
         if ($officers->isEmpty()) {
-            $missing = PoOfficer::missingBankCode()->count();
-
-            return back()->with('error', $missing > 0
-                ? "No officer is ready. {$missing} still have no bank code — run Match Bank Codes first."
-                : 'Every officer already has a transfer recipient.');
+            return back()->with('success', 'Every officer already has a transfer recipient — nothing to queue.');
         }
 
         // Dispatched individually, NOT chained. A chain of 1500+ jobs is only

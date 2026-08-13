@@ -71,11 +71,18 @@ class PoOfficer extends Model
         return $query->where(fn ($q) => $q->whereNull('bank_code')->orWhere('bank_code', ''));
     }
 
+    /**
+     * Officers with no working transfer recipient yet — the only ones worth
+     * queueing.
+     *
+     * "Has a recipient" means a recipient_code actually came back, not merely
+     * that the status says success. A missing bank code is no longer a reason
+     * to exclude anyone: the job matches the bank name itself, so filtering on
+     * it here only hid officers who could have been resolved.
+     */
     public function scopeReadyForRecipient($query)
     {
-        return $query->whereNotNull('bank_code')
-            ->where('bank_code', '!=', '')
-            ->where(fn ($q) => $q->whereNull('recipient_status')->orWhere('recipient_status', '!=', 'success'));
+        return $query->where(fn ($q) => $q->whereNull('recipient_code')->orWhere('recipient_code', ''));
     }
 
     public function scopePayable($query)

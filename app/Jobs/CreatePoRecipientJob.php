@@ -6,6 +6,7 @@ use App\Models\PoOfficer;
 use App\Services\PaystackService;
 use App\Support\BankMatcher;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -21,16 +22,28 @@ use Illuminate\Support\Facades\Log;
  *
  * Every step is logged: with 1500+ officers going through this, "why does this
  * one have no recipient" needs an answer that doesn't require re-running it.
+ *
+ * ShouldBeUnique keeps one officer to one queued job. Pressing "Generate
+ * Recipients" twice used to queue the entire roster twice over, so the queue
+ * filled with thousands of jobs that only no-op on arrival.
  */
-class CreatePoRecipientJob implements ShouldQueue
+class CreatePoRecipientJob implements ShouldQueue, ShouldBeUnique
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 1;
     public int $timeout = 60;
 
+    /** Long enough to outlive a backlog, short enough to self-heal. */
+    public int $uniqueFor = 3600;
+
     public function __construct(public int $poOfficerId)
     {
+    }
+
+    public function uniqueId(): string
+    {
+        return (string) $this->poOfficerId;
     }
 
     public function handle(PaystackService $paystack): void
