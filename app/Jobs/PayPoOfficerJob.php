@@ -56,6 +56,37 @@ class PayPoOfficerJob implements ShouldQueue
             return;
         }
 
+        // paid_key stops one ROSTER ROW being paid twice. It cannot stop the
+        // same PERSON being paid twice under two rows — the roster keys on
+        // account number, so the same name with two different accounts is two
+        // rows, and checking both in would pay them both.
+        if ($twin = $this->alreadyPaidUnderAnotherRow($officer)) {
+            $log('Aborted: this name has already been paid under another roster row.', [
+                'name'        => $officer->full_name,
+                'paid_row'    => $twin->id,
+                'paid_account' => $twin->account_number,
+            ]);
+
+            // Recorded, not silent: an admin has to be able to see that this
+            // person was skipped and why, in case the two really are different
+            // people who happen to share a name.
+            PoPayment::create([
+                'po_officer_id'  => $officer->id,
+                'paid_key'       => null,
+                'amount'         => $this->amount,
+                'bank_name'      => $officer->bank_name,
+                'bank_code'      => $officer->bank_code,
+                'account_number' => $officer->account_number,
+                'account_name'   => $officer->account_name,
+                'recipient_code' => $officer->recipient_code,
+                'reference'      => 'po-dup-' . $officer->id . '-' . now()->timestamp . '-' . Str::random(6),
+                'status'         => 'failed',
+                'message'        => "Not paid — {$officer->full_name} was already paid under account {$twin->account_number} (roster #{$twin->id}). If these are different people, correct the roster and retry.",
+            ]);
+
+            return;
+        }
+
         $payment = $this->claim($officer);
 
         if (!$payment) {
@@ -91,6 +122,31 @@ class PayPoOfficerJob implements ShouldQueue
         ]);
 
         $log('Finished.', ['status' => $payment->status]);
+    }
+
+    /**
+     * Another roster row carrying the same person's name that already holds a
+     * live payment, or null if this name has not been paid.
+     *
+     * Compared on letters only, so casing, spacing and punctuation differences
+     * ("Oke  Toba", "OKE TOBA", "Oke-Toba") still count as the same person.
+     */
+    private function alreadyPaidUnderAnotherRow(PoOfficer $officer): ?PoOfficer
+    {
+        $key = fn (PoOfficer $o) => preg_replace('/[^a-z]/', '', strtolower($o->full_name));
+        $mine = $key($officer);
+
+        if ($mine === '') {
+            return null;
+        }
+
+        return PoOfficer::where('id', '!=', $officer->id)
+            ->whereHas('payments', fn ($q) => $q->whereNotNull('paid_key'))
+            // Cheap SQL pre-filter on surname; the exact comparison is done in
+            // PHP so it matches regardless of spacing or punctuation.
+            ->where('final_surname', 'like', '%' . $officer->final_surname . '%')
+            ->get()
+            ->first(fn (PoOfficer $other) => $key($other) === $mine);
     }
 
     /**
