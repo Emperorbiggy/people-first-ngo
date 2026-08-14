@@ -58,6 +58,15 @@ class BulkTransferImportController extends Controller
                 'name'           => $batch->name,
                 'file_name'      => $batch->file_name,
                 'created_at'     => $batch->created_at,
+                'rows_read'      => $batch->rows_read,
+                'skipped_count'  => $batch->skipped_count,
+                // Enough to see the pattern in the page; the full list is a
+                // download, since a big sheet can reject hundreds of rows.
+                'skipped_sample' => collect($batch->skipped_rows ?? [])->take(25)->values(),
+                'skipped_reasons' => collect($batch->skipped_rows ?? [])
+                    ->countBy(fn ($s) => str_starts_with($s['reason'], 'Duplicate') ? 'Duplicate account' : $s['reason'])
+                    ->map(fn ($count, $reason) => ['reason' => $reason, 'count' => $count])
+                    ->values(),
                 'total'          => $batch->recipients_count,
                 'with_recipient' => $batch->with_recipient_count,
                 'missing_code'   => $batch->missing_code_count,
@@ -143,24 +152,37 @@ class BulkTransferImportController extends Controller
         ]);
 
         $created = 0;
-        $skipped = 0;
+        $skipped = [];
         $seen    = [];
 
         foreach ($parsed as $row) {
-            if ($row['full_name'] === '' || $row['bank_name'] === '' || $row['account_number'] === null) {
-                $skipped++;
+            // Every rejection is recorded with the sheet line number, so a
+            // dropped row can be found and fixed rather than just counted.
+            $reason = match (true) {
+                $row['full_name'] === ''         => 'No full name',
+                $row['bank_name'] === ''         => 'No bank name',
+                $row['account_number'] === null  => 'No account number',
+                // An account repeated inside one sheet is one person listed
+                // twice; the first row wins, as the APO/PO roster behaves.
+                isset($seen[$row['account_number']]) => 'Duplicate account — already on line ' . $seen[$row['account_number']],
+                default => null,
+            };
+
+            if ($reason) {
+                $skipped[] = [
+                    'line'           => $row['_line'],
+                    'full_name'      => $row['full_name'] ?: '(blank)',
+                    'bank_name'      => $row['bank_name'] ?: '(blank)',
+                    'account_number' => $row['account_number'] ?? '(blank)',
+                    'amount'         => $row['amount'],
+                    'reason'         => $reason,
+                ];
                 continue;
             }
 
-            // An account repeated inside one sheet is one person listed twice;
-            // the first row wins, exactly as the APO/PO roster behaves.
-            if (isset($seen[$row['account_number']])) {
-                $skipped++;
-                continue;
-            }
+            $seen[$row['account_number']] = $row['_line'];
 
-            $seen[$row['account_number']] = true;
-
+            unset($row['_line']);
             BulkTransferRecipient::create($row + ['batch_id' => $batch->id]);
             $created++;
         }
@@ -171,10 +193,23 @@ class BulkTransferImportController extends Controller
             return back()->withErrors(['file' => 'Nothing could be imported from that file.']);
         }
 
-        $message = "Batch {$batch->reference} created with {$created} row(s).";
+        $batch->update([
+            'rows_read'     => count($parsed),
+            'skipped_count' => count($skipped),
+            'skipped_rows'  => $skipped,
+        ]);
+
+        $message = "Batch {$batch->reference}: {$created} of " . count($parsed) . " row(s) imported.";
 
         if ($skipped) {
-            $message .= " {$skipped} row(s) skipped — missing name, bank or account number, or a repeated account.";
+            $counts = collect($skipped)
+                // "Duplicate account — already on line 12" and "…line 40" are
+                // the same kind of problem; group them as one.
+                ->countBy(fn ($s) => str_starts_with($s['reason'], 'Duplicate') ? 'Duplicate account' : $s['reason'])
+                ->map(fn ($n, $reason) => "{$n} {$reason}")
+                ->implode(', ');
+
+            $message .= ' ' . count($skipped) . " skipped ({$counts}) — see the skipped list below.";
         }
 
         $message .= ' Next: match bank codes.';
@@ -308,6 +343,35 @@ class BulkTransferImportController extends Controller
         return back()->with('success', "{$name} removed from the batch.");
     }
 
+    /**
+     * Every skipped row as a CSV, so a big import's rejects can be worked
+     * through in the spreadsheet they came from.
+     */
+    public function exportSkipped(BulkTransferBatch $batch)
+    {
+        $rows = $batch->skipped_rows ?? [];
+
+        if (empty($rows)) {
+            return back()->with('error', 'Nothing was skipped in this batch.');
+        }
+
+        $csv = "Sheet Line,Full Name,Bank Name,Account Number,Amount,Reason\n";
+
+        foreach ($rows as $row) {
+            $csv .= implode(',', array_map(
+                // Quote everything: names carry commas, and a bare account
+                // number would otherwise lose its leading zero in Excel.
+                fn ($v) => '"' . str_replace('"', '""', (string) $v) . '"',
+                [$row['line'], $row['full_name'], $row['bank_name'], $row['account_number'], $row['amount'] ?? '', $row['reason']]
+            )) . "\n";
+        }
+
+        return response($csv, 200, [
+            'Content-Type'        => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="' . $batch->reference . '-skipped.csv"',
+        ]);
+    }
+
     public function destroyBatch(BulkTransferBatch $batch)
     {
         $paid = $batch->recipients()->whereHas('payments', fn ($q) => $q->whereNotNull('paid_key'))->count();
@@ -365,17 +429,22 @@ class BulkTransferImportController extends Controller
 
         $rows = [];
 
-        foreach (array_slice($sheet, 1) as $line) {
+        foreach (array_slice($sheet, 1) as $index => $line) {
             $cell = fn (?int $i) => $i === null ? '' : trim((string) ($line[$i] ?? ''));
 
             $name    = $cell($map['full_name'] ?? null);
             $account = $this->accountNumber($cell($map['account_number'] ?? null));
 
-            if ($name === '' && $account === null) {
+            // A wholly empty line is spreadsheet padding, not a rejected row —
+            // counting those as "skipped" would inflate the number with noise.
+            if ($name === '' && $account === null && $cell($map['bank_name'] ?? null) === '') {
                 continue;
             }
 
             $rows[] = [
+                // +2: one for the header row, one because rows are 1-indexed
+                // in the spreadsheet the user is looking at.
+                '_line'           => $index + 2,
                 'full_name'       => $name,
                 'gender'          => $cell($map['gender'] ?? null) ?: null,
                 'bank_name'       => $cell($map['bank_name'] ?? null),

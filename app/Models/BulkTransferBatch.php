@@ -11,7 +11,9 @@ use Illuminate\Database\Eloquent\Model;
  */
 class BulkTransferBatch extends Model
 {
-    protected $fillable = ['reference', 'name', 'file_name'];
+    protected $fillable = ['reference', 'name', 'file_name', 'rows_read', 'skipped_count', 'skipped_rows'];
+
+    protected $casts = ['skipped_rows' => 'array'];
 
     public function recipients() { return $this->hasMany(BulkTransferRecipient::class, 'batch_id'); }
 

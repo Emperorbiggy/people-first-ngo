@@ -165,6 +165,60 @@ export default function BulkTransferImport({ batches = [], selectedId = null, ro
 
                         {batch && (
                             <>
+                                {/* Why rows didn't make it in */}
+                                {batch.skipped_count > 0 && (
+                                    <div className="bg-white rounded-2xl border-2 border-amber-200 shadow-sm overflow-hidden">
+                                        <div className="px-5 py-4 bg-amber-50 border-b border-amber-100 flex items-start justify-between gap-3 flex-wrap">
+                                            <div>
+                                                <p className="text-sm font-bold text-amber-900">
+                                                    {batch.skipped_count} of {batch.rows_read} row(s) were not imported
+                                                </p>
+                                                <div className="flex gap-2 flex-wrap mt-2">
+                                                    {batch.skipped_reasons?.map((r) => (
+                                                        <span key={r.reason} className="inline-flex px-2 py-0.5 bg-white border border-amber-200 text-amber-800 text-xs font-semibold rounded-lg">
+                                                            {r.count} · {r.reason}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                            <a href={route('admin.bulk-transfer-import.export-skipped', batch.id)}
+                                                className="px-4 py-2 text-sm font-semibold text-amber-800 bg-white border border-amber-300 hover:bg-amber-100 rounded-xl transition whitespace-nowrap">
+                                                Download all {batch.skipped_count}
+                                            </a>
+                                        </div>
+
+                                        <div className="overflow-x-auto">
+                                            <table className="min-w-full divide-y divide-amber-50">
+                                                <thead className="bg-white">
+                                                    <tr>
+                                                        {['Sheet line', 'Full Name', 'Bank', 'Account No.', 'Amount', 'Why it was skipped'].map((h) => (
+                                                            <th key={h} className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">{h}</th>
+                                                        ))}
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-gray-50">
+                                                    {batch.skipped_sample?.map((s, i) => (
+                                                        <tr key={i} className="hover:bg-amber-50/40">
+                                                            <td className="px-3 py-2.5 text-sm font-mono text-gray-500">{s.line}</td>
+                                                            <td className="px-3 py-2.5 text-sm text-gray-800 whitespace-nowrap">{s.full_name}</td>
+                                                            <td className="px-3 py-2.5 text-sm text-gray-600 whitespace-nowrap">{s.bank_name}</td>
+                                                            <td className="px-3 py-2.5 text-sm text-gray-600 whitespace-nowrap tabular-nums">{s.account_number}</td>
+                                                            <td className="px-3 py-2.5 text-sm text-gray-600 whitespace-nowrap tabular-nums">{s.amount ? naira(s.amount) : '—'}</td>
+                                                            <td className="px-3 py-2.5 text-sm text-amber-800 whitespace-nowrap">{s.reason}</td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+
+                                        {batch.skipped_count > (batch.skipped_sample?.length ?? 0) && (
+                                            <div className="px-5 py-3 border-t border-amber-100 text-xs text-amber-700/70">
+                                                Showing the first {batch.skipped_sample.length}. Download the CSV for all {batch.skipped_count}, then fix them and import as a new batch.
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
                                 {/* The four steps for this batch */}
                                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-3">
                                     <div className="flex items-center justify-between gap-3 flex-wrap pb-1">
