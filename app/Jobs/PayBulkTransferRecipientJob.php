@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Models\BulkTransferBatch;
 use App\Models\BulkTransferPayment;
 use App\Models\BulkTransferRecipient;
 use App\Services\PaystackService;
@@ -56,22 +57,14 @@ class PayBulkTransferRecipientJob implements ShouldQueue
             return;
         }
 
-        // No remark, no transfer. There is deliberately no fallback: an
-        // unlabelled payment cannot be reconciled later, so the money stays put
-        // until someone says what it is for.
-        //
-        // Checked BEFORE the claim: claiming first would take the row's unique
-        // paid_key and then abort, leaving it permanently unpayable.
+        // Row remark wins, then the batch's, then the standing default — so a
+        // transfer always carries a narration a recipient can recognise, and
+        // never the generic "Bulk transfer" it used to.
         $reason = Str::limit(
-            $this->reason ?: ($row->remark ?: ($row->batch?->remark ?: '')),
+            $this->reason ?: ($row->remark ?: ($row->batch?->remark ?: BulkTransferBatch::DEFAULT_REMARK)),
             100,
             ''
         );
-
-        if (trim($reason) === '') {
-            $log('Aborted: no payment remark set — nothing sent, row left payable.');
-            return;
-        }
 
         $payment = $this->claim($row);
 

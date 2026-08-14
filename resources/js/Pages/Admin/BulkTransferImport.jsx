@@ -51,7 +51,7 @@ function Step({ n, title, detail, done, blocked, action, busy, tone = 'indigo' }
     );
 }
 
-export default function BulkTransferImport({ batches = [], selectedId = null, rows = null, filters = {}, matching = {} }) {
+export default function BulkTransferImport({ batches = [], selectedId = null, rows = null, filters = {}, matching = {}, defaultRemark = '' }) {
     const { flash, errors } = usePage().props;
     const [search, setSearch] = useState(filters.q ?? '');
     const [batchName, setBatchName] = useState('');
@@ -130,14 +130,9 @@ export default function BulkTransferImport({ batches = [], selectedId = null, ro
     const paySelected = () => {
         if (selectedCount === 0) return;
 
-        if (!batch.remark) {
-            alert('Set a payment remark for this batch first — transfers are not sent without a narration.');
-            return;
-        }
-
         if (!confirm(
             `Send ${naira(selectedTotal)} to ${selectedCount} recipient(s)?\n\n`
-            + `Recipients will see: "${batch.remark}"\n\n`
+            + `Recipients will see: "${batch.remark || defaultRemark}"\n\n`
             + `Each is paid their own amount. This moves real money.`
         )) return;
 
@@ -246,8 +241,6 @@ export default function BulkTransferImport({ batches = [], selectedId = null, ro
                                     <div className="rounded-xl bg-gray-50 border border-gray-100 px-4 py-3">
                                         <label className="block text-xs font-bold text-gray-600 mb-1.5">
                                             Payment remark — what the recipient sees on their statement
-                                            <span className="text-red-500"> *</span>
-                                            {!batch.remark && <span className="ml-1 font-normal text-red-600">required before sending</span>}
                                         </label>
                                         <div className="flex gap-2 flex-wrap">
                                             <input
@@ -294,20 +287,18 @@ export default function BulkTransferImport({ batches = [], selectedId = null, ro
                                     <Step
                                         n={4} tone="emerald"
                                         title="Send Bulk Transfer"
-                                        detail={!batch.remark
-                                            ? 'Set a payment remark above first — transfers are not sent without a narration.'
-                                            : payableCount > 0
-                                                ? `${payableCount} ready to pay · ${naira(payableTotal)} total. Each row is paid its own amount. Narration: "${batch.remark}"`
-                                                : 'Nothing in this batch is ready to pay.'}
+                                        detail={payableCount > 0
+                                            ? `${payableCount} ready to pay · ${naira(payableTotal)} total. Each row is paid its own amount. Narration: "${batch.remark || defaultRemark}"`
+                                            : 'Nothing in this batch is ready to pay.'}
                                         done={batch.total > 0 && batch.paid === batch.total}
-                                        blocked={payableCount === 0 || !batch.remark}
+                                        blocked={payableCount === 0}
                                         busy={busy === 'admin.bulk-transfer-import.send'}
                                         action={{
                                             label: `Send ${naira(payableTotal)}`,
                                             onClick: () => step(
                                                 'admin.bulk-transfer-import.send',
                                                 `Send ${naira(payableTotal)} across ${payableCount} recipient(s) in ${batch.reference}?\n\n`
-                                                + `Recipients will see: "${batch.remark}"\n\n`
+                                                + `Recipients will see: "${batch.remark || defaultRemark}"\n\n`
                                                 + `Each is paid their own amount from the sheet. This moves real money.`
                                             ),
                                         }}
@@ -357,8 +348,7 @@ export default function BulkTransferImport({ batches = [], selectedId = null, ro
                                                         className="px-3 py-2 text-xs font-semibold text-gray-500 hover:text-gray-700 transition">
                                                         Clear
                                                     </button>
-                                                    <button onClick={paySelected} disabled={busy === 'selected' || !batch.remark}
-                                                        title={batch.remark ? '' : 'Set a payment remark first'}
+                                                    <button onClick={paySelected} disabled={busy === 'selected'}
                                                         className="px-4 py-2 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 rounded-xl transition">
                                                         {busy === 'selected' ? 'Queueing…' : `Send ${naira(selectedTotal)}`}
                                                     </button>
