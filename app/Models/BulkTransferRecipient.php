@@ -18,6 +18,19 @@ class BulkTransferRecipient extends Model
     public function batch()    { return $this->belongsTo(BulkTransferBatch::class, 'batch_id'); }
     public function payments() { return $this->hasMany(BulkTransferPayment::class, 'bulk_transfer_recipient_id'); }
 
+    /**
+     * The most recent attempt, as a real one-per-row relation.
+     *
+     * NOT `with(['payments' => fn ($q) => $q->latest()->limit(1)])` — an eager
+     * load constraint applies to the single query fetching every child row, so
+     * that limit returns one payment for the WHOLE page rather than one each,
+     * and every other row reads as unpaid.
+     */
+    public function latestPayment()
+    {
+        return $this->hasOne(BulkTransferPayment::class, 'bulk_transfer_recipient_id')->latestOfMany();
+    }
+
     /** Holds this row's unique paid_key — not a definite failure. */
     public function hasLivePayment(): bool
     {

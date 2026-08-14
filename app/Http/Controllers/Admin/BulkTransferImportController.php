@@ -85,14 +85,24 @@ class BulkTransferImportController extends Controller
         // Default to the newest batch so the page opens on something useful.
         $selectedId = $request->query('batch') ?: $batches->first()['id'] ?? null;
 
-        $rows = $selectedId
-            ? BulkTransferRecipient::where('batch_id', $selectedId)
+        // Search and filtering happen in SQL, not in the browser: a 5000-row
+        // batch shipped whole to the client is what made this page hang.
+        $search = trim((string) $request->query('q', ''));
+        $filter = $request->query('filter', 'all');
+
+        $query = $selectedId
+            ? $this->rowQuery($selectedId, $search, $filter)
+            : null;
+
+        $rows = $query
+            ? $query->clone()
                 ->withCount(['payments as live_payments_count' => fn ($q) => $q->whereNotNull('paid_key')])
-                ->with(['payments' => fn ($q) => $q->latest()->limit(1)])
+                ->with('latestPayment')
                 ->orderBy('full_name')
-                ->get()
-                ->map(function ($row) {
-                    $payment = $row->payments->first();
+                ->paginate(100)
+                ->withQueryString()
+                ->through(function ($row) {
+                    $payment = $row->latestPayment;
 
                     return [
                         'id'                => $row->id,
@@ -114,13 +124,55 @@ class BulkTransferImportController extends Controller
                         'paid'              => $row->live_payments_count > 0,
                     ];
                 })
-            : collect();
+            : null;
+
+        // Totals for the whole filtered set, not just the page on screen —
+        // "Send selected" can act on every matching row, so the figure it
+        // shows has to cover them all.
+        $matching = $query
+            ? (clone $query)->payable()->selectRaw('COUNT(*) AS c, COALESCE(SUM(amount), 0) AS total')->first()
+            : null;
 
         return inertia('Admin/BulkTransferImport', [
             'batches'    => $batches,
             'selectedId' => $selectedId ? (int) $selectedId : null,
             'rows'       => $rows,
+            'filters'    => ['q' => $search, 'filter' => $filter],
+            'matching'   => [
+                'payable'       => (int) ($matching->c ?? 0),
+                'payable_total' => (float) ($matching->total ?? 0),
+            ],
         ]);
+    }
+
+    /**
+     * The rows of one batch narrowed by the page's search and filter, as a
+     * query rather than a collection — so it can be paginated for display and
+     * re-used to resolve "select everything matching" without ever loading
+     * thousands of rows into memory.
+     */
+    private function rowQuery(int $batchId, string $search, string $filter)
+    {
+        return BulkTransferRecipient::where('batch_id', $batchId)
+            ->when($filter === 'ready', fn ($q) => $q->whereNotNull('recipient_code')->where('recipient_code', '!=', ''))
+            ->when($filter === 'no_recipient', fn ($q) => $q->needsRecipient())
+            ->when($filter === 'paid', fn ($q) => $q->whereHas('payments', fn ($p) => $p->whereNotNull('paid_key')))
+            ->when($filter === 'unpaid', fn ($q) => $q->whereDoesntHave('payments', fn ($p) => $p->whereNotNull('paid_key')))
+            ->when($search !== '', function ($q) use ($search) {
+                // Every word must appear somewhere in the row, so "adeyemi b"
+                // finds "Adeyemi Bolanle" and word order doesn't matter.
+                foreach (preg_split('/\s+/', $search) as $term) {
+                    $like = '%' . $term . '%';
+
+                    $q->where(fn ($w) => $w
+                        ->where('full_name', 'like', $like)
+                        ->orWhere('account_number', 'like', $like)
+                        ->orWhere('account_name', 'like', $like)
+                        ->orWhere('bank_name', 'like', $like)
+                        ->orWhere('duty_post', 'like', $like)
+                        ->orWhere('source_identity', 'like', $like));
+                }
+            });
     }
 
     // ── 1. Import ───────────────────────────────────────────────────────────
@@ -325,27 +377,40 @@ class BulkTransferImportController extends Controller
     public function paySelected(Request $request, BulkTransferBatch $batch)
     {
         $validated = $request->validate([
-            'ids'   => 'required|array|min:1',
-            'ids.*' => 'integer',
+            'ids'    => 'nullable|array',
+            'ids.*'  => 'integer',
+            // "Everything matching the current search/filter", so selecting
+            // 5000 rows doesn't mean posting 5000 ids.
+            'all'    => 'nullable|boolean',
+            'q'      => 'nullable|string',
+            'filter' => 'nullable|string',
         ]);
 
-        $rows = $batch->recipients()->payable()->whereIn('id', $validated['ids'])->get();
+        $query = $request->boolean('all')
+            ? $this->rowQuery($batch->id, trim((string) ($validated['q'] ?? '')), $validated['filter'] ?? 'all')->payable()
+            : $batch->recipients()->payable()->whereIn('id', $validated['ids'] ?? []);
 
-        if ($rows->isEmpty()) {
-            return back()->with('error', 'None of the selected rows are payable — they may already be paid, have no recipient, or no amount.');
+        $count = (clone $query)->count();
+
+        if ($count === 0) {
+            return back()->with('error', 'Nothing selected is payable — those rows may already be paid, have no recipient, or no amount.');
         }
 
-        $rows->each(fn ($row) => PayBulkTransferRecipientJob::dispatch(
-            $row->id,
-            (float) $row->amount,
-            $row->remark ?: $batch->remark
-        ));
+        $total = (clone $query)->sum('amount');
 
-        $total   = $rows->sum('amount');
-        $ignored = count($validated['ids']) - $rows->count();
+        // Chunked so a five-thousand-row send never holds the whole set in
+        // memory at once.
+        $query->chunkById(500, function ($rows) use ($batch) {
+            foreach ($rows as $row) {
+                PayBulkTransferRecipientJob::dispatch(
+                    $row->id,
+                    (float) $row->amount,
+                    $row->remark ?: $batch->remark
+                );
+            }
+        });
 
-        return back()->with('success', "Queued {$rows->count()} transfer(s) totalling ₦" . number_format($total, 2) . '.'
-            . ($ignored > 0 ? " {$ignored} selected row(s) were not payable and were left alone." : ''));
+        return back()->with('success', "Queued {$count} transfer(s) totalling ₦" . number_format($total, 2) . '.');
     }
 
     /**
