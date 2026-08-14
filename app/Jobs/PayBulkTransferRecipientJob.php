@@ -31,7 +31,7 @@ class PayBulkTransferRecipientJob implements ShouldQueue
     public int $tries = 1;
     public int $timeout = 90;
 
-    public function __construct(public int $recipientId, public float $amount)
+    public function __construct(public int $recipientId, public float $amount, public ?string $reason = null)
     {
     }
 
@@ -66,11 +66,21 @@ class PayBulkTransferRecipientJob implements ShouldQueue
         // Pace calls so a long chain doesn't fire back-to-back at Paystack.
         usleep(1000000);
 
+        // Paystack shows this as the transfer's reason, and banks generally
+        // carry it into the recipient's statement narration. Row remark wins,
+        // then the batch's default, then a plain fallback. Trimmed to 100
+        // characters — long narrations get cut off downstream anyway.
+        $reason = Str::limit(
+            $this->reason ?: ($row->remark ?: ($row->batch->remark ?? 'Bulk transfer')),
+            100,
+            ''
+        );
+
         $result = $paystack->initiateTransfer(
             $row->recipient_code,
             (int) round($this->amount * 100),
             $payment->reference,
-            'Bulk transfer'
+            $reason
         );
 
         if (!($result['status'] ?? false)) {

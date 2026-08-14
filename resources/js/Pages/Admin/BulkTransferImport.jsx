@@ -62,6 +62,15 @@ export default function BulkTransferImport({ batches = [], selectedId = null, ro
 
     const batch = batches.find((b) => b.id === selectedId) ?? null;
 
+    // Reset the remark box whenever a different batch is opened.
+    const [remark, setRemark] = useState(batch?.remark ?? '');
+    const [remarkFor, setRemarkFor] = useState(batch?.id ?? null);
+
+    if (batch && remarkFor !== batch.id) {
+        setRemarkFor(batch.id);
+        setRemark(batch.remark ?? '');
+    }
+
     const filtered = useMemo(() => {
         const terms = search.trim().toLowerCase().split(/\s+/).filter(Boolean);
 
@@ -268,6 +277,31 @@ export default function BulkTransferImport({ batches = [], selectedId = null, ro
                                                 Delete batch
                                             </button>
                                         )}
+                                    </div>
+
+                                    {/* Narration Paystack puts on every transfer in this batch. */}
+                                    <div className="rounded-xl bg-gray-50 border border-gray-100 px-4 py-3">
+                                        <label className="block text-xs font-bold text-gray-600 mb-1.5">
+                                            Payment remark — what the recipient sees on their statement
+                                        </label>
+                                        <div className="flex gap-2 flex-wrap">
+                                            <input
+                                                type="text" value={remark} maxLength={100}
+                                                onChange={(e) => setRemark(e.target.value)}
+                                                placeholder="e.g. September Election Duty Allowance"
+                                                className="flex-1 min-w-[240px] px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                            />
+                                            <button
+                                                onClick={() => router.put(route('admin.bulk-transfer-import.update-batch', batch.id), { name: batch.name, remark }, { preserveScroll: true })}
+                                                disabled={remark === (batch.remark ?? '')}
+                                                className="px-4 py-2 text-sm font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 disabled:opacity-40 rounded-xl transition">
+                                                Save remark
+                                            </button>
+                                        </div>
+                                        <p className="text-[11px] text-gray-400 mt-1.5">
+                                            {remark.length}/100 · Used for every transfer in this batch. A row with its own Remark from
+                                            the sheet keeps that instead. Banks may shorten long narrations.
+                                        </p>
                                     </div>
 
                                     <Step

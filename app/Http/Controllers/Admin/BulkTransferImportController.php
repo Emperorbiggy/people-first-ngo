@@ -57,6 +57,7 @@ class BulkTransferImportController extends Controller
                 'id'             => $batch->id,
                 'reference'      => $batch->reference,
                 'name'           => $batch->name,
+                'remark'         => $batch->remark,
                 'file_name'      => $batch->file_name,
                 'created_at'     => $batch->created_at,
                 'rows_read'      => $batch->rows_read,
@@ -306,7 +307,11 @@ class BulkTransferImportController extends Controller
 
         // Each row is paid its OWN amount. Every job claims a unique key before
         // transferring, so nobody can be paid twice however this is scheduled.
-        $rows->each(fn ($row) => PayBulkTransferRecipientJob::dispatch($row->id, (float) $row->amount));
+        $rows->each(fn ($row) => PayBulkTransferRecipientJob::dispatch(
+            $row->id,
+            (float) $row->amount,
+            $row->remark ?: $batch->remark
+        ));
 
         $total = $rows->sum('amount');
 
@@ -330,13 +335,33 @@ class BulkTransferImportController extends Controller
             return back()->with('error', 'None of the selected rows are payable — they may already be paid, have no recipient, or no amount.');
         }
 
-        $rows->each(fn ($row) => PayBulkTransferRecipientJob::dispatch($row->id, (float) $row->amount));
+        $rows->each(fn ($row) => PayBulkTransferRecipientJob::dispatch(
+            $row->id,
+            (float) $row->amount,
+            $row->remark ?: $batch->remark
+        ));
 
         $total   = $rows->sum('amount');
         $ignored = count($validated['ids']) - $rows->count();
 
         return back()->with('success', "Queued {$rows->count()} transfer(s) totalling ₦" . number_format($total, 2) . '.'
             . ($ignored > 0 ? " {$ignored} selected row(s) were not payable and were left alone." : ''));
+    }
+
+    /**
+     * Batch name and the default narration Paystack shows on every transfer in
+     * it. A row's own remark still wins where the sheet supplied one.
+     */
+    public function updateBatch(Request $request, BulkTransferBatch $batch)
+    {
+        $validated = $request->validate([
+            'name'   => 'required|string|max:120',
+            'remark' => 'nullable|string|max:100',
+        ]);
+
+        $batch->update($validated);
+
+        return back()->with('success', 'Batch updated.');
     }
 
     /**
@@ -364,7 +389,11 @@ class BulkTransferImportController extends Controller
             return back()->with('error', "{$bulkTransferRecipient->full_name} has no amount set.");
         }
 
-        PayBulkTransferRecipientJob::dispatch($bulkTransferRecipient->id, (float) $bulkTransferRecipient->amount);
+        PayBulkTransferRecipientJob::dispatch(
+            $bulkTransferRecipient->id,
+            (float) $bulkTransferRecipient->amount,
+            $bulkTransferRecipient->remark ?: $bulkTransferRecipient->batch?->remark
+        );
 
         return back()->with('success', "Queued ₦" . number_format($bulkTransferRecipient->amount, 2) . " for {$bulkTransferRecipient->full_name}.");
     }

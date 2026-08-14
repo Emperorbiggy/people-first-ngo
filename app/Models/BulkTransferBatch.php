@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Model;
  */
 class BulkTransferBatch extends Model
 {
-    protected $fillable = ['reference', 'name', 'file_name', 'rows_read', 'skipped_count', 'skipped_rows'];
+    protected $fillable = ['reference', 'name', 'remark', 'file_name', 'rows_read', 'skipped_count', 'skipped_rows', 'skipped_reviewed_at'];
 
     protected $casts = ['skipped_rows' => 'array'];
 
