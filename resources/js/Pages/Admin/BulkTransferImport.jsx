@@ -57,6 +57,7 @@ export default function BulkTransferImport({ batches = [], selectedId = null, ro
     const [filter, setFilter] = useState('all');
     const [batchName, setBatchName] = useState('');
     const [busy, setBusy] = useState(null);
+    const [selected, setSelected] = useState([]);
     const fileRef = useRef(null);
 
     const batch = batches.find((b) => b.id === selectedId) ?? null;
@@ -96,6 +97,28 @@ export default function BulkTransferImport({ batches = [], selectedId = null, ro
 
     const payable = rows.filter((r) => !r.paid && r.recipient_code && r.amount > 0);
     const payableTotal = payable.reduce((sum, r) => sum + Number(r.amount || 0), 0);
+
+    // Only ready rows can be selected — ticking someone with no recipient
+    // would just queue a job that refuses itself.
+    const selectablePayable = filtered.filter((r) => !r.paid && r.recipient_code && r.amount > 0);
+    const selectedRows = payable.filter((r) => selected.includes(r.id));
+    const selectedTotal = selectedRows.reduce((sum, r) => sum + Number(r.amount || 0), 0);
+    const allSelected = selectablePayable.length > 0 && selectablePayable.every((r) => selected.includes(r.id));
+
+    const toggleAll = () => setSelected(allSelected ? [] : selectablePayable.map((r) => r.id));
+    const toggleOne = (id) => setSelected((p) => p.includes(id) ? p.filter((x) => x !== id) : [...p, id]);
+
+    const paySelected = () => {
+        if (selectedRows.length === 0) return;
+        if (!confirm(`Send ${naira(selectedTotal)} to ${selectedRows.length} selected recipient(s)?\n\nEach is paid their own amount. This moves real money.`)) return;
+
+        setBusy('selected');
+        router.post(route('admin.bulk-transfer-import.send-selected', batch.id), { ids: selected }, {
+            preserveScroll: true,
+            onSuccess: () => setSelected([]),
+            onFinish: () => setBusy(null),
+        });
+    };
 
     return (
         <AdminLayout title="Import Bulk Transfer">
@@ -166,7 +189,7 @@ export default function BulkTransferImport({ batches = [], selectedId = null, ro
                         {batch && (
                             <>
                                 {/* Why rows didn't make it in */}
-                                {batch.skipped_count > 0 && (
+                                {batch.skipped_count > 0 && !batch.skipped_reviewed && (
                                     <div className="bg-white rounded-2xl border-2 border-amber-200 shadow-sm overflow-hidden">
                                         <div className="px-5 py-4 bg-amber-50 border-b border-amber-100 flex items-start justify-between gap-3 flex-wrap">
                                             <div>
@@ -181,10 +204,18 @@ export default function BulkTransferImport({ batches = [], selectedId = null, ro
                                                     ))}
                                                 </div>
                                             </div>
-                                            <a href={route('admin.bulk-transfer-import.export-skipped', batch.id)}
-                                                className="px-4 py-2 text-sm font-semibold text-amber-800 bg-white border border-amber-300 hover:bg-amber-100 rounded-xl transition whitespace-nowrap">
-                                                Download all {batch.skipped_count}
-                                            </a>
+                                            <div className="flex items-center gap-2">
+                                                <button onClick={() => router.post(route('admin.bulk-transfer-import.dismiss-skipped', batch.id), {}, { preserveScroll: true })}
+                                                    className="px-3 py-2 text-xs font-semibold text-amber-700 hover:text-amber-900 transition whitespace-nowrap">
+                                                    Dismiss
+                                                </button>
+                                                {/* Downloading counts as reviewing — the panel closes itself. */}
+                                                <a href={route('admin.bulk-transfer-import.export-skipped', batch.id)}
+                                                    onClick={() => setTimeout(() => router.reload({ only: ['batches'] }), 1500)}
+                                                    className="px-4 py-2 text-sm font-semibold text-amber-800 bg-white border border-amber-300 hover:bg-amber-100 rounded-xl transition whitespace-nowrap">
+                                                    Download all {batch.skipped_count}
+                                                </a>
+                                            </div>
                                         </div>
 
                                         <div className="overflow-x-auto">
@@ -298,6 +329,26 @@ export default function BulkTransferImport({ batches = [], selectedId = null, ro
                                         </div>
                                     </div>
 
+                                    {/* Pay just the ticked rows, so ready people aren't held up
+                                        by the rest of the batch still resolving. */}
+                                    {selectedRows.length > 0 && (
+                                        <div className="px-4 py-3 bg-emerald-50 border-b border-emerald-100 flex items-center justify-between gap-3 flex-wrap">
+                                            <p className="text-sm font-semibold text-emerald-900">
+                                                {selectedRows.length} selected · {naira(selectedTotal)}
+                                            </p>
+                                            <div className="flex items-center gap-2">
+                                                <button onClick={() => setSelected([])}
+                                                    className="px-3 py-2 text-xs font-semibold text-gray-500 hover:text-gray-700 transition">
+                                                    Clear
+                                                </button>
+                                                <button onClick={paySelected} disabled={busy === 'selected'}
+                                                    className="px-4 py-2 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 rounded-xl transition">
+                                                    {busy === 'selected' ? 'Queueing…' : `Send ${naira(selectedTotal)}`}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+
                                     {filtered.length === 0 ? (
                                         <div className="py-16 text-center text-sm text-gray-400">
                                             {rows.length === 0 ? 'This batch has no rows.' : 'No results for this filter.'}
@@ -307,6 +358,11 @@ export default function BulkTransferImport({ batches = [], selectedId = null, ro
                                             <table className="min-w-full divide-y divide-gray-100">
                                                 <thead className="bg-gray-50">
                                                     <tr>
+                                                        <th className="px-3 py-3 text-left">
+                                                            <input type="checkbox" checked={allSelected} onChange={toggleAll}
+                                                                disabled={selectablePayable.length === 0}
+                                                                className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500" />
+                                                        </th>
                                                         {['#', 'Full Name', 'Sex', 'Account No.', 'Bank', 'Code', 'Account Name', 'Duty Post', 'Source Identity', 'Amount', 'Remark', 'Recipient', 'Payment', ''].map((h) => (
                                                             <th key={h} className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">{h}</th>
                                                         ))}
@@ -314,7 +370,15 @@ export default function BulkTransferImport({ batches = [], selectedId = null, ro
                                                 </thead>
                                                 <tbody className="divide-y divide-gray-50">
                                                     {filtered.map((r, i) => (
-                                                        <tr key={r.id} className={`transition ${r.paid ? 'bg-emerald-50/30' : 'hover:bg-gray-50'}`}>
+                                                        <tr key={r.id} className={`transition ${
+                                                            selected.includes(r.id) ? 'bg-emerald-50' : r.paid ? 'bg-emerald-50/30' : 'hover:bg-gray-50'
+                                                        }`}>
+                                                            <td className="px-3 py-3">
+                                                                {!r.paid && r.recipient_code && r.amount > 0 && (
+                                                                    <input type="checkbox" checked={selected.includes(r.id)} onChange={() => toggleOne(r.id)}
+                                                                        className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500" />
+                                                                )}
+                                                            </td>
                                                             <td className="px-3 py-3 text-xs text-gray-400">{i + 1}</td>
                                                             <td className="px-3 py-3 text-sm font-medium text-gray-800 whitespace-nowrap">{r.full_name}</td>
                                                             <td className="px-3 py-3 text-sm text-gray-500 whitespace-nowrap">{r.gender ?? '—'}</td>

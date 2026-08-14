@@ -240,6 +240,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/admin/bulk-transfer-import/{batch}/match-bank-codes', [AdminBulkTransferImportController::class, 'matchBankCodes'])->name('admin.bulk-transfer-import.match-bank-codes');
     Route::post('/admin/bulk-transfer-import/{batch}/generate-recipients', [AdminBulkTransferImportController::class, 'generateRecipients'])->name('admin.bulk-transfer-import.generate-recipients');
     Route::post('/admin/bulk-transfer-import/{batch}/send', [AdminBulkTransferImportController::class, 'sendBulkTransfer'])->name('admin.bulk-transfer-import.send');
+    Route::post('/admin/bulk-transfer-import/{batch}/send-selected', [AdminBulkTransferImportController::class, 'paySelected'])->name('admin.bulk-transfer-import.send-selected');
+    Route::post('/admin/bulk-transfer-import/{batch}/dismiss-skipped', [AdminBulkTransferImportController::class, 'dismissSkipped'])->name('admin.bulk-transfer-import.dismiss-skipped');
     Route::get('/admin/bulk-transfer-import/batch/{batch}/skipped', [AdminBulkTransferImportController::class, 'exportSkipped'])->name('admin.bulk-transfer-import.export-skipped');
     Route::delete('/admin/bulk-transfer-import/batch/{batch}', [AdminBulkTransferImportController::class, 'destroyBatch'])->name('admin.bulk-transfer-import.destroy-batch');
     Route::post('/admin/bulk-transfer-import/row/{bulkTransferRecipient}/pay', [AdminBulkTransferImportController::class, 'pay'])->name('admin.bulk-transfer-import.pay');

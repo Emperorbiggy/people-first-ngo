@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Jobs\CreateBulkTransferRecipientJob;
+use App\Jobs\MatchBulkTransferBankCodesJob;
 use App\Jobs\PayBulkTransferRecipientJob;
 use App\Models\BulkTransferBatch;
 use App\Models\BulkTransferPayment;
@@ -62,6 +63,7 @@ class BulkTransferImportController extends Controller
                 'skipped_count'  => $batch->skipped_count,
                 // Enough to see the pattern in the page; the full list is a
                 // download, since a big sheet can reject hundreds of rows.
+                'skipped_reviewed' => (bool) $batch->skipped_reviewed_at,
                 'skipped_sample' => collect($batch->skipped_rows ?? [])->take(25)->values(),
                 'skipped_reasons' => collect($batch->skipped_rows ?? [])
                     ->countBy(fn ($s) => str_starts_with($s['reason'], 'Duplicate') ? 'Duplicate account' : $s['reason'])
@@ -219,52 +221,45 @@ class BulkTransferImportController extends Controller
 
     // ── 2. Match bank codes ─────────────────────────────────────────────────
 
-    public function matchBankCodes(BulkTransferBatch $batch, PaystackService $paystack)
+    /**
+     * Queued, not done in the request: a 5000-row batch takes far longer than
+     * a web request may run.
+     */
+    public function matchBankCodes(BulkTransferBatch $batch)
     {
-        $rows = $batch->recipients()->missingBankCode()->get();
+        $count = $batch->recipients()->missingBankCode()->count();
 
-        if ($rows->isEmpty()) {
+        if ($count === 0) {
             return back()->with('success', 'Every row in this batch already has a bank code.');
         }
 
-        $matcher = new BankMatcher($paystack);
+        MatchBulkTransferBankCodesJob::dispatch($batch->id);
 
-        if (!$matcher->hasBanks()) {
-            return back()->with('error', 'Could not fetch the bank list from Paystack. Try again shortly.');
-        }
-
-        $matched   = 0;
-        $unmatched = [];
-
-        foreach ($rows as $row) {
-            $code = $matcher->codeFor($row->bank_name);
-
-            if ($code) {
-                $row->update(['bank_code' => $code]);
-                $matched++;
-            } else {
-                $unmatched[$row->bank_name] = true;
-            }
-        }
-
-        $message = "Matched a bank code for {$matched} of {$rows->count()} row(s).";
-
-        if ($unmatched) {
-            $message .= ' No match for: ' . implode(', ', array_slice(array_keys($unmatched), 0, 8))
-                . (count($unmatched) > 8 ? ' …' : '') . '. Fix those bank names and run it again.';
-        }
-
-        return back()->with('success', $message);
+        return back()->with('success', "Matching bank codes for {$count} row(s) in the background. Refresh shortly to see the result.");
     }
 
     // ── 3. Create recipients ────────────────────────────────────────────────
 
+    /**
+     * Creates recipients for every row that already has a bank code, without
+     * waiting for the rest of the batch to be matched — rows still missing a
+     * code are left for a later run rather than blocking the ones that are
+     * ready.
+     */
     public function generateRecipients(BulkTransferBatch $batch)
     {
-        $rows = $batch->recipients()->needsRecipient()->get();
+        $rows = $batch->recipients()
+            ->needsRecipient()
+            ->whereNotNull('bank_code')
+            ->where('bank_code', '!=', '')
+            ->get();
+
+        $waiting = $batch->recipients()->needsRecipient()->missingBankCode()->count();
 
         if ($rows->isEmpty()) {
-            return back()->with('success', 'Every row in this batch already has a transfer recipient.');
+            return back()->with($waiting > 0 ? 'error' : 'success', $waiting > 0
+                ? "No row is ready — {$waiting} still have no bank code. Run Match Bank Codes first."
+                : 'Every row in this batch already has a transfer recipient.');
         }
 
         // Queued individually, not chained: a broken chain would leave most of
@@ -272,7 +267,13 @@ class BulkTransferImportController extends Controller
         // Paystack, and a single worker runs them one at a time.
         $rows->each(fn ($row) => CreateBulkTransferRecipientJob::dispatch($row->id));
 
-        return back()->with('success', "Queued recipient creation for {$rows->count()} row(s). Refresh shortly to see results.");
+        $message = "Queued recipient creation for {$rows->count()} row(s). Refresh shortly to see results.";
+
+        if ($waiting > 0) {
+            $message .= " {$waiting} row(s) skipped for now — no bank code yet.";
+        }
+
+        return back()->with('success', $message);
     }
 
     // ── 4. Send the transfer ────────────────────────────────────────────────
@@ -310,6 +311,43 @@ class BulkTransferImportController extends Controller
         $total = $rows->sum('amount');
 
         return back()->with('success', "Queued {$rows->count()} transfer(s) totalling ₦" . number_format($total, 2) . '.');
+    }
+
+    /**
+     * Pay a chosen subset — the rows that are ready — without waiting for the
+     * whole batch to have recipients.
+     */
+    public function paySelected(Request $request, BulkTransferBatch $batch)
+    {
+        $validated = $request->validate([
+            'ids'   => 'required|array|min:1',
+            'ids.*' => 'integer',
+        ]);
+
+        $rows = $batch->recipients()->payable()->whereIn('id', $validated['ids'])->get();
+
+        if ($rows->isEmpty()) {
+            return back()->with('error', 'None of the selected rows are payable — they may already be paid, have no recipient, or no amount.');
+        }
+
+        $rows->each(fn ($row) => PayBulkTransferRecipientJob::dispatch($row->id, (float) $row->amount));
+
+        $total   = $rows->sum('amount');
+        $ignored = count($validated['ids']) - $rows->count();
+
+        return back()->with('success', "Queued {$rows->count()} transfer(s) totalling ₦" . number_format($total, 2) . '.'
+            . ($ignored > 0 ? " {$ignored} selected row(s) were not payable and were left alone." : ''));
+    }
+
+    /**
+     * Hide the skipped-rows panel once it has been dealt with. The rows are
+     * kept — only the prompt to review them goes away.
+     */
+    public function dismissSkipped(BulkTransferBatch $batch)
+    {
+        $batch->update(['skipped_reviewed_at' => now()]);
+
+        return back();
     }
 
     public function pay(BulkTransferRecipient $bulkTransferRecipient)
@@ -354,6 +392,10 @@ class BulkTransferImportController extends Controller
         if (empty($rows)) {
             return back()->with('error', 'Nothing was skipped in this batch.');
         }
+
+        // Downloading IS the review: once the list is in the user's hands the
+        // panel stops nagging, though the rows themselves are kept.
+        $batch->update(['skipped_reviewed_at' => now()]);
 
         $csv = "Sheet Line,Full Name,Bank Name,Account Number,Amount,Reason\n";
 
@@ -481,3 +523,4 @@ class BulkTransferImportController extends Controller
         return strlen($digits) < 10 ? str_pad($digits, 10, '0', STR_PAD_LEFT) : $digits;
     }
 }
+
