@@ -56,6 +56,23 @@ class PayBulkTransferRecipientJob implements ShouldQueue
             return;
         }
 
+        // No remark, no transfer. There is deliberately no fallback: an
+        // unlabelled payment cannot be reconciled later, so the money stays put
+        // until someone says what it is for.
+        //
+        // Checked BEFORE the claim: claiming first would take the row's unique
+        // paid_key and then abort, leaving it permanently unpayable.
+        $reason = Str::limit(
+            $this->reason ?: ($row->remark ?: ($row->batch?->remark ?: '')),
+            100,
+            ''
+        );
+
+        if (trim($reason) === '') {
+            $log('Aborted: no payment remark set — nothing sent, row left payable.');
+            return;
+        }
+
         $payment = $this->claim($row);
 
         if (!$payment) {
@@ -63,18 +80,14 @@ class PayBulkTransferRecipientJob implements ShouldQueue
             return;
         }
 
-        // Pace calls so a long chain doesn't fire back-to-back at Paystack.
+        // Pace calls so a long run doesn't fire back-to-back at Paystack.
         usleep(1000000);
 
-        // Paystack shows this as the transfer's reason, and banks generally
-        // carry it into the recipient's statement narration. Row remark wins,
-        // then the batch's default, then a plain fallback. Trimmed to 100
-        // characters — long narrations get cut off downstream anyway.
-        $reason = Str::limit(
-            $this->reason ?: ($row->remark ?: ($row->batch->remark ?? 'Bulk transfer')),
-            100,
-            ''
-        );
+        $log('Sending transfer.', [
+            'amount' => $this->amount,
+            'reason' => $reason,
+            'source' => $this->reason ? 'dispatch' : ($row->remark ? 'row remark' : 'batch remark'),
+        ]);
 
         $result = $paystack->initiateTransfer(
             $row->recipient_code,

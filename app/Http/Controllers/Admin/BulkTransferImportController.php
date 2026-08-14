@@ -333,6 +333,10 @@ class BulkTransferImportController extends Controller
 
     public function sendBulkTransfer(BulkTransferBatch $batch)
     {
+        if ($blocked = $this->remarkMissing($batch)) {
+            return $blocked;
+        }
+
         $rows = $batch->recipients()->payable()->get();
 
         if ($rows->isEmpty()) {
@@ -376,6 +380,10 @@ class BulkTransferImportController extends Controller
      */
     public function paySelected(Request $request, BulkTransferBatch $batch)
     {
+        if ($blocked = $this->remarkMissing($batch)) {
+            return $blocked;
+        }
+
         $validated = $request->validate([
             'ids'    => 'nullable|array',
             'ids.*'  => 'integer',
@@ -411,6 +419,32 @@ class BulkTransferImportController extends Controller
         });
 
         return back()->with('success', "Queued {$count} transfer(s) totalling ₦" . number_format($total, 2) . '.');
+    }
+
+    /**
+     * Refuses the send when any payable row would go out with no narration.
+     *
+     * Returns a redirect to bail out with, or null to carry on. There is no
+     * fallback text by design — a transfer nobody can identify later is worse
+     * than a transfer that hasn't happened yet.
+     */
+    private function remarkMissing(BulkTransferBatch $batch)
+    {
+        if (filled($batch->remark)) {
+            return null;
+        }
+
+        // A batch-level remark covers everyone; without one, each row must
+        // carry its own from the sheet.
+        $unlabelled = $batch->recipients()->payable()
+            ->where(fn ($q) => $q->whereNull('remark')->orWhere('remark', ''))
+            ->count();
+
+        if ($unlabelled === 0) {
+            return null;
+        }
+
+        return back()->with('error', "Set a payment remark for this batch before sending — {$unlabelled} row(s) have no narration, and transfers are not sent without one.");
     }
 
     /**
@@ -452,6 +486,10 @@ class BulkTransferImportController extends Controller
 
         if ((float) $bulkTransferRecipient->amount <= 0) {
             return back()->with('error', "{$bulkTransferRecipient->full_name} has no amount set.");
+        }
+
+        if (blank($bulkTransferRecipient->remark) && blank($bulkTransferRecipient->batch?->remark)) {
+            return back()->with('error', 'Set a payment remark for this batch before sending — transfers are not sent without a narration.');
         }
 
         PayBulkTransferRecipientJob::dispatch(
