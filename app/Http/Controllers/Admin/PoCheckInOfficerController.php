@@ -34,10 +34,16 @@ class PoCheckInOfficerController extends Controller
                     'calling_phone_number' => $officer->calling_phone_number,
                     'is_active'            => $officer->is_active,
                     'lga'                  => $lgaName,
+                    'all_lgas'             => $officer->lga_id === null,
                     // How many roster rows they will actually see — a zero here
-                    // usually means the LGA name in the sheet doesn't match.
-                    'roster_count'         => $lgaName ? PoOfficer::forLga($lgaName)->count() : 0,
-                    'checked_in_count'     => $lgaName ? PoOfficer::forLga($lgaName)->checkedIn()->count() : 0,
+                    // for an LGA-scoped login usually means the LGA name in the
+                    // sheet doesn't match. A statewide login sees everyone.
+                    'roster_count'         => $lgaName
+                        ? PoOfficer::forLga($lgaName)->count()
+                        : PoOfficer::count(),
+                    'checked_in_count'     => $lgaName
+                        ? PoOfficer::forLga($lgaName)->checkedIn()->count()
+                        : PoOfficer::checkedIn()->count(),
                     'created_at'           => $officer->created_at,
                 ];
             });
@@ -55,7 +61,9 @@ class PoCheckInOfficerController extends Controller
             'calling_phone_number' => 'nullable|string|max:20',
             'login_email'          => ['required', 'email', 'max:255', Rule::unique('databoys', 'login_email')],
             'password'             => 'required|string|min:6|max:255',
-            'lga_id'               => ['required', Rule::exists('lgas', 'id')],
+            // Blank means every LGA — one statewide login instead of a seat
+            // per LGA.
+            'lga_id'               => ['nullable', Rule::exists('lgas', 'id')],
         ]);
 
         Databoy::create([
@@ -67,13 +75,15 @@ class PoCheckInOfficerController extends Controller
             'login_password_plain' => $validated['password'],
             'password'             => Hash::make($validated['password']),
             'role'                 => 'po_checkin_officer',
-            'lga_id'               => $validated['lga_id'],
+            'lga_id'               => $validated['lga_id'] ?? null,
             'is_active'            => true,
         ]);
 
-        $lga = Lga::find($validated['lga_id']);
+        $where = isset($validated['lga_id'])
+            ? Lga::find($validated['lga_id'])->name
+            : 'every LGA';
 
-        return back()->with('success', "{$validated['full_name']} can now check in APO/PO officers in {$lga->name}.");
+        return back()->with('success', "{$validated['full_name']} can now check in APO/PO officers in {$where}.");
     }
 
     public function toggle(Databoy $databoy)

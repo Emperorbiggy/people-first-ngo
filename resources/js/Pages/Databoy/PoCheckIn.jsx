@@ -3,10 +3,11 @@ import { Head, router, usePage } from '@inertiajs/react';
 
 const naira = (n) => '₦' + Number(n || 0).toLocaleString('en-NG', { minimumFractionDigits: 2 });
 
-export default function PoCheckIn({ lga, roster = [], stats, amount = 0 }) {
+export default function PoCheckIn({ lga, allLgas = false, lgas = [], roster = [], stats, amount = 0 }) {
     const { databoy, flash } = usePage().props;
     const [search, setSearch] = useState('');
     const [filter, setFilter] = useState('pending');
+    const [lgaFilter, setLgaFilter] = useState('all');
     const [busyId, setBusyId] = useState(null);
     const [confirming, setConfirming] = useState(null);
 
@@ -16,14 +17,17 @@ export default function PoCheckIn({ lga, roster = [], stats, amount = 0 }) {
         return roster.filter((o) => {
             if (filter === 'pending' && o.checked_in_at) return false;
             if (filter === 'done' && !o.checked_in_at) return false;
+            // Only ever set on a statewide login, which needs to narrow the
+            // roster down to the LGA it is actually standing in.
+            if (lgaFilter !== 'all' && o.final_lga !== lgaFilter) return false;
             if (terms.length === 0) return true;
 
-            const hay = [o.full_name, o.phone_number, o.final_pu, o.final_ra_ward, o.final_role]
+            const hay = [o.full_name, o.phone_number, o.final_pu, o.final_ra_ward, o.final_role, o.final_lga]
                 .filter(Boolean).join(' ').toLowerCase();
 
             return terms.every((t) => hay.includes(t));
         });
-    }, [roster, search, filter]);
+    }, [roster, search, filter, lgaFilter]);
 
     // Paying is irreversible, so the confirm step shows exactly who and how
     // much rather than a browser dialog that says neither clearly.
@@ -47,7 +51,7 @@ export default function PoCheckIn({ lga, roster = [], stats, amount = 0 }) {
                     <div className="min-w-0">
                         <h1 className="font-bold text-lg leading-tight">APO/PO Check-In</h1>
                         <p className="text-violet-200 text-xs mt-0.5 truncate">
-                            {databoy?.full_name} · {lga ?? 'No LGA assigned'}
+                            {databoy?.full_name} · {allLgas ? 'All LGAs' : (lga ?? 'No LGA assigned')}
                         </p>
                     </div>
                     <button
@@ -67,7 +71,7 @@ export default function PoCheckIn({ lga, roster = [], stats, amount = 0 }) {
                     <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3">{flash.error}</div>
                 )}
 
-                {!lga && (
+                {!lga && !allLgas && (
                     <div className="bg-amber-50 border-2 border-amber-200 rounded-xl px-4 py-3">
                         <p className="text-sm font-bold text-amber-900">No LGA assigned to your account</p>
                         <p className="text-xs text-amber-800/80 mt-1">Contact the admin — without an LGA there is no roster to show.</p>
@@ -77,7 +81,9 @@ export default function PoCheckIn({ lga, roster = [], stats, amount = 0 }) {
                 <div className="grid grid-cols-3 gap-2.5">
                     <div className="rounded-2xl bg-white border border-gray-100 px-4 py-3 text-center">
                         <p className="text-2xl font-bold text-gray-800">{stats.total}</p>
-                        <p className="text-[11px] font-semibold uppercase text-gray-400 mt-0.5">In {lga ?? '—'}</p>
+                        <p className="text-[11px] font-semibold uppercase text-gray-400 mt-0.5">
+                            {allLgas ? (lgaFilter === 'all' ? 'Statewide' : lgaFilter) : `In ${lga ?? '—'}`}
+                        </p>
                     </div>
                     <div className="rounded-2xl bg-emerald-50 border border-emerald-100 px-4 py-3 text-center">
                         <p className="text-2xl font-bold text-emerald-700">{stats.checked_in}</p>
@@ -98,9 +104,16 @@ export default function PoCheckIn({ lga, roster = [], stats, amount = 0 }) {
                 <div className="space-y-2.5">
                     <input
                         type="text" value={search} onChange={(e) => setSearch(e.target.value)}
-                        placeholder="Search name, phone, polling unit…"
+                        placeholder={allLgas ? 'Search name, phone, LGA, polling unit…' : 'Search name, phone, polling unit…'}
                         className="w-full px-4 py-3 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white"
                     />
+                    {allLgas && lgas.length > 0 && (
+                        <select value={lgaFilter} onChange={(e) => setLgaFilter(e.target.value)}
+                            className="w-full px-4 py-3 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-violet-500">
+                            <option value="all">All LGAs ({roster.length})</option>
+                            {lgas.map((l) => <option key={l} value={l}>{l}</option>)}
+                        </select>
+                    )}
                     <div className="flex gap-1.5">
                         {[['pending', 'To check in'], ['done', 'Checked in'], ['all', 'All']].map(([f, labelText]) => (
                             <button key={f} onClick={() => setFilter(f)}
@@ -116,7 +129,7 @@ export default function PoCheckIn({ lga, roster = [], stats, amount = 0 }) {
                 {filtered.length === 0 ? (
                     <div className="bg-white rounded-2xl border border-gray-100 py-16 text-center text-sm text-gray-400">
                         {roster.length === 0
-                            ? `No APO/PO officers found for ${lga ?? 'your LGA'}.`
+                            ? `No APO/PO officers found${allLgas ? '' : ` for ${lga ?? 'your LGA'}`}.`
                             : 'Nobody matches this filter.'}
                     </div>
                 ) : (
@@ -132,6 +145,9 @@ export default function PoCheckIn({ lga, roster = [], stats, amount = 0 }) {
                                         <p className="text-xs text-gray-500 mt-0.5 tabular-nums">
                                             {o.phone_number || '—'}{o.final_role ? ` · ${o.final_role}` : ''}
                                         </p>
+                                        {allLgas && o.final_lga && (
+                                            <p className="text-[11px] font-semibold text-violet-600 mt-0.5">{o.final_lga}</p>
+                                        )}
                                         {(o.final_ra_ward || o.final_pu) && (
                                             <p className="text-[11px] text-gray-400 mt-0.5 truncate">
                                                 {[o.final_ra_ward, o.final_pu].filter(Boolean).join(' · ')}

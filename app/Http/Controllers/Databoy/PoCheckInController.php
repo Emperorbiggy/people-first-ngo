@@ -10,8 +10,11 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 /**
- * The check-in officer's whole portal: the APO/PO roster for their own LGA,
- * with a single Check In action per person.
+ * The check-in officer's whole portal: the APO/PO roster they are responsible
+ * for, with a single Check In action per person.
+ *
+ * An officer with no lga_id covers EVERY LGA — one login for a coordinator who
+ * works across the state rather than one seat per LGA.
  *
  * Checking someone in is what pays them — there is no checkout. The payment is
  * queued from inside the same transaction that records the check-in, so a
@@ -21,10 +24,11 @@ class PoCheckInController extends Controller
 {
     public function index()
     {
-        $officer = $this->officer();
-        $lgaName = $officer->lga->name ?? null;
+        $officer  = $this->officer();
+        $lgaName  = $officer->lga->name ?? null;
+        $allLgas  = $lgaName === null;
 
-        $roster = PoOfficer::forLga($lgaName)
+        $roster = PoOfficer::when(!$allLgas, fn ($q) => $q->forLga($lgaName))
             ->withCount(['payments as live_payments_count' => fn ($q) => $q->whereNotNull('paid_key')])
             ->with(['payments' => fn ($q) => $q->latest()->limit(1)])
             ->orderBy('final_surname')->orderBy('final_first_name')
@@ -39,6 +43,7 @@ class PoCheckInController extends Controller
                     'final_pu'       => $row->final_pu,
                     'final_ra_ward'  => $row->final_ra_ward,
                     'final_role'     => $row->final_role,
+                    'final_lga'      => $row->final_lga,
                     'account_number' => $row->account_number,
                     'bank_name'      => $row->bank_name,
                     'checked_in_at'  => $row->checked_in_at,
@@ -49,8 +54,12 @@ class PoCheckInController extends Controller
             });
 
         return inertia('Databoy/PoCheckIn', [
-            'lga'    => $lgaName,
-            'roster' => $roster,
+            'lga'     => $lgaName,
+            'allLgas' => $allLgas,
+            // Only meaningful for an all-LGA login, which needs to narrow a
+            // statewide roster down to the place it is standing in.
+            'lgas'    => $allLgas ? $roster->pluck('final_lga')->filter()->unique()->sort()->values() : [],
+            'roster'  => $roster,
             'amount' => (float) Setting::get('po_payment_amount', 0),
             'stats'  => [
                 'total'      => $roster->count(),
@@ -64,9 +73,16 @@ class PoCheckInController extends Controller
     {
         $officer = $this->officer();
 
-        // An officer may only ever touch their own LGA's roster — enforced
-        // here, not just by what the page happens to list.
-        abort_unless($this->belongsToLga($poOfficer, $officer->lga->name ?? null), 403, 'That officer is not in your LGA.');
+        // An LGA-scoped officer may only ever touch their own LGA's roster —
+        // enforced here, not just by what the page happens to list. An officer
+        // with no LGA is a statewide login and may check in anyone.
+        $lgaName = $officer->lga->name ?? null;
+
+        abort_unless(
+            $lgaName === null || $this->belongsToLga($poOfficer, $lgaName),
+            403,
+            'That officer is not in your LGA.'
+        );
 
         if ($poOfficer->checked_in_at) {
             return back()->with('error', "{$poOfficer->full_name} is already checked in.");

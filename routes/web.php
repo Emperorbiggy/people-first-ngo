@@ -234,14 +234,15 @@ Route::middleware('auth')->group(function () {
     Route::post('/admin/accreditation-officers/{databoy}/toggle', [AdminAccreditationOfficerController::class, 'toggle'])->name('admin.accreditation-officers.toggle');
     Route::delete('/admin/accreditation-officers/{databoy}', [AdminAccreditationOfficerController::class, 'destroy'])->name('admin.accreditation-officers.destroy');
 
-    // Import Bulk Transfer — import people, resolve recipients, pay them
+    // Import Bulk Transfer — batches: import, match codes, recipients, send
     Route::get('/admin/bulk-transfer-import', [AdminBulkTransferImportController::class, 'index'])->name('admin.bulk-transfer-import');
     Route::post('/admin/bulk-transfer-import/import', [AdminBulkTransferImportController::class, 'import'])->name('admin.bulk-transfer-import.import');
-    Route::post('/admin/bulk-transfer-import/retry-recipients', [AdminBulkTransferImportController::class, 'retryRecipients'])->name('admin.bulk-transfer-import.retry-recipients');
-    Route::post('/admin/bulk-transfer-import/send', [AdminBulkTransferImportController::class, 'sendBulkTransfer'])->name('admin.bulk-transfer-import.send');
-    Route::post('/admin/bulk-transfer-import/{bulkTransferRecipient}/pay', [AdminBulkTransferImportController::class, 'pay'])->name('admin.bulk-transfer-import.pay');
-    Route::delete('/admin/bulk-transfer-import/clear-unpaid', [AdminBulkTransferImportController::class, 'clearUnpaid'])->name('admin.bulk-transfer-import.clear-unpaid');
-    Route::delete('/admin/bulk-transfer-import/{bulkTransferRecipient}', [AdminBulkTransferImportController::class, 'destroy'])->name('admin.bulk-transfer-import.destroy');
+    Route::post('/admin/bulk-transfer-import/{batch}/match-bank-codes', [AdminBulkTransferImportController::class, 'matchBankCodes'])->name('admin.bulk-transfer-import.match-bank-codes');
+    Route::post('/admin/bulk-transfer-import/{batch}/generate-recipients', [AdminBulkTransferImportController::class, 'generateRecipients'])->name('admin.bulk-transfer-import.generate-recipients');
+    Route::post('/admin/bulk-transfer-import/{batch}/send', [AdminBulkTransferImportController::class, 'sendBulkTransfer'])->name('admin.bulk-transfer-import.send');
+    Route::delete('/admin/bulk-transfer-import/batch/{batch}', [AdminBulkTransferImportController::class, 'destroyBatch'])->name('admin.bulk-transfer-import.destroy-batch');
+    Route::post('/admin/bulk-transfer-import/row/{bulkTransferRecipient}/pay', [AdminBulkTransferImportController::class, 'pay'])->name('admin.bulk-transfer-import.pay');
+    Route::delete('/admin/bulk-transfer-import/row/{bulkTransferRecipient}', [AdminBulkTransferImportController::class, 'destroy'])->name('admin.bulk-transfer-import.destroy');
 
     // Logins for APO/PO check-in officers (LGA-scoped)
     Route::get('/admin/po-checkin-officers', [AdminPoCheckInOfficerController::class, 'index'])->name('admin.po-checkin-officers');

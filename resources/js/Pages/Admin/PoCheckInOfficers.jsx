@@ -45,10 +45,16 @@ export default function PoCheckInOfficers({ officers = [], lgas = [] }) {
                         <div>
                             <label className="block text-xs font-semibold text-gray-600 mb-1.5">LGA</label>
                             <select value={data.lga_id} onChange={(e) => setData('lga_id', e.target.value)} className={field}>
-                                <option value="">— Select the LGA they cover —</option>
+                                <option value="">All LGAs — statewide login</option>
                                 {lgas.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
                             </select>
-                            {errors.lga_id && <p className="mt-1 text-xs text-red-600">{errors.lga_id}</p>}
+                            {errors.lga_id
+                                ? <p className="mt-1 text-xs text-red-600">{errors.lga_id}</p>
+                                : <p className="mt-1 text-xs text-gray-400">
+                                    {data.lga_id
+                                        ? 'Sees and checks in only this LGA.'
+                                        : 'Sees the whole roster and can check in anyone, in any LGA.'}
+                                  </p>}
                         </div>
                         <div>
                             <label className="block text-xs font-semibold text-gray-600 mb-1.5">Phone Number</label>
@@ -102,7 +108,11 @@ export default function PoCheckInOfficers({ officers = [], lgas = [] }) {
                                     {officers.map((o) => (
                                         <tr key={o.id} className="hover:bg-gray-50 transition">
                                             <td className="px-4 py-3 text-sm font-medium text-gray-800 whitespace-nowrap">{o.full_name}</td>
-                                            <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{o.lga ?? '—'}</td>
+                                            <td className="px-4 py-3 text-sm whitespace-nowrap">
+                                                {o.all_lgas
+                                                    ? <span className="inline-flex px-2 py-0.5 bg-violet-100 text-violet-700 text-xs font-semibold rounded-lg">All LGAs</span>
+                                                    : <span className="text-gray-600">{o.lga ?? '—'}</span>}
+                                            </td>
                                             <td className="px-4 py-3 whitespace-nowrap">
                                                 {o.roster_count > 0
                                                     ? <span className="text-sm text-gray-700">{o.roster_count}</span>

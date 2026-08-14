@@ -5,82 +5,129 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Jobs\CreateBulkTransferRecipientJob;
 use App\Jobs\PayBulkTransferRecipientJob;
+use App\Models\BulkTransferBatch;
 use App\Models\BulkTransferPayment;
 use App\Models\BulkTransferRecipient;
+use App\Services\PaystackService;
+use App\Support\BankMatcher;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 
 /**
- * Import a list of people to pay, resolve each one into a Paystack transfer
- * recipient, then send the same amount to all of them.
+ * Bulk transfers, one batch at a time.
  *
- * The amount is entered on the page at transfer time rather than stored — one
- * imported list can be paid a different amount than the last, and nothing about
- * the roster implies what anyone is owed.
+ * Each import becomes a named batch with its own identifier, and the four steps
+ * are run deliberately against that batch: import → match bank codes → create
+ * recipients → send. Nothing happens automatically on upload, so a sheet can be
+ * checked before any of it reaches Paystack.
+ *
+ * The amount lives on each row, not on the send action: everyone in a sheet can
+ * be owed a different sum.
  */
 class BulkTransferImportController extends Controller
 {
     private const HEADER_ALIASES = [
-        'full_name'      => ['fullname', 'name', 'beneficiary', 'beneficiaryname', 'surnameandname'],
-        'bank_name'      => ['bankname', 'bank'],
-        'bank_code'      => ['bankcode', 'code'],
-        'account_number' => ['accountnumber', 'acctnumber', 'accountno', 'acctno', 'nuban'],
-        'account_name'   => ['accountname', 'acctname'],
+        'full_name'       => ['fullname', 'name', 'beneficiary', 'beneficiaryname'],
+        'gender'          => ['gendersex', 'gender', 'sex'],
+        // bank_code before bank_name so "Bank Code" is never eaten by "Bank".
+        'bank_code'       => ['bankcode'],
+        'bank_name'       => ['bankname', 'bank'],
+        'account_number'  => ['accountnumber', 'acctnumber', 'accountno', 'acctno', 'nuban'],
+        'account_name'    => ['accountname', 'acctname'],
+        'duty_post'       => ['dutypost', 'duty', 'post'],
+        'source_identity' => ['sourceidentity', 'source', 'identity'],
+        'amount'          => ['amount', 'amt', 'sum', 'value'],
+        'remark'          => ['remark', 'remarks', 'note', 'notes', 'comment'],
     ];
 
-    public function index()
+    public function index(Request $request)
     {
-        $rows = BulkTransferRecipient::withCount(['payments as live_payments_count' => fn ($q) => $q->whereNotNull('paid_key')])
-            ->with(['payments' => fn ($q) => $q->latest()->limit(1)])
-            ->orderBy('full_name')
+        $batches = BulkTransferBatch::withCount([
+                'recipients',
+                'recipients as with_recipient_count' => fn ($q) => $q->whereNotNull('recipient_code')->where('recipient_code', '!=', ''),
+                'recipients as missing_code_count'   => fn ($q) => $q->missingBankCode(),
+                'recipients as paid_count'           => fn ($q) => $q->whereHas('payments', fn ($p) => $p->whereNotNull('paid_key')),
+            ])
+            ->latest()
             ->get()
-            ->map(function ($row) {
-                $payment = $row->payments->first();
+            ->map(fn ($batch) => [
+                'id'             => $batch->id,
+                'reference'      => $batch->reference,
+                'name'           => $batch->name,
+                'file_name'      => $batch->file_name,
+                'created_at'     => $batch->created_at,
+                'total'          => $batch->recipients_count,
+                'with_recipient' => $batch->with_recipient_count,
+                'missing_code'   => $batch->missing_code_count,
+                'paid'           => $batch->paid_count,
+                'unpaid'         => $batch->recipients_count - $batch->paid_count,
+                'total_amount'   => (float) BulkTransferRecipient::where('batch_id', $batch->id)->sum('amount'),
+                'paid_amount'    => (float) BulkTransferPayment::whereIn(
+                        'bulk_transfer_recipient_id',
+                        BulkTransferRecipient::where('batch_id', $batch->id)->select('id')
+                    )->where('status', 'success')->sum('amount'),
+            ]);
 
-                return [
-                    'id'                => $row->id,
-                    'full_name'         => $row->full_name,
-                    'bank_name'         => $row->bank_name,
-                    'bank_code'         => $row->bank_code,
-                    'account_number'    => $row->account_number,
-                    'account_name'      => $row->account_name,
-                    'recipient_code'    => $row->recipient_code,
-                    'recipient_status'  => $row->recipient_status,
-                    'recipient_message' => $row->recipient_message,
-                    'payment_status'    => $payment?->status,
-                    'payment_message'   => $payment?->message,
-                    'paid_amount'       => $payment && $payment->paid_key ? $payment->amount : null,
-                    'paid'              => $row->live_payments_count > 0,
-                ];
-            });
+        // Default to the newest batch so the page opens on something useful.
+        $selectedId = $request->query('batch') ?: $batches->first()['id'] ?? null;
+
+        $rows = $selectedId
+            ? BulkTransferRecipient::where('batch_id', $selectedId)
+                ->withCount(['payments as live_payments_count' => fn ($q) => $q->whereNotNull('paid_key')])
+                ->with(['payments' => fn ($q) => $q->latest()->limit(1)])
+                ->orderBy('full_name')
+                ->get()
+                ->map(function ($row) {
+                    $payment = $row->payments->first();
+
+                    return [
+                        'id'                => $row->id,
+                        'full_name'         => $row->full_name,
+                        'gender'            => $row->gender,
+                        'bank_name'         => $row->bank_name,
+                        'bank_code'         => $row->bank_code,
+                        'account_number'    => $row->account_number,
+                        'account_name'      => $row->account_name,
+                        'duty_post'         => $row->duty_post,
+                        'source_identity'   => $row->source_identity,
+                        'amount'            => (float) $row->amount,
+                        'remark'            => $row->remark,
+                        'recipient_code'    => $row->recipient_code,
+                        'recipient_status'  => $row->recipient_status,
+                        'recipient_message' => $row->recipient_message,
+                        'payment_status'    => $payment?->status,
+                        'payment_message'   => $payment?->message,
+                        'paid'              => $row->live_payments_count > 0,
+                    ];
+                })
+            : collect();
 
         return inertia('Admin/BulkTransferImport', [
-            'rows'  => $rows,
-            'stats' => [
-                'total'          => $rows->count(),
-                'with_recipient' => $rows->where('recipient_status', 'success')->count(),
-                'failed_recipient' => $rows->where('recipient_status', 'failed')->count(),
-                'pending_recipient' => $rows->whereNull('recipient_status')->count(),
-                'paid'           => $rows->where('paid', true)->count(),
-                'unpaid'         => $rows->where('paid', false)->count(),
-                'amount_paid'    => (float) BulkTransferPayment::where('status', 'success')->sum('amount'),
-            ],
+            'batches'    => $batches,
+            'selectedId' => $selectedId ? (int) $selectedId : null,
+            'rows'       => $rows,
         ]);
     }
 
+    // ── 1. Import ───────────────────────────────────────────────────────────
+
     /**
-     * Import the list and immediately queue recipient resolution for every new
-     * or still-unresolved row — bank matching and recipient creation both
-     * happen inside that job.
+     * Import a sheet into a NEW batch. Nothing is queued here — bank matching
+     * and recipient creation are separate, deliberate steps.
      */
     public function import(Request $request)
     {
-        $request->validate(['file' => 'required|file|max:20480']);
+        $validated = $request->validate([
+            'file' => 'required|file|max:20480',
+            'name' => 'nullable|string|max:120',
+        ]);
+
+        $file = $request->file('file');
 
         try {
-            $parsed = $this->parse($request->file('file'));
+            $parsed = $this->parse($file);
         } catch (\Throwable $e) {
             return back()->withErrors(['file' => 'Could not read that file: ' . $e->getMessage()]);
         }
@@ -89,10 +136,15 @@ class BulkTransferImportController extends Controller
             return back()->withErrors(['file' => 'No usable rows found. A name, a bank name and an account number are needed.']);
         }
 
+        $batch = BulkTransferBatch::create([
+            'reference' => 'BT-' . now()->format('ymd') . '-' . strtoupper(Str::random(4)),
+            'name'      => $validated['name'] ?: pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME),
+            'file_name' => $file->getClientOriginalName(),
+        ]);
+
         $created = 0;
-        $updated = 0;
         $skipped = 0;
-        $queue   = [];
+        $seen    = [];
 
         foreach ($parsed as $row) {
             if ($row['full_name'] === '' || $row['bank_name'] === '' || $row['account_number'] === null) {
@@ -100,72 +152,104 @@ class BulkTransferImportController extends Controller
                 continue;
             }
 
-            $existing = BulkTransferRecipient::where('account_number', $row['account_number'])->first();
-
-            if ($existing) {
-                // Never wipe an existing recipient with blanks from a new sheet.
-                $existing->update(array_filter($row, fn ($v) => $v !== null && $v !== ''));
-                $updated++;
-
-                if ($existing->recipient_status !== 'success') {
-                    $queue[] = $existing->id;
-                }
-
+            // An account repeated inside one sheet is one person listed twice;
+            // the first row wins, exactly as the APO/PO roster behaves.
+            if (isset($seen[$row['account_number']])) {
+                $skipped++;
                 continue;
             }
 
-            $queue[] = BulkTransferRecipient::create($row)->id;
+            $seen[$row['account_number']] = true;
+
+            BulkTransferRecipient::create($row + ['batch_id' => $batch->id]);
             $created++;
         }
 
-        if ($queue) {
-            // Dispatched individually, not chained: one dead job in a chain
-            // orphans every job after it, so a single failure would leave most
-            // of the list with no recipient at all.
-            foreach ($queue as $id) {
-                CreateBulkTransferRecipientJob::dispatch($id);
+        if ($created === 0) {
+            $batch->delete();
+
+            return back()->withErrors(['file' => 'Nothing could be imported from that file.']);
+        }
+
+        $message = "Batch {$batch->reference} created with {$created} row(s).";
+
+        if ($skipped) {
+            $message .= " {$skipped} row(s) skipped — missing name, bank or account number, or a repeated account.";
+        }
+
+        $message .= ' Next: match bank codes.';
+
+        return redirect()->route('admin.bulk-transfer-import', ['batch' => $batch->id])->with('success', $message);
+    }
+
+    // ── 2. Match bank codes ─────────────────────────────────────────────────
+
+    public function matchBankCodes(BulkTransferBatch $batch, PaystackService $paystack)
+    {
+        $rows = $batch->recipients()->missingBankCode()->get();
+
+        if ($rows->isEmpty()) {
+            return back()->with('success', 'Every row in this batch already has a bank code.');
+        }
+
+        $matcher = new BankMatcher($paystack);
+
+        if (!$matcher->hasBanks()) {
+            return back()->with('error', 'Could not fetch the bank list from Paystack. Try again shortly.');
+        }
+
+        $matched   = 0;
+        $unmatched = [];
+
+        foreach ($rows as $row) {
+            $code = $matcher->codeFor($row->bank_name);
+
+            if ($code) {
+                $row->update(['bank_code' => $code]);
+                $matched++;
+            } else {
+                $unmatched[$row->bank_name] = true;
             }
         }
 
-        $message = "Imported {$created} row(s)" . ($updated ? ", updated {$updated} existing" : '') . '.';
+        $message = "Matched a bank code for {$matched} of {$rows->count()} row(s).";
 
-        if ($queue) {
-            $message .= ' Matching banks and creating recipients for ' . count($queue) . ' — refresh shortly to see results.';
-        }
-
-        if ($skipped) {
-            $message .= " {$skipped} row(s) skipped — name, bank name and account number are all required.";
+        if ($unmatched) {
+            $message .= ' No match for: ' . implode(', ', array_slice(array_keys($unmatched), 0, 8))
+                . (count($unmatched) > 8 ? ' …' : '') . '. Fix those bank names and run it again.';
         }
 
         return back()->with('success', $message);
     }
 
-    /** Re-run recipient resolution for anything not yet successful. */
-    public function retryRecipients()
+    // ── 3. Create recipients ────────────────────────────────────────────────
+
+    public function generateRecipients(BulkTransferBatch $batch)
     {
-        $rows = BulkTransferRecipient::needsRecipient()->get();
+        $rows = $batch->recipients()->needsRecipient()->get();
 
         if ($rows->isEmpty()) {
-            return back()->with('success', 'Every row already has a transfer recipient.');
+            return back()->with('success', 'Every row in this batch already has a transfer recipient.');
         }
 
+        // Queued individually, not chained: a broken chain would leave most of
+        // the batch with no recipient. Each job paces itself before calling
+        // Paystack, and a single worker runs them one at a time.
         $rows->each(fn ($row) => CreateBulkTransferRecipientJob::dispatch($row->id));
 
-        return back()->with('success', "Retrying recipient creation for {$rows->count()} row(s).");
+        return back()->with('success', "Queued recipient creation for {$rows->count()} row(s). Refresh shortly to see results.");
     }
 
-    public function sendBulkTransfer(Request $request)
-    {
-        $validated = $request->validate([
-            'amount' => 'required|numeric|min:1',
-        ]);
+    // ── 4. Send the transfer ────────────────────────────────────────────────
 
-        $amount = (float) $validated['amount'];
-        $rows   = BulkTransferRecipient::payable()->get();
+    public function sendBulkTransfer(BulkTransferBatch $batch)
+    {
+        $rows = $batch->recipients()->payable()->get();
 
         if ($rows->isEmpty()) {
-            $alreadyPaid = BulkTransferRecipient::whereHas('payments', fn ($q) => $q->whereNotNull('paid_key'))->count();
-            $noRecipient = BulkTransferRecipient::needsRecipient()->count();
+            $alreadyPaid = $batch->recipients()->whereHas('payments', fn ($q) => $q->whereNotNull('paid_key'))->count();
+            $noRecipient = $batch->recipients()->needsRecipient()->count();
+            $noAmount    = $batch->recipients()->where(fn ($q) => $q->whereNull('amount')->orWhere('amount', '<=', 0))->count();
 
             $reasons = [];
 
@@ -177,33 +261,39 @@ class BulkTransferImportController extends Controller
                 $reasons[] = "{$noRecipient} without a transfer recipient";
             }
 
-            return back()->with('error', 'Nobody is payable' . ($reasons ? ' — ' . implode(', ', $reasons) . '.' : '.'));
+            if ($noAmount) {
+                $reasons[] = "{$noAmount} with no amount";
+            }
+
+            return back()->with('error', 'Nobody in this batch is payable' . ($reasons ? ' — ' . implode(', ', $reasons) . '.' : '.'));
         }
 
-        // One job per recipient, queued individually rather than chained: a
-        // broken chain would silently leave most of the list unpaid. Each job
-        // claims a unique key before transferring, so nobody can be paid twice
-        // however the jobs are scheduled.
-        $rows->each(fn ($row) => PayBulkTransferRecipientJob::dispatch($row->id, $amount));
+        // Each row is paid its OWN amount. Every job claims a unique key before
+        // transferring, so nobody can be paid twice however this is scheduled.
+        $rows->each(fn ($row) => PayBulkTransferRecipientJob::dispatch($row->id, (float) $row->amount));
 
-        return back()->with('success', 'Queued ₦' . number_format($amount, 2) . " for {$rows->count()} recipient(s). Total ₦" . number_format($amount * $rows->count(), 2) . '.');
+        $total = $rows->sum('amount');
+
+        return back()->with('success', "Queued {$rows->count()} transfer(s) totalling ₦" . number_format($total, 2) . '.');
     }
 
-    public function pay(Request $request, BulkTransferRecipient $bulkTransferRecipient)
+    public function pay(BulkTransferRecipient $bulkTransferRecipient)
     {
-        $validated = $request->validate(['amount' => 'required|numeric|min:1']);
-
         if ($bulkTransferRecipient->hasLivePayment()) {
             return back()->with('error', "{$bulkTransferRecipient->full_name} already has a payment on record.");
         }
 
-        if ($bulkTransferRecipient->recipient_status !== 'success') {
+        if (!$bulkTransferRecipient->recipient_code) {
             return back()->with('error', "{$bulkTransferRecipient->full_name} has no transfer recipient yet.");
         }
 
-        PayBulkTransferRecipientJob::dispatch($bulkTransferRecipient->id, (float) $validated['amount']);
+        if ((float) $bulkTransferRecipient->amount <= 0) {
+            return back()->with('error', "{$bulkTransferRecipient->full_name} has no amount set.");
+        }
 
-        return back()->with('success', "Queued payment for {$bulkTransferRecipient->full_name}.");
+        PayBulkTransferRecipientJob::dispatch($bulkTransferRecipient->id, (float) $bulkTransferRecipient->amount);
+
+        return back()->with('success', "Queued ₦" . number_format($bulkTransferRecipient->amount, 2) . " for {$bulkTransferRecipient->full_name}.");
     }
 
     public function destroy(BulkTransferRecipient $bulkTransferRecipient)
@@ -215,24 +305,25 @@ class BulkTransferImportController extends Controller
         $name = $bulkTransferRecipient->full_name;
         $bulkTransferRecipient->delete();
 
-        return back()->with('success', "{$name} removed from the list.");
+        return back()->with('success', "{$name} removed from the batch.");
     }
 
-    public function clearUnpaid()
+    public function destroyBatch(BulkTransferBatch $batch)
     {
-        $count = BulkTransferRecipient::whereDoesntHave('payments', fn ($q) => $q->whereNotNull('paid_key'))->count();
+        $paid = $batch->recipients()->whereHas('payments', fn ($q) => $q->whereNotNull('paid_key'))->count();
 
-        if ($count === 0) {
-            return back()->with('error', 'Nothing to clear — every row has a payment on record.');
+        if ($paid > 0) {
+            return back()->with('error', "{$batch->reference} has {$paid} paid row(s) and cannot be deleted.");
         }
 
-        BulkTransferRecipient::whereDoesntHave('payments', fn ($q) => $q->whereNotNull('paid_key'))->delete();
+        $reference = $batch->reference;
+        $batch->delete();
 
-        return back()->with('success', "Cleared {$count} unpaid row(s). Paid rows were kept.");
+        return redirect()->route('admin.bulk-transfer-import')->with('success', "Batch {$reference} deleted.");
     }
 
     /**
-     * @return array<int, array<string, string|null>>
+     * @return array<int, array<string, string|float|null>>
      */
     private function parse(UploadedFile $file): array
     {
@@ -242,12 +333,13 @@ class BulkTransferImportController extends Controller
             return [];
         }
 
-        $map = [];
+        $map       = [];
+        $normalise = fn ($v) => preg_replace('/[^a-z]/', '', strtolower((string) $v));
 
         foreach ($sheet[0] ?? [] as $index => $heading) {
-            $normalised = preg_replace('/[^a-z]/', '', strtolower((string) $heading));
+            $h = $normalise($heading);
 
-            if ($normalised === '') {
+            if ($h === '') {
                 continue;
             }
 
@@ -257,7 +349,9 @@ class BulkTransferImportController extends Controller
                 }
 
                 foreach ($aliases as $alias) {
-                    if ($normalised === preg_replace('/[^a-z]/', '', $alias)) {
+                    $needle = $normalise($alias);
+
+                    if ($h === $needle || (strlen($needle) >= 6 && str_contains($h, $needle))) {
                         $map[$field] = $index;
                         break 2;
                     }
@@ -265,17 +359,13 @@ class BulkTransferImportController extends Controller
             }
         }
 
-        // No headings recognised — fall back to the documented column order.
         if (!isset($map['full_name']) || !isset($map['account_number'])) {
-            $map = ['full_name' => 0, 'bank_name' => 1, 'bank_code' => 2, 'account_number' => 3, 'account_name' => 4];
-            $body = $sheet;
-        } else {
-            $body = array_slice($sheet, 1);
+            throw new \RuntimeException('the sheet needs at least a Full Name column and an Account Number column.');
         }
 
         $rows = [];
 
-        foreach ($body as $line) {
+        foreach (array_slice($sheet, 1) as $line) {
             $cell = fn (?int $i) => $i === null ? '' : trim((string) ($line[$i] ?? ''));
 
             $name    = $cell($map['full_name'] ?? null);
@@ -286,15 +376,28 @@ class BulkTransferImportController extends Controller
             }
 
             $rows[] = [
-                'full_name'      => $name,
-                'bank_name'      => $cell($map['bank_name'] ?? null),
-                'bank_code'      => $cell($map['bank_code'] ?? null) ?: null,
-                'account_number' => $account,
-                'account_name'   => $cell($map['account_name'] ?? null) ?: null,
+                'full_name'       => $name,
+                'gender'          => $cell($map['gender'] ?? null) ?: null,
+                'bank_name'       => $cell($map['bank_name'] ?? null),
+                'bank_code'       => $cell($map['bank_code'] ?? null) ?: null,
+                'account_number'  => $account,
+                'account_name'    => $cell($map['account_name'] ?? null) ?: null,
+                'duty_post'       => $cell($map['duty_post'] ?? null) ?: null,
+                'source_identity' => $cell($map['source_identity'] ?? null) ?: null,
+                'amount'          => $this->money($cell($map['amount'] ?? null)),
+                'remark'          => $cell($map['remark'] ?? null) ?: null,
             ];
         }
 
         return $rows;
+    }
+
+    /** "₦12,500.00" and "12500" both mean the same thing. */
+    private function money(string $value): ?float
+    {
+        $clean = preg_replace('/[^0-9.]/', '', $value);
+
+        return $clean === '' ? null : (float) $clean;
     }
 
     /** Excel strips leading zeros from account numbers; put them back. */
