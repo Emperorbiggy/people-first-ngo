@@ -282,17 +282,17 @@ export default function BulkTransferImport({ batches = [], selectedId = null, ro
                                     <Step
                                         n={4} tone="emerald"
                                         title="Send Bulk Transfer"
-                                        detail={payable.length > 0
-                                            ? `${payable.length} ready to pay · ${naira(payableTotal)} total. Each row is paid its own amount.`
+                                        detail={payableCount > 0
+                                            ? `${payableCount} ready to pay · ${naira(payableTotal)} total. Each row is paid its own amount.`
                                             : 'Nothing in this batch is ready to pay.'}
                                         done={batch.total > 0 && batch.paid === batch.total}
-                                        blocked={payable.length === 0}
+                                        blocked={payableCount === 0}
                                         busy={busy === 'admin.bulk-transfer-import.send'}
                                         action={{
                                             label: `Send ${naira(payableTotal)}`,
                                             onClick: () => step(
                                                 'admin.bulk-transfer-import.send',
-                                                `Send ${naira(payableTotal)} across ${payable.length} recipient(s) in ${batch.reference}?\n\nEach is paid their own amount from the sheet. This moves real money.`
+                                                `Send ${naira(payableTotal)} across ${payableCount} recipient(s) in ${batch.reference}?\n\nEach is paid their own amount from the sheet. This moves real money.`
                                             ),
                                         }}
                                     />
