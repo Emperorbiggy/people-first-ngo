@@ -66,8 +66,9 @@ class ManualDataPurchaseController extends Controller
             return back()->with('error', 'None of the selected records are eligible — they may already have a purchase on record.');
         }
 
-        $recorded = 0;
-        $skipped  = 0;
+        $recorded    = 0;
+        $skipped     = 0;
+        $unaffordable = 0;
 
         foreach ($records as $record) {
             $plan = DataPlan::where('network', $record->browsing_network)->first();
@@ -79,7 +80,7 @@ class ManualDataPurchaseController extends Controller
 
             // One transaction per record so a mid-run failure can't leave a
             // purchase row without its matching balance debit.
-            DB::transaction(function () use ($record, $plan, $type, &$recorded) {
+            DB::transaction(function () use ($record, $plan, $type, &$recorded, &$unaffordable) {
                 $payload = [
                     'phone_number'        => $record->browsing_number,
                     'network'             => $record->browsing_network,
@@ -94,24 +95,36 @@ class ManualDataPurchaseController extends Controller
                     ? PartyAgentDataPurchase::create($payload + ['party_agent_id' => $record->id])
                     : DataPurchase::create($payload + ['databoy_id' => $record->id]);
 
-                EasigatewayTransaction::record(
-                    'debit',
+                // Refuses rather than going negative — nothing was actually
+                // bought here, so there is no external truth to reconcile to.
+                $debit = EasigatewayTransaction::debitIfAffordable(
                     (float) $plan->amount,
                     "Data purchase for {$record->browsing_number} ({$record->browsing_network})",
                     $purchase
                 );
 
+                if (!$debit) {
+                    $purchase->delete();
+                    $unaffordable++;
+                    return;
+                }
+
                 $recorded++;
             });
         }
 
-        $message = "Recorded {$recorded}  data purchase(s) and debited the balance.";
+        $message = "Recorded {$recorded} data purchase(s) and debited the balance.";
 
         if ($skipped) {
             $message .= " {$skipped} skipped — no data plan configured for their network.";
         }
 
-        return back()->with('success', $message);
+        if ($unaffordable) {
+            $message .= " {$unaffordable} stopped — the balance ran out (₦"
+                . number_format(EasigatewayTransaction::currentBalance(), 2) . ' left).';
+        }
+
+        return back()->with($unaffordable && $recorded === 0 ? 'error' : 'success', $message);
     }
 
     private function eligibleDataboysQuery()

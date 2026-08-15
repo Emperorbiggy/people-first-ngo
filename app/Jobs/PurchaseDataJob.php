@@ -67,6 +67,23 @@ class PurchaseDataJob implements ShouldQueue
             return;
         }
 
+        // Checked BEFORE the API call — debiting only on success let purchases
+        // run on an empty wallet and drove the tracked balance negative. The
+        // plan's price is what this will cost.
+        if (!EasigatewayTransaction::canAfford((float) $plan->amount)) {
+            DataPurchase::create([
+                'databoy_id'          => $databoy->id,
+                'phone_number'        => $databoy->browsing_number,
+                'network'             => $databoy->browsing_network,
+                'service_category_id' => null,
+                'bundle_code'         => null,
+                'amount'              => $plan->amount,
+                'status'              => 'failed',
+                'message'             => 'Insufficient EasiGateway balance — top up before retrying.',
+            ]);
+            return;
+        }
+
         // Skip if this phone number has already been successfully topped up
         // in a previous run — never buy data for the same number twice.
         $duplicatePhone = DataPurchase::where('phone_number', $databoy->browsing_number)

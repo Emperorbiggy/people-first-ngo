@@ -36,6 +36,14 @@ class PurchaseImportedAirtimeJob implements ShouldQueue
 
     public function handle(EasiGatewayService $easiGateway): void
     {
+        // Checked BEFORE the API call. Debiting only on success meant a
+        // purchase went through while the wallet was empty and drove the
+        // tracked balance negative.
+        if (!EasigatewayTransaction::canAfford($this->amount)) {
+            $this->record(null, 'failed', 'Insufficient EasiGateway balance — top up before retrying.');
+            return;
+        }
+
         $categories = $easiGateway->getServiceCategories();
 
         if (($categories['status'] ?? null) !== 'success' || empty($categories['data'])) {

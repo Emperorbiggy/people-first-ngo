@@ -33,6 +33,21 @@ class PurchasePartyAgentAirtimeJob implements ShouldQueue
 
         $recipient = $partyAgent->airtimeRecipient;
 
+        // Checked BEFORE the API call — debiting only on success let purchases
+        // run on an empty wallet and drove the tracked balance negative.
+        if (!EasigatewayTransaction::canAfford($this->amount)) {
+            PartyAgentAirtimePurchase::create([
+                'party_agent_id'      => $partyAgent->id,
+                'phone_number'        => $recipient->phone_number,
+                'network'             => $recipient->network,
+                'service_category_id' => $recipient->service_category_id,
+                'amount'              => $this->amount,
+                'status'              => 'failed',
+                'message'             => 'Insufficient EasiGateway balance — top up before retrying.',
+            ]);
+            return;
+        }
+
         // Skip if this phone number has already been successfully topped up
         // in a previous run — never send airtime to the same number twice.
         $duplicate = PartyAgentAirtimePurchase::where('phone_number', $recipient->phone_number)

@@ -15,6 +15,8 @@ export default function ManualAirtimePurchase({ networks = [], balance = 0, defa
 
     const value = Number(amount) || 0;
     const total = value * numbers.length;
+    const overBalance = total > balance;
+    const affordable = value > 0 ? Math.floor(balance / value) : 0;
 
     const upload = (file) => {
         setUploading(true);
@@ -111,10 +113,16 @@ export default function ManualAirtimePurchase({ networks = [], balance = 0, defa
 
                     <div className="flex items-center justify-between gap-3 flex-wrap border-t border-gray-100 pt-4">
                         <div className="text-sm text-gray-600">
-                            <p>Tracked balance: <span className="font-bold text-gray-800">{naira(balance)}</span></p>
+                            <p>Tracked balance: <span className={`font-bold ${balance <= 0 ? 'text-red-600' : 'text-gray-800'}`}>{naira(balance)}</span></p>
                             <p>{numbers.length} number(s) · will debit <span className="font-bold text-gray-800">{naira(total)}</span></p>
+                            {overBalance && (
+                                <p className="text-red-600 font-semibold mt-1">
+                                    Not enough balance — covers {affordable} number{affordable === 1 ? '' : 's'}.
+                                </p>
+                            )}
                         </div>
-                        <button onClick={record} disabled={busy || numbers.length === 0 || value <= 0}
+                        <button onClick={record} disabled={busy || numbers.length === 0 || value <= 0 || overBalance}
+                            title={overBalance ? `Balance covers only ${affordable} number(s)` : ''}
                             className="px-5 py-2.5 text-sm font-bold text-white bg-amber-600 hover:bg-amber-700 disabled:opacity-40 rounded-xl transition">
                             {busy ? 'Recording…' : `Record ${numbers.length} as Purchased`}
                         </button>

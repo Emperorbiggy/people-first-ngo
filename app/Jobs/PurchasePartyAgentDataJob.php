@@ -67,6 +67,22 @@ class PurchasePartyAgentDataJob implements ShouldQueue
             return;
         }
 
+        // Checked BEFORE the API call — debiting only on success let purchases
+        // run on an empty wallet and drove the tracked balance negative.
+        if (!EasigatewayTransaction::canAfford((float) $plan->amount)) {
+            PartyAgentDataPurchase::create([
+                'party_agent_id'      => $partyAgent->id,
+                'phone_number'        => $partyAgent->browsing_number,
+                'network'             => $partyAgent->browsing_network,
+                'service_category_id' => null,
+                'bundle_code'         => null,
+                'amount'              => $plan->amount,
+                'status'              => 'failed',
+                'message'             => 'Insufficient EasiGateway balance — top up before retrying.',
+            ]);
+            return;
+        }
+
         // Skip if this phone number has already been successfully topped up
         // in a previous run — never buy data for the same number twice.
         $duplicatePhone = PartyAgentDataPurchase::where('phone_number', $partyAgent->browsing_number)

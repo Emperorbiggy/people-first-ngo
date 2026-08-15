@@ -74,6 +74,14 @@ class ManualAirtimePurchaseController extends Controller
         // topped up before is still allowed, matching the real purchase flow.
         $numbers = collect($validated['phone_numbers'])->unique()->values();
 
+        $total = $amount * $numbers->count();
+
+        if (!EasigatewayTransaction::canAfford($total)) {
+            return back()->with('error', 'Not enough balance — ' . $numbers->count() . ' × ₦'
+                . number_format($amount, 2) . ' is ₦' . number_format($total, 2)
+                . ', but only ₦' . number_format(EasigatewayTransaction::currentBalance(), 2) . ' is available.');
+        }
+
         $recorded = 0;
 
         foreach ($numbers as $number) {
@@ -90,12 +98,18 @@ class ManualAirtimePurchaseController extends Controller
                     'message'             => null,
                 ]);
 
-                EasigatewayTransaction::record(
-                    'debit',
+                // Refuses rather than going negative — nothing was actually
+                // bought here, so there is no external truth to reconcile to.
+                $debit = EasigatewayTransaction::debitIfAffordable(
                     $amount,
                     "Airtime purchase for {$number} ({$validated['network']})",
                     $purchase
                 );
+
+                if (!$debit) {
+                    $purchase->delete();
+                    return;
+                }
 
                 $recorded++;
             });

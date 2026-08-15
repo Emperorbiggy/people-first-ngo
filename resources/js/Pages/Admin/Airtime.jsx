@@ -37,6 +37,11 @@ export default function Airtime({ type = 'databoy', airtimeAmount, balance = 0, 
 
     const total = useMemo(() => amount * selected.length, [amount, selected.length]);
 
+    // Stop a send that the wallet cannot cover. The jobs refuse too, but
+    // finding out one failed purchase at a time is no way to learn you are broke.
+    const overBalance = total > balance;
+    const affordable = amount > 0 ? Math.floor(balance / amount) : 0;
+
     const send = () => {
         if (selected.length === 0) return;
         setSending(true);
@@ -105,6 +110,21 @@ export default function Airtime({ type = 'databoy', airtimeAmount, balance = 0, 
                     </div>
                 )}
 
+                {overBalance && (
+                    <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">
+                        <span className="font-semibold">Not enough balance.</span>{' '}
+                        {selected.length} × {formatNaira(amount)} is {formatNaira(total)}, but only {formatNaira(balance)} is available —
+                        enough for {affordable} recipient{affordable === 1 ? '' : 's'}.{' '}
+                        <Link href={route('admin.easigateway-funding')} className="font-semibold underline">Fund the wallet</Link> or select fewer.
+                    </div>
+                )}
+
+                {balance <= 0 && (
+                    <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">
+                        <span className="font-semibold">The wallet balance is {formatNaira(balance)}.</span> No purchase will go through until it is funded.
+                    </div>
+                )}
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
                         <p className="text-xs text-gray-500">Wallet Balance (tracked internally)</p>
@@ -141,7 +161,8 @@ export default function Airtime({ type = 'databoy', airtimeAmount, balance = 0, 
                         <button
                             type="button"
                             onClick={send}
-                            disabled={sending || amount <= 0 || selected.length === 0}
+                            disabled={sending || amount <= 0 || selected.length === 0 || overBalance}
+                            title={overBalance ? `Balance covers only ${affordable} recipient(s)` : ''}
                             className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-semibold rounded-xl text-sm transition"
                         >
                             {sending ? 'Queuing…' : `Send Airtime (${formatNaira(total)})`}
@@ -214,7 +235,7 @@ export default function Airtime({ type = 'databoy', airtimeAmount, balance = 0, 
             </div>
 
             {importing && (
-                <ImportContactsModal onClose={() => setImporting(false)} defaultAmount={amount} />
+                <ImportContactsModal onClose={() => setImporting(false)} defaultAmount={amount} balance={balance} />
             )}
         </AdminLayout>
     );
