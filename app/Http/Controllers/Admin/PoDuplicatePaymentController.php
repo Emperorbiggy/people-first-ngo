@@ -66,6 +66,10 @@ class PoDuplicatePaymentController extends Controller
             ->pluck('name_key')
             ->flip();
 
+        // Two transfers in flight for one person: neither has settled, so
+        // neither counts as "already paid", yet both will land.
+        $pendingTwice = $rows->countBy('name_key')->filter(fn ($n) => $n > 1);
+
         return $rows->map(fn ($r) => [
             'payment_id'    => $r->payment_id,
             'officer_id'    => $r->officer_id,
@@ -83,6 +87,9 @@ class PoDuplicatePaymentController extends Controller
             'paid_at'       => $r->created_at,
             // The dangerous ones: settling on top of money already received.
             'would_duplicate' => $alreadyPaid->has($r->name_key),
+            // Or settling alongside another transfer to the same person.
+            'pending_twice'   => $pendingTwice->has($r->name_key),
+            'pending_count'   => (int) ($pendingTwice[$r->name_key] ?? 1),
         ])->values()->all();
     }
 

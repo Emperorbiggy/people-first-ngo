@@ -85,7 +85,10 @@ function Group({ group, matchedOn }) {
 
 export default function PoDuplicatePayments({ groups = {}, pending = [], stats = {} }) {
     const [refreshing, setRefreshing] = useState(false);
-    const atRisk = pending.filter((p) => p.would_duplicate);
+    // Two ways a settling transfer becomes a duplicate: the person already
+    // holds a settled payment, or a second transfer to them is also in flight.
+    const atRisk = pending.filter((p) => p.would_duplicate || p.pending_twice);
+    const pendingPairs = new Set(pending.filter((p) => p.pending_twice).map((p) => p.full_name.toLowerCase())).size;
     const sections = [
         { key: 'name',    title: 'Same person, different rows',   matchedOn: 'name',           hint: 'Name reduced to letters only, so spacing, case and punctuation differences still match. This is the one that catches someone checking in twice under two entries.' },
         { key: 'phone',   title: 'Same phone number',             matchedOn: 'phone number',   hint: 'Two roster rows sharing a phone number — usually the same person listed twice under different spellings.' },
@@ -139,8 +142,9 @@ export default function PoDuplicatePayments({ groups = {}, pending = [], stats =
                                 </p>
                                 <p className={`text-xs mt-0.5 ${atRisk.length > 0 ? 'text-red-700/80' : 'text-amber-800/80'}`}>
                                     {atRisk.length > 0
-                                        ? `${atRisk.length} of them will become a duplicate the moment they land — that person already has a successful payment.`
-                                        : 'None of these belong to someone who has already been paid.'}
+                                        ? `${atRisk.length} will become a duplicate once they land`
+                                          + (pendingPairs > 0 ? ` — including ${pendingPairs} person(s) with two transfers in flight at once.` : ' — that person already has a successful payment.')
+                                        : 'None of these belong to someone already paid, and nobody has two transfers in flight.'}
                                 </p>
                             </div>
                             <button
@@ -162,11 +166,17 @@ export default function PoDuplicatePayments({ groups = {}, pending = [], stats =
                                 </thead>
                                 <tbody className="divide-y divide-gray-50">
                                     {pending.map((p) => (
-                                        <tr key={p.payment_id} className={p.would_duplicate ? 'bg-red-50/60' : ''}>
-                                            <td className="px-3 py-2.5 whitespace-nowrap">
+                                        <tr key={p.payment_id} className={p.would_duplicate || p.pending_twice ? 'bg-red-50/60' : ''}>
+                                            <td className="px-3 py-2.5 whitespace-nowrap space-x-1">
                                                 {p.would_duplicate && (
                                                     <span className="inline-flex px-2 py-0.5 bg-red-100 text-red-700 text-[11px] font-bold rounded-lg">
                                                         already paid
+                                                    </span>
+                                                )}
+                                                {p.pending_twice && (
+                                                    <span className="inline-flex px-2 py-0.5 bg-orange-100 text-orange-700 text-[11px] font-bold rounded-lg"
+                                                        title={`${p.pending_count} transfers to this person are in flight`}>
+                                                        {p.pending_count}× in flight
                                                     </span>
                                                 )}
                                             </td>
