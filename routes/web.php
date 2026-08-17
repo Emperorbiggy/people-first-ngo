@@ -45,6 +45,7 @@ use App\Http\Controllers\Admin\AccreditationOfficerController as AdminAccreditat
 use App\Http\Controllers\Admin\AttendanceController as AdminAttendanceController;
 use App\Http\Controllers\Admin\EFormController as AdminEFormController;
 use App\Http\Controllers\Admin\PoOfficerController as AdminPoOfficerController;
+use App\Http\Controllers\Admin\PoDuplicatePaymentController as AdminPoDuplicatePaymentController;
 use App\Http\Controllers\Admin\PoCheckInOfficerController as AdminPoCheckInOfficerController;
 use App\Http\Controllers\Admin\BulkTransferImportController as AdminBulkTransferImportController;
 use App\Http\Controllers\Databoy\ApoAccreditationController as DataboyApoAccreditationController;
@@ -262,6 +263,10 @@ Route::middleware('auth')->group(function () {
     Route::post('/admin/po-officers/match-bank-codes', [AdminPoOfficerController::class, 'matchBankCodes'])->name('admin.po-officers.match-bank-codes');
     Route::post('/admin/po-officers/generate-recipients', [AdminPoOfficerController::class, 'generateRecipients'])->name('admin.po-officers.generate-recipients');
     Route::post('/admin/po-officers/refresh-payment-statuses', [AdminPoOfficerController::class, 'refreshPaymentStatuses'])->name('admin.po-officers.refresh-payment-statuses');
+
+    // Duplicate APO/PO payment audit — the same person paid under two rows
+    Route::get('/admin/po-duplicate-payments', [AdminPoDuplicatePaymentController::class, 'index'])->name('admin.po-duplicate-payments');
+    Route::get('/admin/po-duplicate-payments/export', [AdminPoDuplicatePaymentController::class, 'export'])->name('admin.po-duplicate-payments.export');
     Route::post('/admin/po-officers/{poOfficer}/retry', [AdminPoOfficerController::class, 'retry'])->name('admin.po-officers.retry');
     Route::delete('/admin/po-officers/{poOfficer}', [AdminPoOfficerController::class, 'destroy'])->name('admin.po-officers.destroy');
 
