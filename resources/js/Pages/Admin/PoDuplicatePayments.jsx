@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from '@inertiajs/react';
+import { Link, router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 
 const naira = (n) => '₦' + Number(n || 0).toLocaleString('en-NG', { minimumFractionDigits: 2 });
@@ -83,7 +83,9 @@ function Group({ group, matchedOn }) {
     );
 }
 
-export default function PoDuplicatePayments({ groups = {}, stats = {} }) {
+export default function PoDuplicatePayments({ groups = {}, pending = [], stats = {} }) {
+    const [refreshing, setRefreshing] = useState(false);
+    const atRisk = pending.filter((p) => p.would_duplicate);
     const sections = [
         { key: 'name',    title: 'Same person, different rows',   matchedOn: 'name',           hint: 'Name reduced to letters only, so spacing, case and punctuation differences still match. This is the one that catches someone checking in twice under two entries.' },
         { key: 'phone',   title: 'Same phone number',             matchedOn: 'phone number',   hint: 'Two roster rows sharing a phone number — usually the same person listed twice under different spellings.' },
@@ -126,10 +128,76 @@ export default function PoDuplicatePayments({ groups = {}, stats = {} }) {
                     <Stat label="Overpaid" value={naira(totalExcess)} tone={totalExcess > 0 ? 'red' : 'green'} />
                 </div>
 
-                {(stats.unsettled ?? 0) > 0 && (
-                    <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 text-xs text-amber-800">
-                        <span className="font-semibold">{stats.unsettled} transfer(s) are still pending or unconfirmed</span> and are
-                        not counted here. Refresh their status on the APO/PO Officers page, then re-check this list.
+                {pending.length > 0 && (
+                    <div className={`bg-white rounded-2xl border-2 shadow-sm overflow-hidden ${atRisk.length > 0 ? 'border-red-300' : 'border-amber-200'}`}>
+                        <div className={`px-5 py-4 border-b flex items-start justify-between gap-3 flex-wrap ${
+                            atRisk.length > 0 ? 'bg-red-50 border-red-100' : 'bg-amber-50 border-amber-100'
+                        }`}>
+                            <div>
+                                <p className={`text-sm font-bold ${atRisk.length > 0 ? 'text-red-900' : 'text-amber-900'}`}>
+                                    {pending.length} transfer(s) still settling
+                                </p>
+                                <p className={`text-xs mt-0.5 ${atRisk.length > 0 ? 'text-red-700/80' : 'text-amber-800/80'}`}>
+                                    {atRisk.length > 0
+                                        ? `${atRisk.length} of them will become a duplicate the moment they land — that person already has a successful payment.`
+                                        : 'None of these belong to someone who has already been paid.'}
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => { setRefreshing(true); router.post(route('admin.po-officers.refresh-payment-statuses'), {}, { preserveScroll: true, onFinish: () => setRefreshing(false) }); }}
+                                disabled={refreshing}
+                                className="px-4 py-2 text-sm font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 disabled:opacity-40 rounded-xl transition whitespace-nowrap">
+                                {refreshing ? 'Checking…' : 'Refresh from Paystack'}
+                            </button>
+                        </div>
+
+                        <div className="overflow-x-auto">
+                            <table className="min-w-full divide-y divide-gray-100">
+                                <thead className="bg-gray-50">
+                                    <tr>
+                                        {['', 'Name', 'Phone', 'LGA', 'Role', 'Bank', 'Account', 'Amount', 'Status', 'Checked in', 'Sent at', 'Reference'].map((h) => (
+                                            <th key={h} className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">{h}</th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-50">
+                                    {pending.map((p) => (
+                                        <tr key={p.payment_id} className={p.would_duplicate ? 'bg-red-50/60' : ''}>
+                                            <td className="px-3 py-2.5 whitespace-nowrap">
+                                                {p.would_duplicate && (
+                                                    <span className="inline-flex px-2 py-0.5 bg-red-100 text-red-700 text-[11px] font-bold rounded-lg">
+                                                        already paid
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td className="px-3 py-2.5 text-sm font-medium text-gray-800 whitespace-nowrap">{p.full_name}</td>
+                                            <td className="px-3 py-2.5 text-sm text-gray-600 whitespace-nowrap tabular-nums">{p.phone_number || '—'}</td>
+                                            <td className="px-3 py-2.5 text-sm text-gray-600 whitespace-nowrap">{p.lga || '—'}</td>
+                                            <td className="px-3 py-2.5 text-sm text-gray-600 whitespace-nowrap">{p.role || '—'}</td>
+                                            <td className="px-3 py-2.5 text-sm text-gray-600 whitespace-nowrap">{p.bank_name || '—'}</td>
+                                            <td className="px-3 py-2.5 text-sm text-gray-600 whitespace-nowrap tabular-nums">{p.paid_account}</td>
+                                            <td className="px-3 py-2.5 text-sm font-bold text-gray-800 whitespace-nowrap tabular-nums">{naira(p.amount)}</td>
+                                            <td className="px-3 py-2.5 whitespace-nowrap">
+                                                <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-lg capitalize ${
+                                                    p.status === 'unknown' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
+                                                }`}>
+                                                    {p.status === 'unknown' ? 'needs review' : p.status}
+                                                </span>
+                                            </td>
+                                            <td className="px-3 py-2.5 text-xs text-gray-500 whitespace-nowrap">{when(p.checked_in_at)}</td>
+                                            <td className="px-3 py-2.5 text-xs text-gray-500 whitespace-nowrap">{when(p.paid_at)}</td>
+                                            <td className="px-3 py-2.5 text-[11px] font-mono text-gray-400 whitespace-nowrap">{p.reference}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div className="px-5 py-3 border-t border-gray-50 text-xs text-gray-500">
+                            Paystack settles transfers asynchronously, so "pending" here means sent but not yet confirmed.
+                            Refreshing asks Paystack for the real outcome — a confirmed failure frees that officer to be retried,
+                            a confirmed success moves them into the duplicate check above.
+                        </div>
                     </div>
                 )}
 
