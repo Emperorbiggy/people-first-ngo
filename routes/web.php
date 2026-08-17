@@ -41,6 +41,7 @@ use App\Http\Controllers\Databoy\PoCheckInController as DataboyPoCheckInControll
 use App\Http\Controllers\Admin\ApoOfficerController as AdminApoOfficerController;
 use App\Http\Controllers\Admin\ApoRecipientController as AdminApoRecipientController;
 use App\Http\Controllers\Admin\ApoPaymentController as AdminApoPaymentController;
+use App\Http\Controllers\Admin\DuplicatePaymentController as AdminDuplicatePaymentController;
 use App\Http\Controllers\Admin\AccreditationOfficerController as AdminAccreditationOfficerController;
 use App\Http\Controllers\Admin\AttendanceController as AdminAttendanceController;
 use App\Http\Controllers\Admin\EFormController as AdminEFormController;
@@ -229,6 +230,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/admin/apo-payments/{apoOfficer}/retry', [AdminApoPaymentController::class, 'retry'])->name('admin.apo-payments.retry');
     Route::post('/admin/apo-payments/pay-unpaid', [AdminApoPaymentController::class, 'payUnpaid'])->name('admin.apo-payments.pay-unpaid');
     Route::get('/admin/apo-payments/export', [AdminApoPaymentController::class, 'exportExcel'])->name('admin.apo-payments.export');
+    // Accounts paid more than once, across every payment pool
+    Route::get('/admin/duplicate-payments', [AdminDuplicatePaymentController::class, 'index'])->name('admin.duplicate-payments');
     Route::get('/admin/accreditation-officers', [AdminAccreditationOfficerController::class, 'index'])->name('admin.accreditation-officers');
     Route::post('/admin/accreditation-officers', [AdminAccreditationOfficerController::class, 'store'])->name('admin.accreditation-officers.store');
     Route::post('/admin/accreditation-officers/{databoy}/toggle', [AdminAccreditationOfficerController::class, 'toggle'])->name('admin.accreditation-officers.toggle');
