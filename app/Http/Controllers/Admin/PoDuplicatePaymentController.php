@@ -71,6 +71,7 @@ class PoDuplicatePaymentController extends Controller
         $pendingTwice = $rows->countBy('name_key')->filter(fn ($n) => $n > 1);
 
         return $rows->map(fn ($r) => [
+            'at_risk'       => $alreadyPaid->has($r->name_key) || $pendingTwice->has($r->name_key),
             'payment_id'    => $r->payment_id,
             'officer_id'    => $r->officer_id,
             'full_name'     => trim(preg_replace('/\s+/', ' ', "{$r->final_surname} {$r->final_first_name} {$r->final_other_name}")),
@@ -90,7 +91,13 @@ class PoDuplicatePaymentController extends Controller
             // Or settling alongside another transfer to the same person.
             'pending_twice'   => $pendingTwice->has($r->name_key),
             'pending_count'   => (int) ($pendingTwice[$r->name_key] ?? 1),
-        ])->values()->all();
+        ])
+            // Only the ones that will actually duplicate. A settling transfer
+            // to someone with no other payment is ordinary business and just
+            // buries the rows that need acting on.
+            ->filter(fn ($r) => $r['at_risk'])
+            ->values()
+            ->all();
     }
 
     /**

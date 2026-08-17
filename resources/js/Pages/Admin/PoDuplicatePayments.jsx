@@ -85,9 +85,9 @@ function Group({ group, matchedOn }) {
 
 export default function PoDuplicatePayments({ groups = {}, pending = [], stats = {} }) {
     const [refreshing, setRefreshing] = useState(false);
-    // Two ways a settling transfer becomes a duplicate: the person already
-    // holds a settled payment, or a second transfer to them is also in flight.
-    const atRisk = pending.filter((p) => p.would_duplicate || p.pending_twice);
+    // The server only sends settling transfers that will duplicate — either the
+    // person already holds a settled payment, or a second transfer to them is
+    // in flight too.
     const pendingPairs = new Set(pending.filter((p) => p.pending_twice).map((p) => p.full_name.toLowerCase())).size;
     const sections = [
         { key: 'name',    title: 'Same person, different rows',   matchedOn: 'name',           hint: 'Name reduced to letters only, so spacing, case and punctuation differences still match. This is the one that catches someone checking in twice under two entries.' },
@@ -131,20 +131,24 @@ export default function PoDuplicatePayments({ groups = {}, pending = [], stats =
                     <Stat label="Overpaid" value={naira(totalExcess)} tone={totalExcess > 0 ? 'red' : 'green'} />
                 </div>
 
+                {/* Nothing is listed unless it will actually duplicate. */}
+                {pending.length === 0 && (stats.unsettled ?? 0) > 0 && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 text-xs text-amber-800">
+                        <span className="font-semibold">{stats.unsettled} transfer(s) are still settling</span>, none of which
+                        would duplicate. They are excluded from the check above until Paystack confirms them.
+                    </div>
+                )}
+
                 {pending.length > 0 && (
-                    <div className={`bg-white rounded-2xl border-2 shadow-sm overflow-hidden ${atRisk.length > 0 ? 'border-red-300' : 'border-amber-200'}`}>
-                        <div className={`px-5 py-4 border-b flex items-start justify-between gap-3 flex-wrap ${
-                            atRisk.length > 0 ? 'bg-red-50 border-red-100' : 'bg-amber-50 border-amber-100'
-                        }`}>
+                    <div className="bg-white rounded-2xl border-2 border-red-300 shadow-sm overflow-hidden">
+                        <div className="px-5 py-4 border-b bg-red-50 border-red-100 flex items-start justify-between gap-3 flex-wrap">
                             <div>
-                                <p className={`text-sm font-bold ${atRisk.length > 0 ? 'text-red-900' : 'text-amber-900'}`}>
-                                    {pending.length} transfer(s) still settling
+                                <p className="text-sm font-bold text-red-900">
+                                    {pending.length} settling transfer(s) will duplicate once they land
                                 </p>
-                                <p className={`text-xs mt-0.5 ${atRisk.length > 0 ? 'text-red-700/80' : 'text-amber-800/80'}`}>
-                                    {atRisk.length > 0
-                                        ? `${atRisk.length} will become a duplicate once they land`
-                                          + (pendingPairs > 0 ? ` — including ${pendingPairs} person(s) with two transfers in flight at once.` : ' — that person already has a successful payment.')
-                                        : 'None of these belong to someone already paid, and nobody has two transfers in flight.'}
+                                <p className="text-xs mt-0.5 text-red-700/80">
+                                    {pendingPairs > 0 && `${pendingPairs} person(s) have two transfers in flight at once. `}
+                                    Out of {stats.unsettled ?? pending.length} still settling — the rest are clean and not listed.
                                 </p>
                             </div>
                             <button
