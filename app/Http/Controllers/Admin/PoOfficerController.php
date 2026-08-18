@@ -98,6 +98,10 @@ class PoOfficerController extends Controller
                 'missing_code'   => $officers->filter(fn ($o) => empty($o['bank_code']))->count(),
                 'with_recipient' => $officers->where('recipient_status', 'success')->count(),
                 'checked_in'     => $officers->whereNotNull('checked_in_at')->count(),
+                // A check-in is only finished when the money confirmed. These
+                // are the ones still owed something.
+                'checked_in_unpaid' => $officers->filter(fn ($o) => $o['checked_in_at'] && $o['payment_status'] !== 'success')->count(),
+                'checked_in_pending' => $officers->filter(fn ($o) => $o['checked_in_at'] && in_array($o['payment_status'], ['pending', 'unknown'], true))->count(),
                 'paid'           => $officers->where('paid', true)->count(),
                 'unpaid'         => $officers->where('paid', false)->count(),
                 'amount_paid'    => (float) PoPayment::where('status', 'success')->sum('amount'),
@@ -497,6 +501,101 @@ class PoOfficerController extends Controller
             'pending', 'otp', 'processing', 'queued' => 'pending',
             default => 'unknown',
         };
+    }
+
+    /**
+     * Roster export, narrowed by check-in and payment state.
+     *
+     * Carries the payment status alongside each officer so a check-in that
+     * never turned into money is visible in the sheet rather than having to be
+     * cross-referenced.
+     */
+    public function export(Request $request)
+    {
+        $filter = $request->query('filter', 'checked_in');
+
+        $officers = PoOfficer::with(['latestPayment', 'checkedInBy:id,full_name'])
+            ->when($filter === 'checked_in', fn ($q) => $q->whereNotNull('checked_in_at'))
+            ->when($filter === 'not_checked_in', fn ($q) => $q->whereNull('checked_in_at'))
+            // Checked in but the money never confirmed — the list to chase.
+            ->when($filter === 'checked_in_unpaid', fn ($q) => $q->whereNotNull('checked_in_at')
+                ->whereDoesntHave('payments', fn ($p) => $p->where('status', 'success')))
+            ->orderBy('final_lga')->orderBy('final_surname')->orderBy('final_first_name')
+            ->get();
+
+        $csv = "Surname,First Name,Other Name,Phone,LGA,RA/Ward,Polling Unit,Role,Bank,Bank Code,Account Number,Account Name,"
+            . "Recipient Status,Checked In,Checked In By,Payment Status,Amount,Payment Reference,Paid At\n";
+
+        foreach ($officers as $o) {
+            $payment = $o->latestPayment;
+
+            $csv .= implode(',', array_map(
+                // Quote everything: names carry commas, and an unquoted account
+                // number loses its leading zero in Excel.
+                fn ($v) => '"' . str_replace('"', '""', (string) $v) . '"',
+                [
+                    $o->final_surname, $o->final_first_name, $o->final_other_name, $o->phone_number,
+                    $o->final_lga, $o->final_ra_ward, $o->final_pu, $o->final_role,
+                    $o->bank_name, $o->bank_code, $o->account_number, $o->account_name,
+                    $o->recipient_status ?? 'none',
+                    optional($o->checked_in_at)->format('Y-m-d H:i'),
+                    $o->checkedInBy->full_name ?? '',
+                    $payment->status ?? 'not paid',
+                    $payment->amount ?? '',
+                    $payment->reference ?? '',
+                    optional($payment?->created_at)->format('Y-m-d H:i'),
+                ]
+            )) . "\n";
+        }
+
+        $names = [
+            'checked_in'        => 'checked-in',
+            'not_checked_in'    => 'not-checked-in',
+            'checked_in_unpaid' => 'checked-in-unpaid',
+            'all'               => 'all',
+        ];
+
+        return response($csv, 200, [
+            'Content-Type'        => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="apo-po-' . ($names[$filter] ?? 'all') . '-' . now()->format('Ymd-Hi') . '.csv"',
+        ]);
+    }
+
+    /**
+     * Pay every checked-in officer who has no live payment.
+     *
+     * The tail of a check-in run: people whose payment failed outright, or was
+     * never dispatched because the amount or their recipient wasn't ready at
+     * the time. Officers holding a live payment — including one still settling —
+     * are skipped, and PayPoOfficerJob claims a unique paid_key before
+     * transferring, so this cannot pay anyone a second time.
+     */
+    public function payUnpaidCheckIns()
+    {
+        $amount = (float) Setting::get('po_payment_amount', 0);
+
+        if ($amount <= 0) {
+            return back()->with('error', 'Set the APO/PO officer amount in Settings before paying.');
+        }
+
+        $officers = PoOfficer::whereNotNull('checked_in_at')
+            ->where('recipient_status', 'success')
+            ->whereDoesntHave('payments', fn ($q) => $q->whereNotNull('paid_key'))
+            ->get();
+
+        if ($officers->isEmpty()) {
+            $noRecipient = PoOfficer::whereNotNull('checked_in_at')
+                ->where(fn ($q) => $q->whereNull('recipient_status')->orWhere('recipient_status', '!=', 'success'))
+                ->count();
+
+            return back()->with($noRecipient > 0 ? 'error' : 'success', $noRecipient > 0
+                ? "Nobody is payable — {$noRecipient} checked-in officer(s) have no transfer recipient. Create recipients first."
+                : 'Every checked-in officer already has a payment on record.');
+        }
+
+        $officers->each(fn ($o) => PayPoOfficerJob::dispatch($o->id, $amount));
+
+        return back()->with('success', "Queued payment for {$officers->count()} checked-in officer(s) with no payment on record.");
     }
 
     public function retry(PoOfficer $poOfficer)

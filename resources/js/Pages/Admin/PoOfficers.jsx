@@ -113,7 +113,17 @@ export default function PoOfficers({ officers = [], stats, amount = 0 }) {
                             Standalone roster — import, match bank codes, create recipients. Officers are paid at check-in.
                         </p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <select
+                            onChange={(e) => { if (e.target.value) { window.location = route('admin.po-officers.export', { filter: e.target.value }); e.target.value = ''; } }}
+                            defaultValue=""
+                            className="px-3 py-2 text-sm font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                            <option value="" disabled>Export CSV…</option>
+                            <option value="checked_in">Checked in ({stats.checked_in})</option>
+                            <option value="not_checked_in">Not checked in ({stats.total - stats.checked_in})</option>
+                            <option value="checked_in_unpaid">Checked in, not paid ({stats.checked_in_unpaid ?? 0})</option>
+                            <option value="all">Everyone ({stats.total})</option>
+                        </select>
                         <input ref={fileRef} type="file" className="hidden" accept=".csv,.txt,.xlsx,.xls,.ods" onChange={upload} />
                         <button onClick={() => fileRef.current?.click()} disabled={busy === 'import'}
                             className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 rounded-xl transition">
@@ -121,6 +131,46 @@ export default function PoOfficers({ officers = [], stats, amount = 0 }) {
                         </button>
                     </div>
                 </div>
+
+                {/* A check-in is only finished when the money confirmed. */}
+                {(stats.checked_in_unpaid ?? 0) > 0 && (
+                    <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl px-4 py-3 flex items-start justify-between gap-3 flex-wrap">
+                        <div>
+                            <p className="text-sm font-bold text-amber-900">
+                                {stats.checked_in_unpaid} checked-in officer(s) have no confirmed payment
+                            </p>
+                            <p className="text-xs text-amber-800/80 mt-0.5">
+                                {(stats.checked_in_pending ?? 0) > 0
+                                    ? `${stats.checked_in_pending} are still settling — refresh to get Paystack's answer. `
+                                    : ''}
+                                The rest failed or were never sent, and can be retried from their row.
+                            </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <a href={route('admin.po-officers.export', { filter: 'checked_in_unpaid' })}
+                                className="px-3 py-2 text-xs font-semibold text-amber-800 bg-white border border-amber-300 hover:bg-amber-100 rounded-xl transition whitespace-nowrap">
+                                Export list
+                            </a>
+                            <button onClick={() => post('admin.po-officers.refresh-payment-statuses')}
+                                disabled={busy === 'admin.po-officers.refresh-payment-statuses'}
+                                className="px-3 py-2 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 disabled:opacity-40 rounded-xl transition whitespace-nowrap">
+                                {busy === 'admin.po-officers.refresh-payment-statuses' ? 'Checking…' : '1 · Refresh from Paystack'}
+                            </button>
+                            <button
+                                onClick={() => post(
+                                    'admin.po-officers.pay-unpaid-check-ins',
+                                    null,
+                                    `Pay every checked-in officer who has no payment on record?\n\n`
+                                    + `Anyone already paid — or with a transfer still settling — is skipped. This moves real money.`
+                                )}
+                                disabled={busy === 'admin.po-officers.pay-unpaid-check-ins' || amount <= 0}
+                                title={amount <= 0 ? 'Set the APO/PO amount in Settings first' : ''}
+                                className="px-3 py-2 text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 disabled:opacity-40 rounded-xl transition whitespace-nowrap">
+                                {busy === 'admin.po-officers.pay-unpaid-check-ins' ? 'Queueing…' : '2 · Pay the rest'}
+                            </button>
+                        </div>
+                    </div>
+                )}
 
                 {flash?.success && <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm rounded-xl px-4 py-3">{flash.success}</div>}
                 {flash?.error && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3">{flash.error}</div>}

@@ -29,6 +29,18 @@ class PoOfficer extends Model
     }
 
     public function payments()   { return $this->hasMany(PoPayment::class, 'po_officer_id'); }
+
+    /**
+     * The most recent attempt, one per officer.
+     *
+     * NOT with(['payments' => fn ($q) => $q->latest()->limit(1)]) — an eager
+     * load constraint limits the single query fetching every child row, so that
+     * returns one payment for the whole page and everyone else reads as unpaid.
+     */
+    public function latestPayment()
+    {
+        return $this->hasOne(PoPayment::class, 'po_officer_id')->latestOfMany();
+    }
     public function checkedInBy(){ return $this->belongsTo(Databoy::class, 'checked_in_by'); }
 
     /**

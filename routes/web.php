@@ -263,6 +263,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/admin/po-officers/match-bank-codes', [AdminPoOfficerController::class, 'matchBankCodes'])->name('admin.po-officers.match-bank-codes');
     Route::post('/admin/po-officers/generate-recipients', [AdminPoOfficerController::class, 'generateRecipients'])->name('admin.po-officers.generate-recipients');
     Route::post('/admin/po-officers/refresh-payment-statuses', [AdminPoOfficerController::class, 'refreshPaymentStatuses'])->name('admin.po-officers.refresh-payment-statuses');
+    Route::get('/admin/po-officers/export', [AdminPoOfficerController::class, 'export'])->name('admin.po-officers.export');
+    Route::post('/admin/po-officers/pay-unpaid-check-ins', [AdminPoOfficerController::class, 'payUnpaidCheckIns'])->name('admin.po-officers.pay-unpaid-check-ins');
 
     // Duplicate APO/PO payment audit — the same person paid under two rows
     Route::get('/admin/po-duplicate-payments', [AdminPoDuplicatePaymentController::class, 'index'])->name('admin.po-duplicate-payments');
