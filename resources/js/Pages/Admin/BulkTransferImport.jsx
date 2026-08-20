@@ -182,11 +182,13 @@ export default function BulkTransferImport({ batches = [], selectedId = null, ro
                             Import your first list →
                         </button>
                         <p className="mt-4 text-xs text-gray-400 max-w-lg mx-auto">
-                            Columns: <span className="font-mono">Full Name</span>, <span className="font-mono">Gender/Sex</span>,
-                            {' '}<span className="font-mono">Account Number</span>, <span className="font-mono">Bank Name</span>,
-                            {' '}<span className="font-mono">Duty Post</span>, <span className="font-mono">Source Identity</span>,
-                            {' '}<span className="font-mono">Amount</span>, <span className="font-mono">Account Name</span>.
-                            Bank Code and Remark are optional.
+                            Needed: <span className="font-mono">Bank Name</span>, <span className="font-mono">Account Number</span>,
+                            {' '}<span className="font-mono">Amount</span>, and a name — either <span className="font-mono">Full Name</span> or
+                            {' '}<span className="font-mono">Account Name</span>.
+                            <br />
+                            Optional: <span className="font-mono">Bank Code</span> (matched for you if absent),
+                            {' '}<span className="font-mono">Gender/Sex</span>, <span className="font-mono">Duty Post</span>,
+                            {' '}<span className="font-mono">Source Identity</span>, <span className="font-mono">Remark</span>.
                         </p>
                     </div>
                 ) : (
