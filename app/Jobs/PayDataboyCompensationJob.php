@@ -78,7 +78,10 @@ class PayDataboyCompensationJob implements ShouldQueue
             DataboyCompensationPayment::create([
                 'databoy_compensation_id' => $compensation->id,
                 'databoy_id'              => $compensation->databoy_id,
+                // A refusal holds neither claim: it is a record that nothing
+                // happened, and must not lock the row or the account.
                 'paid_key'                => null,
+                'account_key'             => null,
                 'amount'                  => $amount,
                 'bank_name'               => $recipient->bank_name,
                 'bank_code'               => $recipient->bank_code,
@@ -96,7 +99,11 @@ class PayDataboyCompensationJob implements ShouldQueue
         $payment = $this->claim($compensation, $recipient, $amount);
 
         if (!$payment) {
-            $log('Aborted: another payment already holds this claim. No duplicate transfer sent.');
+            // Either this row is already paid, or this bank account is — both
+            // are unique, and either is a reason not to send money.
+            $log('Aborted: this row or this account number already holds a live payment. No duplicate transfer sent.', [
+                'account_number' => $recipient->account_number,
+            ]);
             return;
         }
 
@@ -115,9 +122,12 @@ class PayDataboyCompensationJob implements ShouldQueue
         if (!($result['status'] ?? false)) {
             // Rejected outright, so nothing moved — safe to free the claim.
             $payment->update([
-                'status'   => 'failed',
-                'paid_key' => null,
-                'message'  => $result['message'] ?? 'Transfer failed.',
+                'status'      => 'failed',
+                // Both halves of the claim are released together: the row is
+                // payable again AND the account is free for a genuine retry.
+                'paid_key'    => null,
+                'account_key' => null,
+                'message'     => $result['message'] ?? 'Transfer failed.',
             ]);
             $log('Transfer rejected — claim released.', ['message' => $result['message'] ?? null]);
             return;
@@ -158,6 +168,10 @@ class PayDataboyCompensationJob implements ShouldQueue
                 'databoy_compensation_id' => $compensation->id,
                 'databoy_id'              => $compensation->databoy_id,
                 'paid_key'                => $compensation->id,
+                // Second half of the claim: unique per bank account, so two
+                // rows sharing an account cannot both hold a live payment
+                // however the jobs are timed. Released with paid_key.
+                'account_key'             => $recipient->account_number ?: null,
                 'amount'                  => $amount,
                 'bank_name'               => $recipient->bank_name,
                 'bank_code'               => $recipient->bank_code,

@@ -10,7 +10,7 @@ class DataboyCompensationPayment extends Model
     protected $table = 'databoy_compensation_payments';
 
     protected $fillable = [
-        'databoy_compensation_id', 'databoy_id', 'paid_key', 'amount',
+        'databoy_compensation_id', 'databoy_id', 'paid_key', 'account_key', 'amount',
         'bank_name', 'bank_code', 'account_number', 'account_name',
         'recipient_code', 'transfer_code', 'reference', 'status', 'message',
     ];
