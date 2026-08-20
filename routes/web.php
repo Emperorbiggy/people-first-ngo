@@ -46,6 +46,7 @@ use App\Http\Controllers\Admin\AttendanceController as AdminAttendanceController
 use App\Http\Controllers\Admin\EFormController as AdminEFormController;
 use App\Http\Controllers\Admin\PoOfficerController as AdminPoOfficerController;
 use App\Http\Controllers\Admin\PoDuplicatePaymentController as AdminPoDuplicatePaymentController;
+use App\Http\Controllers\Admin\DataboyCompensationController as AdminDataboyCompensationController;
 use App\Http\Controllers\Admin\PoCheckInOfficerController as AdminPoCheckInOfficerController;
 use App\Http\Controllers\Admin\BulkTransferImportController as AdminBulkTransferImportController;
 use App\Http\Controllers\Databoy\ApoAccreditationController as DataboyApoAccreditationController;
@@ -265,6 +266,18 @@ Route::middleware('auth')->group(function () {
     Route::post('/admin/po-officers/refresh-payment-statuses', [AdminPoOfficerController::class, 'refreshPaymentStatuses'])->name('admin.po-officers.refresh-payment-statuses');
     Route::get('/admin/po-officers/export', [AdminPoOfficerController::class, 'export'])->name('admin.po-officers.export');
     Route::post('/admin/po-officers/pay-unpaid-check-ins', [AdminPoOfficerController::class, 'payUnpaidCheckIns'])->name('admin.po-officers.pay-unpaid-check-ins');
+
+    // Databoy compensation — upload names, match to databoys, approve, then pay
+    Route::get('/admin/databoy-compensation', [AdminDataboyCompensationController::class, 'index'])->name('admin.databoy-compensation');
+    Route::post('/admin/databoy-compensation/import', [AdminDataboyCompensationController::class, 'import'])->name('admin.databoy-compensation.import');
+    Route::post('/admin/databoy-compensation/{compensation}/approve', [AdminDataboyCompensationController::class, 'approve'])->name('admin.databoy-compensation.approve');
+    Route::post('/admin/databoy-compensation/{compensation}/reject', [AdminDataboyCompensationController::class, 'reject'])->name('admin.databoy-compensation.reject');
+    Route::post('/admin/databoy-compensation/{compensation}/reopen', [AdminDataboyCompensationController::class, 'reopen'])->name('admin.databoy-compensation.reopen');
+    Route::delete('/admin/databoy-compensation/{compensation}', [AdminDataboyCompensationController::class, 'destroy'])->name('admin.databoy-compensation.destroy');
+
+    Route::get('/admin/awaiting-compensation-payment', [AdminDataboyCompensationController::class, 'awaiting'])->name('admin.awaiting-compensation-payment');
+    Route::post('/admin/awaiting-compensation-payment/pay-all', [AdminDataboyCompensationController::class, 'payAll'])->name('admin.awaiting-compensation-payment.pay-all');
+    Route::post('/admin/awaiting-compensation-payment/{compensation}/pay', [AdminDataboyCompensationController::class, 'pay'])->name('admin.awaiting-compensation-payment.pay');
 
     // Duplicate APO/PO payment audit — the same person paid under two rows
     Route::get('/admin/po-duplicate-payments', [AdminPoDuplicatePaymentController::class, 'index'])->name('admin.po-duplicate-payments');

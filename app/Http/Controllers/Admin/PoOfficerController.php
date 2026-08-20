@@ -12,6 +12,7 @@ use App\Services\PaystackService;
 use App\Support\BankMatcher;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -447,9 +448,11 @@ class PoOfficerController extends Controller
      */
     public function refreshPaymentStatuses(PaystackService $paystack)
     {
-        $payments = PoPayment::whereIn('status', ['pending', 'unknown'])
-            ->whereNotNull('transfer_code')
-            ->get();
+        // Payments with no transfer_code used to be skipped silently, so a
+        // transfer whose code was never captured stayed pending forever even
+        // though it had settled. Those are verified by our own reference
+        // instead, which always exists.
+        $payments = PoPayment::whereIn('status', ['pending', 'unknown'])->get();
 
         if ($payments->isEmpty()) {
             return back()->with('success', 'No payments are awaiting confirmation.');
@@ -460,14 +463,37 @@ class PoOfficerController extends Controller
         $still   = 0;
 
         foreach ($payments as $payment) {
-            $result = $paystack->fetchTransfer($payment->transfer_code);
+            $result = $payment->transfer_code
+                ? $paystack->fetchTransfer($payment->transfer_code)
+                : $paystack->verifyTransferByReference($payment->reference);
+
+            // Code lookup failed — try the reference before giving up.
+            if (!($result['status'] ?? false) && $payment->transfer_code) {
+                $result = $paystack->verifyTransferByReference($payment->reference);
+            }
 
             if (!($result['status'] ?? false)) {
+                Log::warning("[refreshPaymentStatuses] Could not read payment #{$payment->id}.", [
+                    'reference' => $payment->reference,
+                    'message'   => $result['message'] ?? null,
+                ]);
                 $still++;
                 continue;
             }
 
             $status = $this->normalizeTransferStatus($result['data']['status'] ?? null);
+
+            Log::info("[refreshPaymentStatuses] Payment #{$payment->id} read from Paystack.", [
+                'reference'       => $payment->reference,
+                'paystack_status' => $result['data']['status'] ?? null,
+                'stored_as'       => $status,
+                'was'             => $payment->status,
+            ]);
+
+            // Capture the code if this was the first successful lookup.
+            if (!$payment->transfer_code && ($result['data']['transfer_code'] ?? null)) {
+                $payment->transfer_code = $result['data']['transfer_code'];
+            }
 
             if ($status === $payment->status) {
                 $still++;
@@ -476,11 +502,11 @@ class PoOfficerController extends Controller
 
             // A confirmed failure frees the officer for a genuine retry; the
             // claim is only released once Paystack says no money moved.
-            $payment->update([
+            $payment->fill([
                 'status'   => $status,
                 'message'  => $result['data']['reason'] ?? $payment->message,
                 'paid_key' => $status === 'failed' ? null : $payment->paid_key,
-            ]);
+            ])->save();
 
             $status === 'success' ? $settled++ : ($status === 'failed' ? $failed++ : $still++);
         }
