@@ -193,6 +193,80 @@ class DataboyCompensationController extends Controller
         return back()->with('success', "{$compensation->uploaded_name} approved as {$databoy->full_name} for ₦" . number_format($validated['amount'], 2) . '.');
     }
 
+    /**
+     * Approve several rows at once, each with its own chosen databoy and one
+     * shared amount.
+     *
+     * Every row goes through the same checks as a single approval — a bulk
+     * action must not be a way to skip them — and anything refused is named
+     * back so it can be dealt with individually.
+     */
+    public function approveBulk(Request $request)
+    {
+        $validated = $request->validate([
+            'amount'            => 'required|numeric|min:1',
+            'rows'              => 'required|array|min:1',
+            'rows.*.id'         => 'required|integer|exists:databoy_compensations,id',
+            'rows.*.databoy_id' => 'required|integer|exists:databoys,id',
+        ]);
+
+        $approved = 0;
+        $refused  = [];
+
+        // Databoys approved during THIS run, so two rows in one batch cannot
+        // both claim the same person.
+        $claimed = [];
+
+        foreach ($validated['rows'] as $entry) {
+            $compensation = DataboyCompensation::find($entry['id']);
+
+            if (!$compensation || $compensation->status !== 'pending') {
+                continue;
+            }
+
+            $databoy   = Databoy::with('accreditationRecipient')->find($entry['databoy_id']);
+            $recipient = $databoy?->accreditationRecipient;
+
+            if (!$recipient || $recipient->status !== 'success' || !$recipient->recipient_code) {
+                $refused[] = "{$compensation->uploaded_name} (no transfer recipient)";
+                continue;
+            }
+
+            $alreadyApproved = isset($claimed[$databoy->id]) || DataboyCompensation::where('databoy_id', $databoy->id)
+                ->where('id', '!=', $compensation->id)
+                ->where('status', 'approved')
+                ->exists();
+
+            if ($alreadyApproved) {
+                $refused[] = "{$compensation->uploaded_name} ({$databoy->full_name} already approved elsewhere)";
+                continue;
+            }
+
+            $compensation->update([
+                'databoy_id'  => $databoy->id,
+                'amount'      => $validated['amount'],
+                'status'      => 'approved',
+                'approved_at' => now(),
+            ]);
+
+            $claimed[$databoy->id] = true;
+            $approved++;
+        }
+
+        if ($approved === 0) {
+            return back()->with('error', 'Nothing was approved. ' . implode('; ', $refused));
+        }
+
+        $message = "Approved {$approved} databoy(s) at ₦" . number_format($validated['amount'], 2) . ' each.';
+
+        if ($refused) {
+            $message .= ' Skipped: ' . implode('; ', array_slice($refused, 0, 5))
+                . (count($refused) > 5 ? ' and ' . (count($refused) - 5) . ' more' : '') . '.';
+        }
+
+        return back()->with('success', $message);
+    }
+
     public function reject(DataboyCompensation $compensation)
     {
         $compensation->update(['status' => 'rejected', 'databoy_id' => null, 'amount' => null]);
