@@ -64,6 +64,35 @@ class PayDataboyCompensationJob implements ShouldQueue
             return;
         }
 
+        // paid_key stops one compensation ROW being paid twice. It cannot stop
+        // one BANK ACCOUNT being paid twice: two databoy records can carry the
+        // same account number, each with its own recipient, and both would
+        // settle into the same pocket.
+        if ($twin = $this->accountAlreadyPaid($recipient->account_number, $compensation->id)) {
+            $log('Aborted: this account number has already been paid a compensation.', [
+                'account_number' => $recipient->account_number,
+                'paid_row'       => $twin->databoy_compensation_id,
+            ]);
+
+            // Recorded, not silent — an admin has to see the near miss.
+            DataboyCompensationPayment::create([
+                'databoy_compensation_id' => $compensation->id,
+                'databoy_id'              => $compensation->databoy_id,
+                'paid_key'                => null,
+                'amount'                  => $amount,
+                'bank_name'               => $recipient->bank_name,
+                'bank_code'               => $recipient->bank_code,
+                'account_number'          => $recipient->account_number,
+                'account_name'            => $recipient->account_name,
+                'recipient_code'          => $recipient->recipient_code,
+                'reference'               => 'comp-dup-' . $compensation->id . '-' . now()->timestamp . '-' . Str::random(6),
+                'status'                  => 'failed',
+                'message'                 => "Not paid — account {$recipient->account_number} was already compensated on row #{$twin->databoy_compensation_id}. If these are different people, correct the bank details and retry.",
+            ]);
+
+            return;
+        }
+
         $payment = $this->claim($compensation, $recipient, $amount);
 
         if (!$payment) {
@@ -104,6 +133,22 @@ class PayDataboyCompensationJob implements ShouldQueue
         ]);
 
         $log('Finished.', ['status' => $payment->status]);
+    }
+
+    /**
+     * A live compensation payment already sent to this bank account, from a
+     * different compensation row — or null if the account is untouched.
+     */
+    private function accountAlreadyPaid(?string $accountNumber, int $exceptCompensationId): ?DataboyCompensationPayment
+    {
+        if (blank($accountNumber)) {
+            return null;
+        }
+
+        return DataboyCompensationPayment::whereNotNull('paid_key')
+            ->where('account_number', $accountNumber)
+            ->where('databoy_compensation_id', '!=', $exceptCompensationId)
+            ->first();
     }
 
     private function claim(DataboyCompensation $compensation, $recipient, float $amount): ?DataboyCompensationPayment

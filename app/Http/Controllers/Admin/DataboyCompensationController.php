@@ -175,11 +175,23 @@ class DataboyCompensationController extends Controller
             'note'       => 'nullable|string|max:255',
         ]);
 
+        // Re-pointing a row that has already paid would leave the payment
+        // attached to one databoy and the record claiming another.
+        if ($compensation->hasLivePayment()) {
+            return back()->with('error', "{$compensation->uploaded_name} has a payment on record and cannot be re-approved.");
+        }
+
         $databoy = Databoy::with('accreditationRecipient')->find($validated['databoy_id']);
         $recipient = $databoy->accreditationRecipient;
 
         if (!$recipient || $recipient->status !== 'success' || !$recipient->recipient_code) {
             return back()->with('error', "{$databoy->full_name} has no transfer recipient yet — create one before approving this compensation.");
+        }
+
+        // Beyond the approved-status check below: a databoy who has actually
+        // been paid must never be attached to a second row.
+        if (DataboyCompensationPayment::whereNotNull('paid_key')->where('databoy_id', $databoy->id)->exists()) {
+            return back()->with('error', "{$databoy->full_name} has already been paid a compensation.");
         }
 
         // The same databoy must not be compensated twice off one upload.
@@ -249,6 +261,12 @@ class DataboyCompensationController extends Controller
 
             if ($alreadyApproved) {
                 $refused[] = "{$compensation->uploaded_name} ({$databoy->full_name} already approved elsewhere)";
+                continue;
+            }
+
+            // Already had money — never attach them to a second row.
+            if (DataboyCompensationPayment::whereNotNull('paid_key')->where('databoy_id', $databoy->id)->exists()) {
+                $refused[] = "{$compensation->uploaded_name} ({$databoy->full_name} already paid)";
                 continue;
             }
 
@@ -358,6 +376,13 @@ class DataboyCompensationController extends Controller
 
     public function reject(DataboyCompensation $compensation)
     {
+        // Rejecting clears databoy_id, which would release that databoy to be
+        // approved and paid again on another row — a second payment to the
+        // same person. A paid row is history and stays as it is.
+        if ($compensation->hasLivePayment()) {
+            return back()->with('error', "{$compensation->uploaded_name} has a payment on record and cannot be rejected.");
+        }
+
         $compensation->update(['status' => 'rejected', 'databoy_id' => null, 'amount' => null]);
 
         return back()->with('success', "{$compensation->uploaded_name} rejected.");
