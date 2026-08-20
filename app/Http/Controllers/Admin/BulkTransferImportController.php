@@ -198,7 +198,7 @@ class BulkTransferImportController extends Controller
         }
 
         if (empty($parsed)) {
-            return back()->withErrors(['file' => 'No usable rows found. A bank name and an account number are the minimum; a name or account name identifies the row.']);
+            return back()->withErrors(['file' => 'No usable rows found. A name, a bank name and an account number are needed.']);
         }
 
         $batch = BulkTransferBatch::create([
@@ -218,10 +218,7 @@ class BulkTransferImportController extends Controller
             // Every rejection is recorded with the sheet line number, so a
             // dropped row can be found and fixed rather than just counted.
             $reason = match (true) {
-                // Empty only when the sheet gave neither a name nor an account
-                // name — the row would be unidentifiable on screen and in the
-                // payment record.
-                $row['full_name'] === ''         => 'No name or account name',
+                $row['full_name'] === ''         => 'No full name',
                 $row['bank_name'] === ''         => 'No bank name',
                 $row['account_number'] === null  => 'No account number',
                 // An account repeated inside one sheet is one person listed
@@ -567,11 +564,8 @@ class BulkTransferImportController extends Controller
             }
         }
 
-        // A name column is optional: a final-payment sheet may carry only bank
-        // details, where the account name IS the person. An account number is
-        // the one thing nothing can substitute for.
-        if (!isset($map['account_number'])) {
-            throw new \RuntimeException('the sheet needs an Account Number column.');
+        if (!isset($map['full_name']) || !isset($map['account_number'])) {
+            throw new \RuntimeException('the sheet needs at least a Full Name column and an Account Number column.');
         }
 
         $rows = [];
@@ -593,10 +587,7 @@ class BulkTransferImportController extends Controller
                 // +2: one for the header row, one because rows are 1-indexed
                 // in the spreadsheet the user is looking at.
                 '_line'           => $index + 2,
-                // Falling back to the account name keeps every row identifiable
-                // on screen and in the payment record when the sheet carries
-                // bank details only.
-                'full_name'       => $name !== '' ? $name : $accountName,
+                'full_name'       => $name,
                 'gender'          => $cell($map['gender'] ?? null) ?: null,
                 'bank_name'       => $cell($map['bank_name'] ?? null),
                 'bank_code'       => $cell($map['bank_code'] ?? null) ?: null,

@@ -49,6 +49,7 @@ use App\Http\Controllers\Admin\PoDuplicatePaymentController as AdminPoDuplicateP
 use App\Http\Controllers\Admin\DataboyCompensationController as AdminDataboyCompensationController;
 use App\Http\Controllers\Admin\PoCheckInOfficerController as AdminPoCheckInOfficerController;
 use App\Http\Controllers\Admin\BulkTransferImportController as AdminBulkTransferImportController;
+use App\Http\Controllers\Admin\ApoFinalPaymentController as AdminApoFinalPaymentController;
 use App\Http\Controllers\Databoy\ApoAccreditationController as DataboyApoAccreditationController;
 use App\Http\Controllers\Databoy\AccreditationController as DataboyAccreditationController;
 use App\Http\Controllers\NewFormController;
@@ -235,6 +236,16 @@ Route::middleware('auth')->group(function () {
     Route::post('/admin/accreditation-officers', [AdminAccreditationOfficerController::class, 'store'])->name('admin.accreditation-officers.store');
     Route::post('/admin/accreditation-officers/{databoy}/toggle', [AdminAccreditationOfficerController::class, 'toggle'])->name('admin.accreditation-officers.toggle');
     Route::delete('/admin/accreditation-officers/{databoy}', [AdminAccreditationOfficerController::class, 'destroy'])->name('admin.accreditation-officers.destroy');
+
+    // Import APO/PO Final Payment — bank details + amount, its own list
+    Route::get('/admin/apo-final-payments', [AdminApoFinalPaymentController::class, 'index'])->name('admin.apo-final-payments');
+    Route::post('/admin/apo-final-payments/import', [AdminApoFinalPaymentController::class, 'import'])->name('admin.apo-final-payments.import');
+    Route::post('/admin/apo-final-payments/generate-recipients', [AdminApoFinalPaymentController::class, 'generateRecipients'])->name('admin.apo-final-payments.generate-recipients');
+    Route::post('/admin/apo-final-payments/send', [AdminApoFinalPaymentController::class, 'send'])->name('admin.apo-final-payments.send');
+    Route::post('/admin/apo-final-payments/refresh-statuses', [AdminApoFinalPaymentController::class, 'refreshStatuses'])->name('admin.apo-final-payments.refresh-statuses');
+    Route::get('/admin/apo-final-payments/export', [AdminApoFinalPaymentController::class, 'export'])->name('admin.apo-final-payments.export');
+    Route::post('/admin/apo-final-payments/{apoFinalPayment}/pay', [AdminApoFinalPaymentController::class, 'pay'])->name('admin.apo-final-payments.pay');
+    Route::delete('/admin/apo-final-payments/{apoFinalPayment}', [AdminApoFinalPaymentController::class, 'destroy'])->name('admin.apo-final-payments.destroy');
 
     // Import Bulk Transfer — batches: import, match codes, recipients, send
     Route::get('/admin/bulk-transfer-import', [AdminBulkTransferImportController::class, 'index'])->name('admin.bulk-transfer-import');
