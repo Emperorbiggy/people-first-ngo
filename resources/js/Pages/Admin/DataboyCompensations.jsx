@@ -81,6 +81,14 @@ function Row({ row, index, picked, onPick, selected, onSelect, generalAmount, bu
                                     <div className="min-w-0">
                                         <p className="text-sm font-semibold text-gray-800 truncate">{c.name}</p>
                                         <p className="text-xs text-gray-500 tabular-nums">{c.phone || 'no phone'}</p>
+                                        {/* Shown while choosing, not discovered when approval is refused. */}
+                                        {!c.has_recipient && (
+                                            <p className="text-[11px] text-amber-600 font-semibold mt-0.5">
+                                                {c.has_bank_details
+                                                    ? (c.recipient_status === 'failed' ? 'recipient failed — can retry' : 'no transfer recipient yet')
+                                                    : 'no bank details on record'}
+                                            </p>
+                                        )}
                                     </div>
                                     <span className={`shrink-0 text-xs font-bold px-2 py-0.5 rounded-lg ${
                                         c.exact ? 'bg-emerald-100 text-emerald-700'
@@ -92,6 +100,30 @@ function Row({ row, index, picked, onPick, selected, onSelect, generalAmount, bu
                                 </button>
                             ))}
                         </div>
+
+                        {/* The chosen databoy can't be approved without one, so
+                            offer to build it here rather than sending them away. */}
+                        {candidate && !candidate.has_recipient && (
+                            <div className="rounded-xl bg-amber-50 border border-amber-200 px-3 py-2.5 flex items-center justify-between gap-3 flex-wrap">
+                                <p className="text-xs text-amber-800">
+                                    <span className="font-bold">{candidate.name}</span>{' '}
+                                    {candidate.has_bank_details
+                                        ? 'has no transfer recipient — create one to approve this row.'
+                                        : 'has no bank account on their databoy record, so no recipient can be created.'}
+                                    {candidate.recipient_message && (
+                                        <span className="block text-amber-700/70 mt-0.5">{candidate.recipient_message}</span>
+                                    )}
+                                </p>
+                                {candidate.has_bank_details && (
+                                    <button
+                                        onClick={() => { setBusy(`recipient-${row.id}`); router.post(route('admin.databoy-compensation.create-recipient'), { databoy_id: candidate.id }, { preserveScroll: true, onFinish: () => setBusy(null) }); }}
+                                        disabled={busy === `recipient-${row.id}`}
+                                        className="px-3 py-1.5 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 disabled:opacity-40 rounded-lg transition whitespace-nowrap">
+                                        {busy === `recipient-${row.id}` ? 'Creating…' : 'Create recipient'}
+                                    </button>
+                                )}
+                            </div>
+                        )}
 
                         <div className="pt-2 border-t border-gray-100 flex gap-2 flex-wrap items-end">
                             <div className="flex-1 min-w-[130px]">
@@ -151,6 +183,30 @@ export default function DataboyCompensations({ rows = [], status = 'pending', co
     // it stays for a person to decide.
     const exactRows = rows.filter((r) => r.candidates.filter((c) => c.exact).length === 1);
     const ambiguous = rows.filter((r) => r.candidates.filter((c) => c.exact).length > 1);
+
+    // Databoys currently chosen on a row who cannot be approved yet because
+    // they have no recipient, but do have the bank details to build one.
+    const missingRecipient = [...new Map(
+        rows
+            .map((r) => r.candidates.find((c) => c.id === pickFor(r)))
+            .filter((c) => c && !c.has_recipient && c.has_bank_details)
+            .map((c) => [c.id, c])
+    ).values()];
+
+    const createMissingRecipients = () => {
+        if (missingRecipient.length === 0) return;
+
+        if (!confirm(
+            `Create transfer recipients for ${missingRecipient.length} databoy(s)?\n\n`
+            + `They are queued with Paystack using the bank details already on their databoy record. `
+            + `Refresh in a moment, then approve.`
+        )) return;
+
+        setBusy('recipients');
+        router.post(route('admin.databoy-compensation.create-missing-recipients'),
+            { databoy_ids: missingRecipient.map((c) => c.id) },
+            { preserveScroll: true, onFinish: () => setBusy(null) });
+    };
 
     const selectExact = () => {
         setPicks((p) => ({
@@ -298,6 +354,21 @@ export default function DataboyCompensations({ rows = [], status = 'pending', co
                                 {busy === 'bulk' ? 'Approving…' : `Approve ${selected.length} selected`}
                             </button>
                         </div>
+
+                        {/* Nothing can be approved without a recipient, so clear
+                            the whole backlog in one action. */}
+                        {missingRecipient.length > 0 && (
+                            <div className="flex items-center justify-between gap-3 flex-wrap rounded-xl bg-amber-50 border border-amber-200 px-4 py-2.5">
+                                <p className="text-xs text-amber-800">
+                                    <span className="font-bold">{missingRecipient.length} matched databoy(s) have no transfer recipient</span> and
+                                    cannot be approved until they do.
+                                </p>
+                                <button onClick={createMissingRecipients} disabled={busy === 'recipients'}
+                                    className="px-4 py-2 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 disabled:opacity-40 rounded-xl transition whitespace-nowrap">
+                                    {busy === 'recipients' ? 'Queueing…' : `Create ${missingRecipient.length} recipient(s)`}
+                                </button>
+                            </div>
+                        )}
 
                         {/* One click for the unambiguous ones — the bulk of a clean sheet. */}
                         {exactRows.length > 0 && (

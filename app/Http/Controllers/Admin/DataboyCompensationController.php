@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\CreateDataboyRecipientJob;
 use App\Jobs\PayDataboyCompensationJob;
 use App\Models\Databoy;
 use App\Models\DataboyCompensation;
@@ -124,8 +125,8 @@ class DataboyCompensationController extends Controller
             // Scoped to the LGA on the sheet; without one there is nothing to
             // narrow by and the whole roster would be a meaningless list.
             ->when($row->lga_id, fn ($q) => $q->where('lga_id', $row->lga_id), fn ($q) => $q->whereRaw('1 = 0'))
-            ->with('lga:id,name')
-            ->get(['id', 'full_name', 'calling_phone_number', 'lga_id']);
+            ->with(['lga:id,name', 'accreditationRecipient'])
+            ->get(['id', 'full_name', 'calling_phone_number', 'lga_id', 'account_number', 'bank_code', 'bank_name', 'bank_account_name']);
 
         return $databoys
             ->map(function ($databoy) use ($needle) {
@@ -135,12 +136,21 @@ class DataboyCompensationController extends Controller
                 // partially-spelled names better than an exact comparison.
                 similar_text($needle, $candidate, $percent);
 
+                $recipient = $databoy->accreditationRecipient;
+
                 return [
                     'id'     => $databoy->id,
                     'name'   => $databoy->full_name,
                     'phone'  => $databoy->calling_phone_number,
                     'score'  => round($percent),
                     'exact'  => $candidate === $needle,
+                    // Surfaced so a missing recipient is visible while choosing,
+                    // rather than only discovered when approval is refused.
+                    'has_recipient'     => (bool) ($recipient && $recipient->status === 'success' && $recipient->recipient_code),
+                    'recipient_status'  => $recipient->status ?? null,
+                    'recipient_message' => $recipient->message ?? null,
+                    // Nothing to build a recipient from without these.
+                    'has_bank_details'  => filled($databoy->account_number) && filled($databoy->bank_code),
                 ];
             })
             // Below half the letters in common it is not a near-miss, it is a
@@ -262,6 +272,85 @@ class DataboyCompensationController extends Controller
         if ($refused) {
             $message .= ' Skipped: ' . implode('; ', array_slice($refused, 0, 5))
                 . (count($refused) > 5 ? ' and ' . (count($refused) - 5) . ' more' : '') . '.';
+        }
+
+        return back()->with('success', $message);
+    }
+
+    /**
+     * Create the Paystack transfer recipient for one databoy, so a match that
+     * cannot yet be approved can be fixed without leaving this page.
+     */
+    public function createRecipient(Request $request)
+    {
+        $validated = $request->validate(['databoy_id' => 'required|exists:databoys,id']);
+
+        $databoy = Databoy::with('accreditationRecipient')->find($validated['databoy_id']);
+
+        if ($databoy->accreditationRecipient?->status === 'success' && $databoy->accreditationRecipient->recipient_code) {
+            return back()->with('success', "{$databoy->full_name} already has a transfer recipient.");
+        }
+
+        if (blank($databoy->account_number) || blank($databoy->bank_code)) {
+            return back()->with('error', "{$databoy->full_name} has no bank account or bank code on their record — there is nothing to build a recipient from.");
+        }
+
+        CreateDataboyRecipientJob::dispatch($databoy->id);
+
+        return back()->with('success', "Creating a transfer recipient for {$databoy->full_name}. Refresh shortly, then approve.");
+    }
+
+    /**
+     * Queue recipients for every databoy currently suggested on a pending row
+     * who hasn't got one — the batch version of the above, so a whole sheet
+     * can be made approvable in one go.
+     */
+    public function createMissingRecipients(Request $request)
+    {
+        $validated = $request->validate([
+            'databoy_ids'   => 'required|array|min:1',
+            'databoy_ids.*' => 'integer|exists:databoys,id',
+        ]);
+
+        $databoys = Databoy::with('accreditationRecipient')
+            ->whereIn('id', array_unique($validated['databoy_ids']))
+            ->get();
+
+        $queued  = 0;
+        $noBank  = 0;
+        $already = 0;
+
+        foreach ($databoys as $databoy) {
+            $recipient = $databoy->accreditationRecipient;
+
+            if ($recipient && $recipient->status === 'success' && $recipient->recipient_code) {
+                $already++;
+                continue;
+            }
+
+            if (blank($databoy->account_number) || blank($databoy->bank_code)) {
+                $noBank++;
+                continue;
+            }
+
+            CreateDataboyRecipientJob::dispatch($databoy->id);
+            $queued++;
+        }
+
+        if ($queued === 0) {
+            return back()->with('error', $noBank > 0
+                ? "Nothing queued — {$noBank} databoy(s) have no bank details on record."
+                : 'Everyone selected already has a transfer recipient.');
+        }
+
+        $message = "Creating transfer recipients for {$queued} databoy(s). Refresh shortly, then approve.";
+
+        if ($already) {
+            $message .= " {$already} already had one.";
+        }
+
+        if ($noBank) {
+            $message .= " {$noBank} skipped — no bank details on their record.";
         }
 
         return back()->with('success', $message);
