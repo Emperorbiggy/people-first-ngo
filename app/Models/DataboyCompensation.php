@@ -6,6 +6,13 @@ use Illuminate\Database\Eloquent\Model;
 
 class DataboyCompensation extends Model
 {
+    /**
+     * Set explicitly: Laravel's inflector treats "compensation" as uncountable,
+     * so it infers the singular "databoy_compensation" and every query misses
+     * the table the migration actually created.
+     */
+    protected $table = 'databoy_compensations';
+
     protected $fillable = [
         'uploaded_name', 'uploaded_lga', 'lga_id',
         'databoy_id', 'amount', 'status', 'approved_at', 'note',
