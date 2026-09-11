@@ -1,4 +1,4 @@
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import TransportAgentLayout from '@/Layouts/TransportAgentLayout';
 
 const CATEGORY_LABEL = {
@@ -19,6 +19,8 @@ function StatCard({ label, value, tone, icon }) {
 }
 
 export default function Dashboard({ stats, recent, daily }) {
+    const { transportAgentRegistrationEnabled: registrationEnabled = true } = usePage().props;
+
     // Scaled against the busiest day so a quiet week still reads clearly.
     const peak = Math.max(1, ...daily.map((d) => d.count));
 
@@ -83,16 +85,31 @@ export default function Dashboard({ stats, recent, daily }) {
                     />
                 </div>
 
-                <Link href={route('transport-agent.vehicles')}
-                    className="flex items-center justify-between gap-3 bg-amber-600 hover:bg-amber-700 text-white rounded-2xl px-5 py-4 shadow-sm transition">
-                    <div>
-                        <p className="font-semibold">Register a vehicle</p>
-                        <p className="text-amber-100 text-xs mt-0.5">Capture the vehicle, the owner and both photos</p>
+                {registrationEnabled ? (
+                    <Link href={route('transport-agent.vehicles')}
+                        className="flex items-center justify-between gap-3 bg-amber-600 hover:bg-amber-700 text-white rounded-2xl px-5 py-4 shadow-sm transition">
+                        <div>
+                            <p className="font-semibold">Register a vehicle</p>
+                            <p className="text-amber-100 text-xs mt-0.5">Capture the vehicle, the owner and both photos</p>
+                        </div>
+                        <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                        </svg>
+                    </Link>
+                ) : (
+                    <div className="flex items-center gap-3 bg-red-50 border border-red-200 text-red-700 rounded-2xl px-5 py-4">
+                        <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                                d="M18.364 5.636L5.636 18.364M12 3a9 9 0 100 18 9 9 0 000-18z" />
+                        </svg>
+                        <div>
+                            <p className="font-semibold text-sm">Registration is closed</p>
+                            <p className="text-xs mt-0.5 text-red-600">
+                                The administrator has paused vehicle registration. Your captured records are safe.
+                            </p>
+                        </div>
                     </div>
-                    <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-                    </svg>
-                </Link>
+                )}
 
                 <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
                     <h2 className="font-semibold text-gray-800 text-sm">Last 7 days</h2>

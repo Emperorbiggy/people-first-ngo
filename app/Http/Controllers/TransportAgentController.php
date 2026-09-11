@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Lga;
+use App\Models\Setting;
 use App\Models\State;
 use App\Models\TransportAgent;
 use App\Services\PaystackService;
@@ -27,6 +28,10 @@ class TransportAgentController extends Controller
 
     public function create()
     {
+        if (!$this->registrationOpen()) {
+            return inertia('TransportAgent/RegistrationClosed');
+        }
+
         return inertia('TransportAgent/Create', [
             'lgas' => $this->osunLgas(),
         ]);
@@ -34,6 +39,12 @@ class TransportAgentController extends Controller
 
     public function store(Request $request)
     {
+        // Checked again on submit: the page may have been sitting open since
+        // before the admin closed registration, or posted to directly.
+        if (!$this->registrationOpen()) {
+            return redirect()->route('transport-agent.create');
+        }
+
         $validated = $request->validate([
             'full_name'       => 'required|string|max:255',
             'phone_number'    => ['required', 'string', 'regex:/^\d{11}$/'],
@@ -153,6 +164,15 @@ class TransportAgentController extends Controller
         }
 
         return null;
+    }
+
+    /**
+     * Admin switch. Only new registrations are gated — agents who already have
+     * an account keep their portal either way.
+     */
+    private function registrationOpen(): bool
+    {
+        return Setting::get('transport_agent_registration_enabled', '1') === '1';
     }
 
     private function osunStateId(): ?int

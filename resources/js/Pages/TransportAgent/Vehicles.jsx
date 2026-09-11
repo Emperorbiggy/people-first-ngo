@@ -89,7 +89,30 @@ function PhotoInput({ label, file, existing, error, onPick, onClear }) {
     );
 }
 
-export default function Vehicles({ vehicles, filters, categories, types, counts }) {
+function RegistrationClosedNotice() {
+    return (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="px-5 py-6 flex items-start gap-4">
+                <div className="w-10 h-10 rounded-xl bg-red-50 text-red-500 flex items-center justify-center shrink-0">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                            d="M18.364 5.636L5.636 18.364M12 3a9 9 0 100 18 9 9 0 000-18z" />
+                    </svg>
+                </div>
+                <div>
+                    <h2 className="font-semibold text-gray-800 text-sm">Registration is closed</h2>
+                    <p className="text-xs text-gray-500 mt-1">
+                        The administrator has paused vehicle registration. You cannot add or edit a
+                        registration right now — everything you have already captured is safe and
+                        listed below.
+                    </p>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+export default function Vehicles({ vehicles, filters, categories, types, counts, registrationEnabled = true }) {
     const [editing, setEditing] = useState(null);
     const [search, setSearch] = useState(filters.q || '');
     const formRef = useRef(null);
@@ -158,6 +181,9 @@ export default function Vehicles({ vehicles, filters, categories, types, counts 
     return (
         <TransportAgentLayout title="Register Vehicle">
             <div className="max-w-5xl mx-auto space-y-5">
+                {!registrationEnabled && <RegistrationClosedNotice />}
+
+                {registrationEnabled && (
                 <form ref={formRef} onSubmit={submit}
                     className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                     <div className={`px-5 py-4 border-b ${editing ? 'bg-blue-50 border-blue-100' : 'border-gray-100'}`}>
@@ -274,6 +300,7 @@ export default function Vehicles({ vehicles, filters, categories, types, counts 
                         </button>
                     </div>
                 </form>
+                )}
 
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                     <div className="px-5 py-4 border-b border-gray-100 space-y-3">
@@ -336,10 +363,12 @@ export default function Vehicles({ vehicles, filters, categories, types, counts 
                                         </p>
                                     </div>
 
-                                    <button onClick={() => startEdit(vehicle)}
-                                        className="px-3 py-1.5 rounded-lg text-xs font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 shrink-0 transition">
-                                        Edit
-                                    </button>
+                                    {registrationEnabled && (
+                                        <button onClick={() => startEdit(vehicle)}
+                                            className="px-3 py-1.5 rounded-lg text-xs font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 shrink-0 transition">
+                                            Edit
+                                        </button>
+                                    )}
                                 </li>
                             ))}
                         </ul>

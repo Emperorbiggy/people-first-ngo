@@ -758,6 +758,7 @@ export default function Settings({
     accreditationPaymentEnabled,
     apoAccreditationEnabled,
     partyAgentRegistrationEnabled,
+    transportAgentRegistrationEnabled,
     paymentGateway,
     paystackPublicKey,
     paystackSecretKeySet,
@@ -875,6 +876,17 @@ export default function Settings({
                     enabled={partyAgentRegistrationEnabled}
                     statusOn="Registration is ENABLED — databoys can register party agents."
                     statusOff="Registration is DISABLED — the Party Agents option is hidden from databoys."
+                    colorOn="green"
+                    colorOff="red"
+                />
+
+                <SettingRow
+                    label="Transport Agent Registration"
+                    description="Controls whether the public /transport-agent page accepts new transport agent registrations."
+                    settingKey="transport_agent_registration_enabled"
+                    enabled={transportAgentRegistrationEnabled}
+                    statusOn="Registration is OPEN — new transport agents can register."
+                    statusOff="Registration is CLOSED — the form shows a closed message. Agents already registered can still log in."
                     colorOn="green"
                     colorOff="red"
                 />

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\TransportAgent;
 
 use App\Http\Controllers\Controller;
 use App\Models\RegisteredVehicle;
+use App\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
@@ -44,6 +45,7 @@ class VehicleController extends Controller
             ->withQueryString();
 
         return inertia('TransportAgent/Vehicles', [
+            'registrationEnabled' => $this->registrationOpen(),
             'vehicles'   => $vehicles,
             'filters'    => ['q' => $search, 'category' => $category],
             'categories' => RegisteredVehicle::CATEGORIES,
@@ -58,6 +60,10 @@ class VehicleController extends Controller
 
     public function store(Request $request)
     {
+        if ($closed = $this->closedResponse()) {
+            return $closed;
+        }
+
         $agent     = $this->agent();
         $validated = $this->validated($request);
 
@@ -86,6 +92,10 @@ class VehicleController extends Controller
 
     public function update(Request $request, RegisteredVehicle $vehicle)
     {
+        if ($closed = $this->closedResponse()) {
+            return $closed;
+        }
+
         $agent = $this->agent();
 
         // Their own only — an agent must not be able to edit another's work by
@@ -113,6 +123,25 @@ class VehicleController extends Controller
         ]));
 
         return back()->with('success', "{$vehicle->plate_number} updated.");
+    }
+
+    /** The admin switch — the same one that closes the public signup. */
+    private function registrationOpen(): bool
+    {
+        return Setting::get('transport_agent_registration_enabled', '1') === '1';
+    }
+
+    /**
+     * Hiding the form is not enough: a page opened before the admin closed
+     * registration, or a posted request, must be refused here too.
+     */
+    private function closedResponse()
+    {
+        if ($this->registrationOpen()) {
+            return null;
+        }
+
+        return back()->with('error', 'Vehicle registration is currently closed by the administrator.');
     }
 
     private function validated(Request $request): array
