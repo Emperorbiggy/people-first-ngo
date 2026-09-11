@@ -48,6 +48,14 @@ return [
             'provider' => 'databoys',
         ],
 
+        // Their own guard rather than a role on the databoy table: they are a
+        // separate population with a separate portal, and nothing they do
+        // should be reachable from a databoy session or vice versa.
+        'transport_agent' => [
+            'driver' => 'session',
+            'provider' => 'transport_agents',
+        ],
+
         'api' => [
             'driver' => 'jwt',
             'provider' => 'users',
@@ -81,6 +89,11 @@ return [
         'databoys' => [
             'driver' => 'eloquent',
             'model' => App\Models\Databoy::class,
+        ],
+
+        'transport_agents' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\TransportAgent::class,
         ],
 
         // 'users' => [

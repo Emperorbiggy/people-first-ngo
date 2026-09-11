@@ -55,6 +55,11 @@ use App\Http\Controllers\Databoy\AccreditationController as DataboyAccreditation
 use App\Http\Controllers\NewFormController;
 use App\Http\Controllers\CheckDocumentController;
 use App\Http\Controllers\EFormController;
+use App\Http\Controllers\TransportAgentController;
+use App\Http\Controllers\TransportAgent\AuthController as TransportAgentAuthController;
+use App\Http\Controllers\TransportAgent\DashboardController as TransportAgentDashboardController;
+use App\Http\Controllers\TransportAgent\VehicleController as TransportAgentVehicleController;
+use App\Http\Controllers\TransportAgent\ProfileController as TransportAgentProfileController;
 use App\Models\Country;
 use Illuminate\Support\Facades\Route;
 
@@ -89,6 +94,28 @@ if ($eformDomain = config('app.eform_domain')) {
     Route::post('/e-form', [EFormController::class, 'store'])->name('e-form.store');
     Route::get('/e-form/success', [EFormController::class, 'success'])->name('e-form.success');
 }
+
+// Public registration for transport vehicle registration agents
+Route::get('/transport-agent', [TransportAgentController::class, 'create'])->name('transport-agent.create');
+Route::post('/transport-agent', [TransportAgentController::class, 'store'])->name('transport-agent.store');
+Route::get('/transport-agent/success', [TransportAgentController::class, 'success'])->name('transport-agent.success');
+
+// Transport agent portal — their own guard, separate from databoys
+Route::get('/transport-agent/login', [TransportAgentAuthController::class, 'showLogin'])->name('transport-agent.login');
+Route::post('/transport-agent/login', [TransportAgentAuthController::class, 'login'])->name('transport-agent.login.post');
+Route::post('/transport-agent/logout', [TransportAgentAuthController::class, 'logout'])->name('transport-agent.logout');
+
+Route::middleware('transport-agent.auth')->prefix('transport-agent')->name('transport-agent.')->group(function () {
+    Route::get('/dashboard', [TransportAgentDashboardController::class, 'index'])->name('dashboard');
+
+    Route::get('/vehicles', [TransportAgentVehicleController::class, 'index'])->name('vehicles');
+    Route::post('/vehicles', [TransportAgentVehicleController::class, 'store'])->name('vehicles.store');
+    Route::post('/vehicles/{vehicle}', [TransportAgentVehicleController::class, 'update'])->name('vehicles.update');
+
+    Route::get('/profile', [TransportAgentProfileController::class, 'index'])->name('profile');
+    Route::put('/profile', [TransportAgentProfileController::class, 'update'])->name('profile.update');
+    Route::put('/profile/password', [TransportAgentProfileController::class, 'updatePassword'])->name('profile.password');
+});
 
 // Public document check — enter an 11-digit phone number, get the PDF filed under it
 Route::get('/check', [CheckDocumentController::class, 'index'])->name('check');

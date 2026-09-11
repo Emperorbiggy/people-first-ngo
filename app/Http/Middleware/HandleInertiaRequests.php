@@ -37,6 +37,11 @@ class HandleInertiaRequests extends Middleware
                 'user' => $request->user(),
             ],
             'databoy' => optional(Auth::guard('databoy')->user())->load('ward', 'lga'),
+            // The sidebar of the transport agent portal needs this on every
+            // page; only the few fields it actually shows.
+            'transportAgent' => Auth::guard('transport_agent')->check()
+                ? Auth::guard('transport_agent')->user()->only(['id', 'full_name', 'phone_number', 'lga_name'])
+                : null,
             'partyAgentRegistrationEnabled' => Auth::guard('databoy')->check()
                 ? Setting::get('party_agent_registration_enabled', '1') === '1'
                 : true,
