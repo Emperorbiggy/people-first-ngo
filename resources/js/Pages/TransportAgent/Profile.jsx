@@ -1,5 +1,6 @@
 import { useForm } from '@inertiajs/react';
 import TransportAgentLayout from '@/Layouts/TransportAgentLayout';
+import PhotoCaptureField from '@/Components/PhotoCaptureField';
 
 const inputClass =
     'w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm focus:border-amber-500 focus:ring-2 focus:ring-amber-100 outline-none transition';
@@ -25,13 +26,33 @@ function formatDate(value) {
     });
 }
 
-export default function Profile({ agent, stats }) {
+export default function Profile({ agent, stats, idTypes = {}, identityComplete = true }) {
     const details = useForm({
         full_name: agent.full_name || '',
         whatsapp_number: agent.whatsapp_number || '',
         email: agent.email || '',
         address: agent.address || '',
     });
+
+    // Agents who registered before the passport and ID were asked for land here
+    // and cannot leave until this is filled in.
+    const identity = useForm({
+        passport_photograph: null,
+        id_type: agent.id_type || '',
+        id_number: agent.id_number || '',
+        id_document: null,
+    });
+
+    const identityReady = (agent.passport_photograph_url || identity.data.passport_photograph)
+        && identity.data.id_type !== ''
+        && identity.data.id_number.trim() !== ''
+        && (agent.id_document_url || identity.data.id_document);
+
+    const saveIdentity = (e) => {
+        e.preventDefault();
+        if (!identityReady) return;
+        identity.post(route('transport-agent.profile.identity'), { forceFormData: true });
+    };
 
     const password = useForm({
         current_password: '',
@@ -90,6 +111,78 @@ export default function Profile({ agent, stats }) {
                         </div>
                     </div>
                 </div>
+
+                <form onSubmit={saveIdentity}
+                    className={`bg-white rounded-2xl shadow-sm overflow-hidden border ${
+                        identityComplete ? 'border-gray-100' : 'border-red-200 ring-2 ring-red-100'
+                    }`}>
+                    <div className={`px-5 py-4 border-b ${identityComplete ? 'border-gray-100' : 'bg-red-50 border-red-100'}`}>
+                        <h2 className={`font-semibold text-sm ${identityComplete ? 'text-gray-800' : 'text-red-800'}`}>
+                            {identityComplete ? 'Photograph & ID' : 'Action needed: add your photograph and ID'}
+                        </h2>
+                        <p className={`text-xs mt-0.5 ${identityComplete ? 'text-gray-500' : 'text-red-700'}`}>
+                            {identityComplete
+                                ? 'On file. Replace either one if it is unclear or out of date.'
+                                : 'You registered before these were required. The rest of the portal stays locked until you add them.'}
+                        </p>
+                    </div>
+
+                    <div className="p-5 space-y-5">
+                        <PhotoCaptureField
+                            label="Passport photograph"
+                            hint="A clear photo of your face, taken now or picked from your device."
+                            required={!agent.passport_photograph_url}
+                            camera="user"
+                            tall
+                            file={identity.data.passport_photograph}
+                            existing={agent.passport_photograph_url}
+                            error={identity.errors.passport_photograph}
+                            onPick={(f) => identity.setData('passport_photograph', f)}
+                            onClear={() => identity.setData('passport_photograph', null)}
+                        />
+
+                        <div className="grid sm:grid-cols-2 gap-4">
+                            <Field label="Type of ID" error={identity.errors.id_type}>
+                                <select value={identity.data.id_type}
+                                    onChange={(e) => identity.setData('id_type', e.target.value)}
+                                    className={inputClass}>
+                                    <option value="">— Select your ID —</option>
+                                    {Object.entries(idTypes).map(([key, name]) => (
+                                        <option key={key} value={key}>{name}</option>
+                                    ))}
+                                </select>
+                            </Field>
+
+                            <Field label="ID number" error={identity.errors.id_number}>
+                                <input type="text" value={identity.data.id_number}
+                                    onChange={(e) => identity.setData('id_number', e.target.value.toUpperCase().slice(0, 50))}
+                                    placeholder={identity.data.id_type ? 'Number on the ID' : 'Select the ID type first'}
+                                    disabled={!identity.data.id_type}
+                                    className={`${inputClass} tabular-nums disabled:bg-gray-50 disabled:text-gray-400`} />
+                            </Field>
+                        </div>
+
+                        <PhotoCaptureField
+                            label="Picture of the ID"
+                            hint="Photograph the ID itself, or upload a scan. The number must be readable."
+                            required={!agent.id_document_url}
+                            file={identity.data.id_document}
+                            existing={agent.id_document_url}
+                            error={identity.errors.id_document}
+                            onPick={(f) => identity.setData('id_document', f)}
+                            onClear={() => identity.setData('id_document', null)}
+                        />
+
+                        <button type="submit" disabled={identity.processing || !identityReady}
+                            className="w-full bg-amber-600 hover:bg-amber-700 disabled:opacity-60 text-white font-semibold py-3 rounded-xl transition">
+                            {identity.processing
+                                ? 'Saving…'
+                                : !identityReady
+                                    ? 'Add your photograph and ID'
+                                    : identityComplete ? 'Save photograph & ID' : 'Submit and unlock the portal'}
+                        </button>
+                    </div>
+                </form>
 
                 <form onSubmit={saveDetails} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                     <div className="px-5 py-4 border-b border-gray-100">

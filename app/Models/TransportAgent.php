@@ -61,6 +61,18 @@ class TransportAgent extends Authenticatable
         return $path ? Storage::disk('public')->url($path) : null;
     }
 
+    /**
+     * Agents registered before the passport and ID were asked for have neither.
+     * They are held at their profile until they supply both.
+     */
+    public function hasCompleteIdentity(): bool
+    {
+        return filled($this->passport_photograph_path)
+            && filled($this->id_type)
+            && filled($this->id_number)
+            && filled($this->id_document_path);
+    }
+
     /** They sign in with their phone number, not an email. */
     public function getAuthIdentifierName(): string
     {

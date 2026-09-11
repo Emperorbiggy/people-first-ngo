@@ -37,8 +37,16 @@ const NAV = [
 export default function TransportAgentLayout({ title, children }) {
     // Shared by HandleInertiaRequests, so it is present on every page here —
     // page-level `agent` props carry their own richer payloads.
-    const { transportAgent: agent, flash } = usePage().props;
+    const {
+        transportAgent: agent,
+        flash,
+        transportAgentIdentityComplete: identityComplete = true,
+    } = usePage().props;
     const [menuOpen, setMenuOpen] = useState(false);
+
+    // Until the passport and ID are in, every other page bounces back to the
+    // profile — so offering those links would only lead in a circle.
+    const nav = identityComplete ? NAV : NAV.filter((item) => item.href === 'transport-agent.profile');
 
     const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
 
@@ -81,7 +89,13 @@ export default function TransportAgentLayout({ title, children }) {
                 </div>
 
                 <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-                    {NAV.map(link)}
+                    {nav.map(link)}
+
+                    {!identityComplete && (
+                        <p className="px-4 pt-3 text-[11px] leading-relaxed text-amber-300/80">
+                            Add your passport photograph and ID to unlock the rest of the portal.
+                        </p>
+                    )}
                 </nav>
 
                 <div className="px-3 py-4 border-t border-amber-800">

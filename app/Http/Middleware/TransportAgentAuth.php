@@ -25,6 +25,16 @@ class TransportAgentAuth
                 ->withErrors(['phone_number' => 'This account has been suspended. Contact the admin.']);
         }
 
+        // Registered before the passport and ID were asked for: held at the
+        // profile page until both are supplied, so the portal cannot be used
+        // by someone whose identity was never captured. Only the profile
+        // itself stays reachable, or there would be nowhere to comply.
+        if (!Auth::guard('transport_agent')->user()->hasCompleteIdentity()
+            && !$request->routeIs('transport-agent.profile*')) {
+            return redirect()->route('transport-agent.profile')
+                ->with('error', 'Add your passport photograph and a valid ID to continue using the portal.');
+        }
+
         return $next($request);
     }
 }

@@ -115,6 +115,8 @@ Route::middleware('transport-agent.auth')->prefix('transport-agent')->name('tran
     Route::get('/profile', [TransportAgentProfileController::class, 'index'])->name('profile');
     Route::put('/profile', [TransportAgentProfileController::class, 'update'])->name('profile.update');
     Route::put('/profile/password', [TransportAgentProfileController::class, 'updatePassword'])->name('profile.password');
+    // POST, not PUT: the passport and the ID are files.
+    Route::post('/profile/identity', [TransportAgentProfileController::class, 'updateIdentity'])->name('profile.identity');
 });
 
 // Public document check — enter an 11-digit phone number, get the PDF filed under it

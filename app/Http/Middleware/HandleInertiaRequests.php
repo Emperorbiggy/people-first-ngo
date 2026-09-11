@@ -45,6 +45,11 @@ class HandleInertiaRequests extends Middleware
             'partyAgentRegistrationEnabled' => Auth::guard('databoy')->check()
                 ? Setting::get('party_agent_registration_enabled', '1') === '1'
                 : true,
+            // While this is false the portal is held at the profile page, so the
+            // sidebar hides everything the agent cannot reach yet.
+            'transportAgentIdentityComplete' => Auth::guard('transport_agent')->check()
+                ? Auth::guard('transport_agent')->user()->hasCompleteIdentity()
+                : true,
             // The same switch that closes the public signup also closes vehicle
             // capture in the portal, so every page there can see it.
             'transportAgentRegistrationEnabled' => Auth::guard('transport_agent')->check()
