@@ -2,7 +2,12 @@
   "permissions": {
     "allow": [
       "Bash(php -l app/Http/Controllers/TransportAgentController.php)",
-      "Bash(php -l app/Http/Controllers/TransportAgent/VehicleController.php)"
+      "Bash(php -l app/Http/Controllers/TransportAgent/VehicleController.php)",
+      "Bash(php -l app/Models/TransportAgent.php)",
+      "Bash(php -l database/migrations/2026_09_11_090000_add_identity_documents_to_transport_agents_table.php)",
+      "Bash(php -r \"echo \\\\Composer\\\\InstalledVersions::getPrettyVersion\\('intervention/image'\\);\")",
+      "Bash(php -l app/Services/ImageCompressor.php)",
+      "Bash(php \"C:/Users/PC/AppData/Local/Temp/claude/c--xampp-htdocs-cloudware-people-first-ngo/ff09be15-a886-498b-9a33-bf3683cf7578/scratchpad/compress_check.php\")"
     ]
   }
 }

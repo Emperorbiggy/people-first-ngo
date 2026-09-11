@@ -1,8 +1,87 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Head, useForm } from '@inertiajs/react';
 import PaystackService from '@/services/paystack';
 
-export default function Create({ lgas = [] }) {
+/**
+ * A photo slot with both routes in: `capture` opens the camera straight away on
+ * a phone, the plain input picks an existing file. Two inputs rather than one,
+ * because a single `capture` input gives a laptop no way to browse.
+ */
+function PhotoField({ label, hint, required, file, error, onPick, onClear, camera = 'environment', tall = false }) {
+    const cameraRef = useRef(null);
+    const uploadRef = useRef(null);
+    const [preview, setPreview] = useState(null);
+
+    useEffect(() => {
+        if (!file) {
+            setPreview(null);
+            return;
+        }
+
+        const url = URL.createObjectURL(file);
+        setPreview(url);
+
+        return () => URL.revokeObjectURL(url);
+    }, [file]);
+
+    const pick = (e) => onPick(e.target.files[0] || null);
+
+    return (
+        <div>
+            <label className="block text-sm font-bold text-gray-700 mb-2">
+                {label} {required && <span className="text-red-500">*</span>}
+            </label>
+
+            <input ref={cameraRef} type="file" accept="image/*" capture={camera} className="hidden" onChange={pick} />
+            <input ref={uploadRef} type="file" accept="image/*" className="hidden" onChange={pick} />
+
+            {preview ? (
+                <div className="relative rounded-2xl overflow-hidden border-2 border-gray-200">
+                    <img src={preview} alt={label} className={`w-full object-cover ${tall ? 'h-56' : 'h-44'}`} />
+                    <div className="absolute inset-x-0 bottom-0 flex divide-x divide-white/20 bg-black/60 text-white text-xs font-medium">
+                        <button type="button" onClick={() => cameraRef.current?.click()} className="flex-1 py-2.5 hover:bg-black/30">
+                            Retake
+                        </button>
+                        <button type="button" onClick={() => uploadRef.current?.click()} className="flex-1 py-2.5 hover:bg-black/30">
+                            Change file
+                        </button>
+                        <button type="button" onClick={onClear} className="flex-1 py-2.5 hover:bg-black/30">
+                            Remove
+                        </button>
+                    </div>
+                </div>
+            ) : (
+                <div className={`rounded-2xl border-2 border-dashed ${error ? 'border-red-300 bg-red-50/40' : 'border-gray-200'} p-4`}>
+                    <div className="grid grid-cols-2 gap-2">
+                        <button type="button" onClick={() => cameraRef.current?.click()}
+                            className="flex flex-col items-center justify-center gap-1.5 py-5 rounded-xl bg-amber-50 text-amber-700 hover:bg-amber-100 transition">
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.7"
+                                    d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.7" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            <span className="text-xs font-bold">Take photo</span>
+                        </button>
+
+                        <button type="button" onClick={() => uploadRef.current?.click()}
+                            className="flex flex-col items-center justify-center gap-1.5 py-5 rounded-xl bg-gray-50 text-gray-600 hover:bg-gray-100 transition">
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.7"
+                                    d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v12m0-12l-4 4m4-4l4 4" />
+                            </svg>
+                            <span className="text-xs font-bold">Upload</span>
+                        </button>
+                    </div>
+                    {hint && <p className="mt-3 text-center text-xs text-gray-400">{hint}</p>}
+                </div>
+            )}
+
+            {error && <p className="mt-1.5 text-xs text-red-600">{error}</p>}
+        </div>
+    );
+}
+
+export default function Create({ lgas = [], idTypes = {} }) {
     const { data, setData, post, processing, errors } = useForm({
         full_name: '',
         phone_number: '',
@@ -11,6 +90,10 @@ export default function Create({ lgas = [] }) {
         gender: '',
         address: '',
         lga_id: '',
+        passport_photograph: null,
+        id_type: '',
+        id_number: '',
+        id_document: null,
         account_number: '',
         bank_name: '',
         bank_code: '',
@@ -72,13 +155,20 @@ export default function Create({ lgas = [] }) {
         && data.gender !== ''
         && data.lga_id !== '';
 
+    // A face, and one ID with its number and a picture of it.
+    const identityDone = data.passport_photograph
+        && data.id_type !== ''
+        && data.id_number.trim() !== ''
+        && data.id_document;
+
     // Nothing is submitted until the bank has confirmed whose account it is.
-    const canSubmit = detailsDone && accountName && !resolving && !processing;
+    const canSubmit = detailsDone && identityDone && accountName && !resolving && !processing;
 
     const submit = (e) => {
         e.preventDefault();
         if (!canSubmit) return;
-        post(route('transport-agent.store'));
+        // Photographs ride along, so the whole thing goes as form data.
+        post(route('transport-agent.store'), { forceFormData: true });
     };
 
     const field = 'w-full px-4 py-3 text-sm border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition bg-white';
@@ -193,6 +283,59 @@ export default function Create({ lgas = [] }) {
                             </div>
                         </div>
 
+                        {/* Identity — a face and one government ID, so the person
+                            being paid can be matched to the person who registered. */}
+                        <div className="pt-2 border-t border-gray-100">
+                            <p className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-4 mt-4">Photograph & ID</p>
+
+                            <div className="space-y-5">
+                                <PhotoField
+                                    label="Passport Photograph"
+                                    hint="A clear photo of your face, taken now or picked from your device."
+                                    required
+                                    camera="user"
+                                    tall
+                                    file={data.passport_photograph}
+                                    error={errors.passport_photograph}
+                                    onPick={(f) => setData('passport_photograph', f)}
+                                    onClear={() => setData('passport_photograph', null)}
+                                />
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className={label}>Type of ID <span className="text-red-500">*</span></label>
+                                        <select value={data.id_type} onChange={(e) => setData('id_type', e.target.value)} className={field}>
+                                            <option value="">— Select your ID —</option>
+                                            {Object.entries(idTypes).map(([key, name]) => (
+                                                <option key={key} value={key}>{name}</option>
+                                            ))}
+                                        </select>
+                                        {errors.id_type && <p className={errCls}>{errors.id_type}</p>}
+                                    </div>
+
+                                    <div>
+                                        <label className={label}>ID Number <span className="text-red-500">*</span></label>
+                                        <input type="text" value={data.id_number}
+                                            onChange={(e) => setData('id_number', e.target.value.toUpperCase().slice(0, 50))}
+                                            placeholder={data.id_type ? 'Number on the ID' : 'Select the ID type first'}
+                                            disabled={!data.id_type}
+                                            className={`${field} tabular-nums tracking-wide disabled:bg-gray-50 disabled:text-gray-400`} />
+                                        {errors.id_number && <p className={errCls}>{errors.id_number}</p>}
+                                    </div>
+                                </div>
+
+                                <PhotoField
+                                    label="Picture of the ID"
+                                    hint="Photograph the ID itself, or upload a scan. The number must be readable."
+                                    required
+                                    file={data.id_document}
+                                    error={errors.id_document}
+                                    onPick={(f) => setData('id_document', f)}
+                                    onClear={() => setData('id_document', null)}
+                                />
+                            </div>
+                        </div>
+
                         {/* Bank details, same page — money follows these, so they
                             are separated by a rule rather than by a step. */}
                         <div className="pt-2 border-t border-gray-100">
@@ -254,9 +397,11 @@ export default function Create({ lgas = [] }) {
                                 ? 'Submitting…'
                                 : !detailsDone
                                     ? 'Fill in your details to continue'
-                                    : accountName
-                                        ? 'Complete Registration'
-                                        : 'Verify your account to continue'}
+                                    : !identityDone
+                                        ? 'Add your photograph and ID to continue'
+                                        : accountName
+                                            ? 'Complete Registration'
+                                            : 'Verify your account to continue'}
                         </button>
 
                         <p className="text-center text-xs text-gray-400">

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\TransportAgent;
 use App\Http\Controllers\Controller;
 use App\Models\RegisteredVehicle;
 use App\Models\Setting;
+use App\Services\ImageCompressor;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
@@ -18,6 +19,10 @@ use Illuminate\Validation\Rule;
  */
 class VehicleController extends Controller
 {
+    public function __construct(private ImageCompressor $images)
+    {
+    }
+
     public function index(Request $request)
     {
         $agent = $this->agent();
@@ -181,10 +186,13 @@ class VehicleController extends Controller
             return null;
         }
 
-        return $request->file($field)->storeAs(
+        // Every capture is two photos from a phone camera, so this is where the
+        // disk fills up fastest — compressed on the way in.
+        return $this->images->store(
+            $request->file($field),
             'vehicle-registrations',
-            $plate . '-' . $kind . '-' . Str::random(6) . '.jpg',
-            'public'
+            $plate . '-' . $kind . '-' . Str::random(6),
+            ImageCompressor::PHOTO
         );
     }
 
