@@ -35,6 +35,10 @@ class ProfileController extends Controller
                 'full_name'         => $agent->full_name,
                 'phone_number'      => $agent->phone_number,
                 'whatsapp_number'   => $agent->whatsapp_number,
+                'browsing_number'   => $agent->browsing_number,
+                'category_label'    => $agent->category_label,
+                'zone'              => $agent->zone,
+                'branch_name'       => $agent->branch_name,
                 'email'             => $agent->email,
                 'gender'            => $agent->gender,
                 'address'           => $agent->address,
@@ -68,10 +72,12 @@ class ProfileController extends Controller
         $validated = $request->validate([
             'full_name'       => 'required|string|max:255',
             'whatsapp_number' => ['nullable', 'string', 'regex:/^\d{11}$/'],
+            'browsing_number' => ['nullable', 'string', 'regex:/^\d{11}$/'],
             'email'           => ['nullable', 'email', 'max:255'],
             'address'         => 'nullable|string|max:255',
         ], [
             'whatsapp_number.regex' => 'WhatsApp number must be exactly 11 digits.',
+            'browsing_number.regex' => 'Browsing data number must be exactly 11 digits.',
         ]);
 
         $agent->update($validated);

@@ -881,12 +881,12 @@ export default function Settings({
                 />
 
                 <SettingRow
-                    label="Transport Agent Registration"
-                    description="Controls whether the public /transport-agent page accepts new transport agent registrations."
+                    label="Transport Vehicle Registration"
+                    description="Controls whether logged-in transport agents can register vehicles from their portal. Does not affect the public sign-up links for new agents."
                     settingKey="transport_agent_registration_enabled"
                     enabled={transportAgentRegistrationEnabled}
-                    statusOn="Registration is OPEN — new transport agents can register."
-                    statusOff="Registration is CLOSED — the form shows a closed message. Agents already registered can still log in."
+                    statusOn="Capture is OPEN — agents can register vehicles and their owners."
+                    statusOff="Capture is CLOSED — agents can still log in and see their work, but cannot register anybody for now."
                     colorOn="green"
                     colorOff="red"
                 />

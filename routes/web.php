@@ -95,9 +95,9 @@ if ($eformDomain = config('app.eform_domain')) {
     Route::get('/e-form/success', [EFormController::class, 'success'])->name('e-form.success');
 }
 
-// Public registration for transport vehicle registration agents
-Route::get('/transport-agent', [TransportAgentController::class, 'create'])->name('transport-agent.create');
-Route::post('/transport-agent', [TransportAgentController::class, 'store'])->name('transport-agent.store');
+// Public registration for transport vehicle registration agents. The old
+// single link now offers the choice, so anything already handed out still works.
+Route::get('/transport-agent', [TransportAgentController::class, 'choose'])->name('transport-agent.choose');
 Route::get('/transport-agent/success', [TransportAgentController::class, 'success'])->name('transport-agent.success');
 
 // Transport agent portal — their own guard, separate from databoys
@@ -118,6 +118,16 @@ Route::middleware('transport-agent.auth')->prefix('transport-agent')->name('tran
     // POST, not PUT: the passport and the ID are files.
     Route::post('/profile/identity', [TransportAgentProfileController::class, 'updateIdentity'])->name('profile.identity');
 });
+
+// One link per stream — /transport-agent/bike-maruwa and /transport-agent/korobe-bus.
+// Declared after the fixed paths above, and constrained to the two slugs, so
+// they cannot swallow another transport-agent route.
+Route::get('/transport-agent/{category}', [TransportAgentController::class, 'create'])
+    ->whereIn('category', ['bike-maruwa', 'korobe-bus'])
+    ->name('transport-agent.create');
+Route::post('/transport-agent/{category}', [TransportAgentController::class, 'store'])
+    ->whereIn('category', ['bike-maruwa', 'korobe-bus'])
+    ->name('transport-agent.store');
 
 // Public document check — enter an 11-digit phone number, get the PDF filed under it
 Route::get('/check', [CheckDocumentController::class, 'index'])->name('check');

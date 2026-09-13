@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Lga;
-use App\Models\Setting;
 use App\Models\State;
 use App\Models\TransportAgent;
 use App\Services\ImageCompressor;
@@ -30,31 +29,41 @@ class TransportAgentController extends Controller
     ) {
     }
 
-    public function create()
+    /** The old single link, now offering the two streams. */
+    public function choose()
     {
-        if (!$this->registrationOpen()) {
-            return inertia('TransportAgent/RegistrationClosed');
-        }
-
-        return inertia('TransportAgent/Create', [
-            'lgas'    => $this->osunLgas(),
-            'idTypes' => TransportAgent::ID_TYPES,
+        return inertia('TransportAgent/Choose', [
+            'categories' => TransportAgent::CATEGORIES,
         ]);
     }
 
-    public function store(Request $request)
+    public function create(string $category)
     {
-        // Checked again on submit: the page may have been sitting open since
-        // before the admin closed registration, or posted to directly.
-        if (!$this->registrationOpen()) {
-            return redirect()->route('transport-agent.create');
-        }
+        return inertia('TransportAgent/Create', [
+            'lgas'     => $this->osunLgas(),
+            'idTypes'  => TransportAgent::ID_TYPES,
+            'zones'    => TransportAgent::ZONES,
+            'branches' => TransportAgent::BRANCHES,
+            // Fixed by the link they followed, never chosen on the form.
+            'category' => TransportAgent::CATEGORIES[TransportAgent::categoryForSlug($category)],
+            'slug'     => $category,
+        ]);
+    }
+
+    public function store(Request $request, string $category)
+    {
+        $categoryKey = TransportAgent::categoryForSlug($category);
 
         $validated = $request->validate([
             'full_name'       => 'required|string|max:255',
             'phone_number'    => ['required', 'string', 'regex:/^\d{11}$/'],
             'whatsapp_number' => ['nullable', 'string', 'regex:/^\d{11}$/'],
+            // The line they browse on — often a second SIM, so it is asked for
+            // rather than assumed to be the phone number.
+            'browsing_number' => ['required', 'string', 'regex:/^\d{11}$/'],
             'email'           => 'nullable|email|max:255',
+            'zone'            => ['required', 'string', 'max:120', ...$this->listRule(TransportAgent::ZONES)],
+            'branch_name'     => ['required', 'string', 'max:120', ...$this->listRule(TransportAgent::BRANCHES)],
             'gender'          => 'required|in:Male,Female',
             'address'         => 'nullable|string|max:255',
             'lga_id'          => ['required', Rule::exists('lgas', 'id')->where('state_id', $this->osunStateId())],
@@ -72,6 +81,10 @@ class TransportAgentController extends Controller
         ], [
             'phone_number.regex'    => 'Phone number must be exactly 11 digits.',
             'whatsapp_number.regex' => 'WhatsApp number must be exactly 11 digits.',
+            'browsing_number.required' => 'Enter the number you browse with.',
+            'browsing_number.regex'    => 'Browsing data number must be exactly 11 digits.',
+            'zone.required'            => 'Choose your zone or group.',
+            'branch_name.required'     => 'Choose your branch.',
             'account_number.regex'  => 'Account number must be exactly 10 digits.',
             'lga_id.exists'         => 'Choose your LGA from the list.',
             'bank_code.required'    => 'Select your bank from the list.',
@@ -120,8 +133,12 @@ class TransportAgentController extends Controller
             'full_name'         => $validated['full_name'],
             'phone_number'      => $validated['phone_number'],
             'whatsapp_number'   => $validated['whatsapp_number'] ?? null,
+            'browsing_number'   => $validated['browsing_number'],
             'email'             => $validated['email'] ?? null,
             'gender'            => $validated['gender'],
+            'category'          => $categoryKey,
+            'zone'              => $validated['zone'],
+            'branch_name'       => $validated['branch_name'],
             'address'           => $validated['address'] ?? null,
             'id_type'           => $validated['id_type'],
             'id_number'         => $validated['id_number'],
@@ -201,6 +218,18 @@ class TransportAgentController extends Controller
         return null;
     }
 
+    /**
+     * Restrict a field to a configured list — but only once there is one. While
+     * the official zones and branches are still to come, the field is free text
+     * rather than a dropdown with nothing in it.
+     *
+     * @return array<int, \Illuminate\Validation\Rules\In>
+     */
+    private function listRule(array $options): array
+    {
+        return $options === [] ? [] : [Rule::in(array_keys($options))];
+    }
+
     /** Spacing and dashes dropped so 1234-5678 and 1234 5678 are one number. */
     private function normaliseIdNumber(string $number): string
     {
@@ -223,15 +252,6 @@ class TransportAgentController extends Controller
             $phone . '-' . $kind . '-' . Str::random(6),
             $maxEdge
         );
-    }
-
-    /**
-     * Admin switch. Only new registrations are gated — agents who already have
-     * an account keep their portal either way.
-     */
-    private function registrationOpen(): bool
-    {
-        return Setting::get('transport_agent_registration_enabled', '1') === '1';
     }
 
     private function osunStateId(): ?int

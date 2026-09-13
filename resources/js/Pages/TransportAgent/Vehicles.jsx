@@ -4,7 +4,7 @@ import TransportAgentLayout from '@/Layouts/TransportAgentLayout';
 import PhotoCaptureField from '@/Components/PhotoCaptureField';
 
 const BLANK = {
-    category: 'bus',
+    category: '',
     vehicle_type: '',
     plate_number: '',
     make_model: '',
@@ -61,7 +61,12 @@ export default function Vehicles({ vehicles, filters, categories, types, counts,
     const [search, setSearch] = useState(filters.q || '');
     const formRef = useRef(null);
 
-    const { data, setData, post, processing, errors, reset, clearErrors } = useForm({ ...BLANK });
+    // An agent works one stream, so there is usually only one category to pick
+    // — start on it rather than making them choose the only option.
+    const firstCategory = Object.keys(categories)[0] || '';
+    const blank = { ...BLANK, category: firstCategory };
+
+    const { data, setData, post, processing, errors, reset, clearErrors } = useForm({ ...blank });
 
     const typeOptions = types[data.category] || [];
 

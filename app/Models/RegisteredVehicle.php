@@ -7,17 +7,28 @@ use Illuminate\Support\Facades\Storage;
 
 class RegisteredVehicle extends Model
 {
-    /** The two streams the work is counted in. */
+    /**
+     * The two streams the work is counted in.
+     *
+     * Both names are given: agents say bike, maruwa and korobe, while the
+     * records and the reports have always said motorcycle, tricycle and bus.
+     */
     public const CATEGORIES = [
-        'bus'                 => 'Buses & Cars',
-        'motorcycle_tricycle' => 'Motorcycles & Tricycles',
+        'bus'                 => 'Korobe Bus (Buses & Cars)',
+        'motorcycle_tricycle' => 'Bike & Maruwa (Motorcycles & Tricycles)',
     ];
 
     /** Vehicle types offered under each category. */
     public const TYPES = [
-        'bus'                 => ['Bus', 'Mini Bus', 'Car', 'Jeep/SUV', 'Truck'],
-        'motorcycle_tricycle' => ['Motorcycle', 'Tricycle (Keke)'],
+        'bus'                 => ['Korobe Bus', 'Mini Bus', 'Car', 'Jeep/SUV', 'Truck'],
+        'motorcycle_tricycle' => ['Bike (Motorcycle)', 'Maruwa (Tricycle/Keke)'],
     ];
+
+    /**
+     * Types that were offered before the naming changed. Still valid on the
+     * records that carry them, so editing such a vehicle does not fail.
+     */
+    public const RETIRED_TYPES = ['Bus', 'Motorcycle', 'Tricycle (Keke)'];
 
     protected $fillable = [
         'transport_agent_id', 'lga_id', 'lga_name',

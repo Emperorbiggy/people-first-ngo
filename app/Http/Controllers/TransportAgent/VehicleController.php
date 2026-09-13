@@ -53,7 +53,7 @@ class VehicleController extends Controller
             'registrationEnabled' => $this->registrationOpen(),
             'vehicles'   => $vehicles,
             'filters'    => ['q' => $search, 'category' => $category],
-            'categories' => RegisteredVehicle::CATEGORIES,
+            'categories' => $this->categoriesFor($agent),
             'types'      => RegisteredVehicle::TYPES,
             'counts'     => [
                 'all'                 => RegisteredVehicle::where('transport_agent_id', $agent->id)->count(),
@@ -70,7 +70,7 @@ class VehicleController extends Controller
         }
 
         $agent     = $this->agent();
-        $validated = $this->validated($request);
+        $validated = $this->validated($request, $agent);
 
         $validated['plate_number'] = $this->normalisePlate($validated['plate_number']);
 
@@ -107,7 +107,7 @@ class VehicleController extends Controller
         // guessing an id.
         abort_unless($vehicle->transport_agent_id === $agent->id, 403);
 
-        $validated = $this->validated($request);
+        $validated = $this->validated($request, $agent, $vehicle);
         $validated['plate_number'] = $this->normalisePlate($validated['plate_number']);
 
         $taken = RegisteredVehicle::where('plate_number', $validated['plate_number'])
@@ -130,6 +130,26 @@ class VehicleController extends Controller
         return back()->with('success', "{$vehicle->plate_number} updated.");
     }
 
+    /**
+     * The streams this agent may capture.
+     *
+     * Registration is now split in two and an agent belongs to one of them.
+     * Agents from before the split have no category and keep both, or their
+     * existing work would become uneditable.
+     *
+     * @return array<string, string>
+     */
+    private function categoriesFor($agent): array
+    {
+        $only = $agent->vehicle_category;
+
+        if ($only === null) {
+            return RegisteredVehicle::CATEGORIES;
+        }
+
+        return array_intersect_key(RegisteredVehicle::CATEGORIES, [$only => true]);
+    }
+
     /** The admin switch — the same one that closes the public signup. */
     private function registrationOpen(): bool
     {
@@ -149,13 +169,23 @@ class VehicleController extends Controller
         return back()->with('error', 'Vehicle registration is currently closed by the administrator.');
     }
 
-    private function validated(Request $request): array
+    /**
+     * @param  ?RegisteredVehicle  $vehicle  The record being edited, if any.
+     */
+    private function validated(Request $request, $agent, ?RegisteredVehicle $vehicle = null): array
     {
         $category = $request->input('category');
         $types    = RegisteredVehicle::TYPES[$category] ?? [];
 
+        // A vehicle captured under an older name keeps it, so correcting a typo
+        // on such a record does not fail on the type alone.
+        if ($vehicle && !in_array($vehicle->vehicle_type, $types, true)) {
+            $types[] = $vehicle->vehicle_type;
+        }
+
         return $request->validate([
-            'category'      => ['required', Rule::in(array_keys(RegisteredVehicle::CATEGORIES))],
+            // Only the stream this agent works — a bike agent cannot file a bus.
+            'category'      => ['required', Rule::in(array_keys($this->categoriesFor($agent)))],
             // The type has to belong to the chosen category, or a tricycle
             // could be filed as a bus and counted in the wrong stream.
             'vehicle_type'  => ['required', Rule::in($types)],

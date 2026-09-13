@@ -3,12 +3,15 @@ import { Head, useForm } from '@inertiajs/react';
 import PaystackService from '@/services/paystack';
 import PhotoCaptureField from '@/Components/PhotoCaptureField';
 
-export default function Create({ lgas = [], idTypes = {} }) {
+export default function Create({ lgas = [], idTypes = {}, zones = {}, branches = {}, category, slug }) {
     const { data, setData, post, processing, errors } = useForm({
         full_name: '',
         phone_number: '',
         whatsapp_number: '',
+        browsing_number: '',
         email: '',
+        zone: '',
+        branch_name: '',
         gender: '',
         address: '',
         lga_id: '',
@@ -74,8 +77,11 @@ export default function Create({ lgas = [], idTypes = {} }) {
 
     const detailsDone = data.full_name.trim() !== ''
         && /^\d{11}$/.test(data.phone_number)
+        && /^\d{11}$/.test(data.browsing_number)
         && data.gender !== ''
-        && data.lga_id !== '';
+        && data.lga_id !== ''
+        && data.zone.trim() !== ''
+        && data.branch_name.trim() !== '';
 
     // A face, and one ID with its number and a picture of it.
     const identityDone = data.passport_photograph
@@ -90,7 +96,7 @@ export default function Create({ lgas = [], idTypes = {} }) {
         e.preventDefault();
         if (!canSubmit) return;
         // Photographs ride along, so the whole thing goes as form data.
-        post(route('transport-agent.store'), { forceFormData: true });
+        post(route('transport-agent.store', slug), { forceFormData: true });
     };
 
     const field = 'w-full px-4 py-3 text-sm border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition bg-white';
@@ -118,8 +124,14 @@ export default function Create({ lgas = [], idTypes = {} }) {
                         <h1 className="text-3xl sm:text-4xl font-bold text-white drop-shadow-lg tracking-tight">
                             Transport Agent Registration
                         </h1>
+                        <div className="inline-flex flex-col items-center gap-1 mt-3">
+                            <span className="px-4 py-1.5 rounded-full bg-white/15 border border-white/20 text-white text-sm font-bold">
+                                {category?.label}
+                            </span>
+                            <span className="text-white/60 text-xs">Also called {category?.also}</span>
+                        </div>
                         <p className="text-white/70 mt-3 text-sm max-w-md mx-auto">
-                            Register to go out and capture transportation vehicles and their owners in your LGA.
+                            Register to go out and capture {category?.label?.toLowerCase()} and their owners in your LGA.
                         </p>
                     </div>
 
@@ -155,6 +167,19 @@ export default function Create({ lgas = [], idTypes = {} }) {
                             </div>
                         </div>
 
+                        <div>
+                            <label className={label}>Browsing Data Number <span className="text-red-500">*</span></label>
+                            <input type="tel" inputMode="numeric" value={data.browsing_number}
+                                onChange={(e) => setData('browsing_number', e.target.value.replace(/\D/g, '').slice(0, 11))}
+                                placeholder="The line you browse with"
+                                className={`${field} tabular-nums tracking-wide`} />
+                            {errors.browsing_number
+                                ? <p className={errCls}>{errors.browsing_number}</p>
+                                : <p className="mt-1.5 text-xs text-gray-400">
+                                    The SIM you use for data. It can be the same as your phone number.
+                                </p>}
+                        </div>
+
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label className={label}>Gender <span className="text-red-500">*</span></label>
@@ -182,6 +207,44 @@ export default function Create({ lgas = [], idTypes = {} }) {
                                 {errors.lga_id
                                     ? <p className={errCls}>{errors.lga_id}</p>
                                     : <p className="mt-1.5 text-xs text-gray-400">Local government only.</p>}
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label className={label}>Zone / Group <span className="text-red-500">*</span></label>
+                                {Object.keys(zones).length > 0 ? (
+                                    <select value={data.zone} onChange={(e) => setData('zone', e.target.value)} className={field}>
+                                        <option value="">— Select your zone —</option>
+                                        {Object.entries(zones).map(([key, name]) => (
+                                            <option key={key} value={key}>{name}</option>
+                                        ))}
+                                    </select>
+                                ) : (
+                                    <input type="text" value={data.zone}
+                                        onChange={(e) => setData('zone', e.target.value)}
+                                        placeholder="Your zone or group"
+                                        className={field} />
+                                )}
+                                {errors.zone && <p className={errCls}>{errors.zone}</p>}
+                            </div>
+
+                            <div>
+                                <label className={label}>Branch Name <span className="text-red-500">*</span></label>
+                                {Object.keys(branches).length > 0 ? (
+                                    <select value={data.branch_name} onChange={(e) => setData('branch_name', e.target.value)} className={field}>
+                                        <option value="">— Select your branch —</option>
+                                        {Object.entries(branches).map(([key, name]) => (
+                                            <option key={key} value={key}>{name}</option>
+                                        ))}
+                                    </select>
+                                ) : (
+                                    <input type="text" value={data.branch_name}
+                                        onChange={(e) => setData('branch_name', e.target.value)}
+                                        placeholder="Your branch"
+                                        className={field} />
+                                )}
+                                {errors.branch_name && <p className={errCls}>{errors.branch_name}</p>}
                             </div>
                         </div>
 

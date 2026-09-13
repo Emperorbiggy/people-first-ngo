@@ -30,6 +30,7 @@ export default function Profile({ agent, stats, idTypes = {}, identityComplete =
     const details = useForm({
         full_name: agent.full_name || '',
         whatsapp_number: agent.whatsapp_number || '',
+        browsing_number: agent.browsing_number || '',
         email: agent.email || '',
         address: agent.address || '',
     });
@@ -207,6 +208,13 @@ export default function Profile({ agent, stats, idTypes = {}, identityComplete =
                                 className={`${inputClass} tabular-nums`} />
                         </Field>
 
+                        <Field label="Browsing data number" error={details.errors.browsing_number}
+                            hint="The SIM you use for data">
+                            <input type="tel" inputMode="numeric" maxLength={11} value={details.data.browsing_number}
+                                onChange={(e) => details.setData('browsing_number', e.target.value.replace(/\D/g, '').slice(0, 11))}
+                                className={`${inputClass} tabular-nums`} />
+                        </Field>
+
                         <Field label="Email address" error={details.errors.email}>
                             <input type="email" value={details.data.email}
                                 onChange={(e) => details.setData('email', e.target.value)} className={inputClass} />
@@ -234,7 +242,7 @@ export default function Profile({ agent, stats, idTypes = {}, identityComplete =
 
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                     <div className="px-5 py-4 border-b border-gray-100">
-                        <h2 className="font-semibold text-gray-800 text-sm">Payment details</h2>
+                        <h2 className="font-semibold text-gray-800 text-sm">Payment & posting</h2>
                         <p className="text-xs text-gray-500 mt-0.5">
                             These cannot be changed here — contact the admin if anything is wrong.
                         </p>
@@ -255,6 +263,17 @@ export default function Profile({ agent, stats, idTypes = {}, identityComplete =
                         <div className="sm:col-span-2">
                             <Field label="Local government area">
                                 <input type="text" value={agent.lga_name || '—'} readOnly className={lockedClass} />
+                            </Field>
+                        </div>
+                        <Field label="What you register">
+                            <input type="text" value={agent.category_label || '—'} readOnly className={lockedClass} />
+                        </Field>
+                        <Field label="Zone / group">
+                            <input type="text" value={agent.zone || '—'} readOnly className={lockedClass} />
+                        </Field>
+                        <div className="sm:col-span-2">
+                            <Field label="Branch">
+                                <input type="text" value={agent.branch_name || '—'} readOnly className={lockedClass} />
                             </Field>
                         </div>
                     </div>

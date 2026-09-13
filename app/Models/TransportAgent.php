@@ -16,16 +16,52 @@ class TransportAgent extends Authenticatable
 {
     use Notifiable;
 
+    /**
+     * The two streams, each with its own registration link.
+     *
+     * `vehicle_category` ties the agent to what they may capture in the portal,
+     * so the split survives past registration.
+     */
+    public const CATEGORIES = [
+        'bike_maruwa' => [
+            'slug'             => 'bike-maruwa',
+            'label'            => 'Bike & Maruwa',
+            'also'             => 'Motorcycles & Tricycles',
+            'vehicle_category' => 'motorcycle_tricycle',
+        ],
+        'korobe_bus' => [
+            'slug'             => 'korobe-bus',
+            'label'            => 'Korobe Bus',
+            'also'             => 'Buses & Cars',
+            'vehicle_category' => 'bus',
+        ],
+    ];
+
+    /**
+     * Zones and branches offered at registration.
+     *
+     * Empty until the official lists are supplied; while empty the form falls
+     * back to a text box so registration is never blocked on them.
+     */
+    public const ZONES = [];
+
+    public const BRANCHES = [];
+
     /** The government IDs accepted at registration. */
     public const ID_TYPES = [
-        'nin'                   => 'NIN (National Identity Number)',
-        'drivers_licence'       => "Driver's Licence",
-        'voters_card'           => "Voter's Card",
+        'drivers_licence'        => "Driver's Licence",
+        'voters_card'            => "Voter's Card",
         'international_passport' => 'International Passport',
     ];
 
+    /** No longer offered, but still on the records of agents who gave one. */
+    private const RETIRED_ID_TYPES = [
+        'nin' => 'NIN (National Identity Number)',
+    ];
+
     protected $fillable = [
-        'full_name', 'phone_number', 'whatsapp_number', 'email', 'gender', 'address',
+        'full_name', 'phone_number', 'whatsapp_number', 'browsing_number', 'email', 'gender', 'address',
+        'category', 'zone', 'branch_name',
         'passport_photograph_path', 'id_type', 'id_number', 'id_document_path',
         'lga_id', 'lga_name',
         'bank_name', 'bank_code', 'account_number', 'bank_account_name',
@@ -39,11 +75,40 @@ class TransportAgent extends Authenticatable
         'last_login_at' => 'datetime',
     ];
 
-    protected $appends = ['id_type_label', 'passport_photograph_url', 'id_document_url'];
+    protected $appends = ['id_type_label', 'category_label', 'passport_photograph_url', 'id_document_url'];
+
+    public function getCategoryLabelAttribute(): ?string
+    {
+        return self::CATEGORIES[$this->category]['label'] ?? null;
+    }
+
+    /** What this agent is allowed to capture; null means the older, unsplit agent. */
+    public function getVehicleCategoryAttribute(): ?string
+    {
+        return self::CATEGORIES[$this->category]['vehicle_category'] ?? null;
+    }
+
+    /** The category behind a registration link slug, or null if it is not one. */
+    public static function categoryForSlug(string $slug): ?string
+    {
+        foreach (self::CATEGORIES as $key => $category) {
+            if ($category['slug'] === $slug) {
+                return $key;
+            }
+        }
+
+        return null;
+    }
 
     public function getIdTypeLabelAttribute(): ?string
     {
-        return $this->id_type ? (self::ID_TYPES[$this->id_type] ?? $this->id_type) : null;
+        if (blank($this->id_type)) {
+            return null;
+        }
+
+        return self::ID_TYPES[$this->id_type]
+            ?? self::RETIRED_ID_TYPES[$this->id_type]
+            ?? $this->id_type;
     }
 
     public function getPassportPhotographUrlAttribute(): ?string
