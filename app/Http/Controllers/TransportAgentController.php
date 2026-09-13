@@ -41,7 +41,6 @@ class TransportAgentController extends Controller
     {
         return inertia('TransportAgent/Create', [
             'lgas'     => $this->osunLgas(),
-            'idTypes'  => TransportAgent::ID_TYPES,
             'zones'    => TransportAgent::ZONES,
             'branches' => TransportAgent::BRANCHES,
             // Fixed by the link they followed, never chosen on the form.
@@ -71,13 +70,9 @@ class TransportAgentController extends Controller
             'bank_name'       => 'required|string|max:255',
             'bank_code'       => 'required|string|max:10',
 
-            // Who they are: a face, and one government ID with its number and
-            // a picture of the document. Taken with a camera or picked from
-            // the device — either arrives here as an ordinary upload.
+            // Who they are. Taken with a camera or picked from the device —
+            // either arrives here as an ordinary upload.
             'passport_photograph' => 'required|image|max:5120',
-            'id_type'             => ['required', Rule::in(array_keys(TransportAgent::ID_TYPES))],
-            'id_number'           => 'required|string|max:50',
-            'id_document'         => 'required|image|max:5120',
         ], [
             'phone_number.regex'    => 'Phone number must be exactly 11 digits.',
             'whatsapp_number.regex' => 'WhatsApp number must be exactly 11 digits.',
@@ -90,14 +85,7 @@ class TransportAgentController extends Controller
             'bank_code.required'    => 'Select your bank from the list.',
             'passport_photograph.required' => 'Take or upload your passport photograph.',
             'passport_photograph.image'    => 'The passport photograph must be an image.',
-            'id_type.required'      => 'Choose the type of ID you are providing.',
-            'id_type.in'            => 'Choose the type of ID you are providing.',
-            'id_number.required'    => 'Enter the number on the ID you selected.',
-            'id_document.required'  => 'Take or upload a picture of your ID.',
-            'id_document.image'     => 'The ID must be a photo or scan saved as an image.',
         ]);
-
-        $validated['id_number'] = $this->normaliseIdNumber($validated['id_number']);
 
         // Verify the account here on the server. The browser already showed the
         // name for confidence, but that value is never trusted — money follows
@@ -113,8 +101,8 @@ class TransportAgentController extends Controller
                 ->withErrors(['account_number' => $resolved['message'] ?? 'That account number could not be verified with the bank. Check the number and bank, then try again.']);
         }
 
-        // The account belongs to somebody else's registration, or the phone or
-        // the ID does — either way this is a different person claiming a taken
+        // The account belongs to somebody else's registration, or the phone
+        // does — either way this is a different person claiming a taken
         // identifier, not the same person correcting their own entry.
         if ($clash = $this->conflictingRegistration($validated)) {
             return back()->withInput()->withErrors($clash);
@@ -122,11 +110,10 @@ class TransportAgentController extends Controller
 
         $lga = Lga::find($validated['lga_id']);
 
-        // Registering again with the same account number, phone or ID corrects
-        // that record rather than leaving two that disagree.
+        // Registering again with the same account number or phone corrects that
+        // record rather than leaving two that disagree.
         $existing = TransportAgent::where('account_number', $validated['account_number'])
             ->orWhere('phone_number', $validated['phone_number'])
-            ->orWhere('id_number', $validated['id_number'])
             ->first();
 
         $payload = [
@@ -140,8 +127,6 @@ class TransportAgentController extends Controller
             'zone'              => $validated['zone'],
             'branch_name'       => $validated['branch_name'],
             'address'           => $validated['address'] ?? null,
-            'id_type'           => $validated['id_type'],
-            'id_number'         => $validated['id_number'],
             'lga_id'            => $lga->id,
             'lga_name'          => $lga->name,
             'account_number'    => $validated['account_number'],
@@ -153,7 +138,6 @@ class TransportAgentController extends Controller
         // Stored only once everything above has passed, so a rejected
         // submission leaves no orphan files behind.
         $payload['passport_photograph_path'] = $this->storeFile($request, 'passport_photograph', $validated['phone_number'], 'passport', ImageCompressor::PORTRAIT);
-        $payload['id_document_path']         = $this->storeFile($request, 'id_document', $validated['phone_number'], 'id', ImageCompressor::DOCUMENT);
 
         if ($existing) {
             // Re-registering corrects details but never resets a password they
@@ -193,9 +177,9 @@ class TransportAgentController extends Controller
     }
 
     /**
-     * Where the account, the phone and the ID do not all point at the same
-     * existing record, at least one of them belongs to somebody else — saving
-     * would overwrite a stranger's registration.
+     * Where the account and the phone point at two DIFFERENT existing records,
+     * one of them belongs to somebody else — saving would overwrite a
+     * stranger's registration.
      *
      * @return array<string, string>|null
      */
@@ -204,14 +188,13 @@ class TransportAgentController extends Controller
         $matches = [
             'account_number' => TransportAgent::where('account_number', $validated['account_number'])->first(),
             'phone_number'   => TransportAgent::where('phone_number', $validated['phone_number'])->first(),
-            'id_number'      => TransportAgent::where('id_number', $validated['id_number'])->first(),
         ];
 
         $ids = collect($matches)->filter()->pluck('id')->unique();
 
         if ($ids->count() > 1) {
             return [
-                'account_number' => 'Your account number, phone number and ID number already belong to different registrations. Check all three, or contact the admin.',
+                'account_number' => 'This account number and phone number already belong to two different registrations. Check both, or contact the admin.',
             ];
         }
 
@@ -228,12 +211,6 @@ class TransportAgentController extends Controller
     private function listRule(array $options): array
     {
         return $options === [] ? [] : [Rule::in(array_keys($options))];
-    }
-
-    /** Spacing and dashes dropped so 1234-5678 and 1234 5678 are one number. */
-    private function normaliseIdNumber(string $number): string
-    {
-        return strtoupper(preg_replace('/[^A-Za-z0-9]/', '', $number));
     }
 
     /**

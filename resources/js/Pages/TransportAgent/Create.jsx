@@ -3,7 +3,7 @@ import { Head, useForm } from '@inertiajs/react';
 import PaystackService from '@/services/paystack';
 import PhotoCaptureField from '@/Components/PhotoCaptureField';
 
-export default function Create({ lgas = [], idTypes = {}, zones = {}, branches = {}, category, slug }) {
+export default function Create({ lgas = [], zones = {}, branches = {}, category, slug }) {
     const { data, setData, post, processing, errors } = useForm({
         full_name: '',
         phone_number: '',
@@ -16,9 +16,6 @@ export default function Create({ lgas = [], idTypes = {}, zones = {}, branches =
         address: '',
         lga_id: '',
         passport_photograph: null,
-        id_type: '',
-        id_number: '',
-        id_document: null,
         account_number: '',
         bank_name: '',
         bank_code: '',
@@ -83,11 +80,7 @@ export default function Create({ lgas = [], idTypes = {}, zones = {}, branches =
         && data.zone.trim() !== ''
         && data.branch_name.trim() !== '';
 
-    // A face, and one ID with its number and a picture of it.
-    const identityDone = data.passport_photograph
-        && data.id_type !== ''
-        && data.id_number.trim() !== ''
-        && data.id_document;
+    const identityDone = Boolean(data.passport_photograph);
 
     // Nothing is submitted until the bank has confirmed whose account it is.
     const canSubmit = detailsDone && identityDone && accountName && !resolving && !processing;
@@ -268,57 +261,22 @@ export default function Create({ lgas = [], idTypes = {}, zones = {}, branches =
                             </div>
                         </div>
 
-                        {/* Identity — a face and one government ID, so the person
-                            being paid can be matched to the person who registered. */}
+                        {/* A face on the record, so the person being paid can be
+                            matched to the person who registered. */}
                         <div className="pt-2 border-t border-gray-100">
-                            <p className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-4 mt-4">Photograph & ID</p>
+                            <p className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-4 mt-4">Passport Photograph</p>
 
-                            <div className="space-y-5">
-                                <PhotoCaptureField
-                                    label="Passport Photograph"
-                                    hint="A clear photo of your face, taken now or picked from your device."
-                                    required
-                                    camera="user"
-                                    tall
-                                    file={data.passport_photograph}
-                                    error={errors.passport_photograph}
-                                    onPick={(f) => setData('passport_photograph', f)}
-                                    onClear={() => setData('passport_photograph', null)}
-                                />
-
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div>
-                                        <label className={label}>Type of ID <span className="text-red-500">*</span></label>
-                                        <select value={data.id_type} onChange={(e) => setData('id_type', e.target.value)} className={field}>
-                                            <option value="">— Select your ID —</option>
-                                            {Object.entries(idTypes).map(([key, name]) => (
-                                                <option key={key} value={key}>{name}</option>
-                                            ))}
-                                        </select>
-                                        {errors.id_type && <p className={errCls}>{errors.id_type}</p>}
-                                    </div>
-
-                                    <div>
-                                        <label className={label}>ID Number <span className="text-red-500">*</span></label>
-                                        <input type="text" value={data.id_number}
-                                            onChange={(e) => setData('id_number', e.target.value.toUpperCase().slice(0, 50))}
-                                            placeholder={data.id_type ? 'Number on the ID' : 'Select the ID type first'}
-                                            disabled={!data.id_type}
-                                            className={`${field} tabular-nums tracking-wide disabled:bg-gray-50 disabled:text-gray-400`} />
-                                        {errors.id_number && <p className={errCls}>{errors.id_number}</p>}
-                                    </div>
-                                </div>
-
-                                <PhotoCaptureField
-                                    label="Picture of the ID"
-                                    hint="Photograph the ID itself, or upload a scan. The number must be readable."
-                                    required
-                                    file={data.id_document}
-                                    error={errors.id_document}
-                                    onPick={(f) => setData('id_document', f)}
-                                    onClear={() => setData('id_document', null)}
-                                />
-                            </div>
+                            <PhotoCaptureField
+                                label="Passport Photograph"
+                                hint="A clear photo of your face, taken now or picked from your device."
+                                required
+                                camera="user"
+                                tall
+                                file={data.passport_photograph}
+                                error={errors.passport_photograph}
+                                onPick={(f) => setData('passport_photograph', f)}
+                                onClear={() => setData('passport_photograph', null)}
+                            />
                         </div>
 
                         {/* Bank details, same page — money follows these, so they
@@ -383,7 +341,7 @@ export default function Create({ lgas = [], idTypes = {}, zones = {}, branches =
                                 : !detailsDone
                                     ? 'Fill in your details to continue'
                                     : !identityDone
-                                        ? 'Add your photograph and ID to continue'
+                                        ? 'Add your passport photograph to continue'
                                         : accountName
                                             ? 'Complete Registration'
                                             : 'Verify your account to continue'}

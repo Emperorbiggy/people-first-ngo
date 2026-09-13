@@ -54,7 +54,7 @@ class VehicleController extends Controller
             'vehicles'   => $vehicles,
             'filters'    => ['q' => $search, 'category' => $category],
             'categories' => $this->categoriesFor($agent),
-            'types'      => RegisteredVehicle::TYPES,
+            'types'      => $this->typesFor($agent),
             'counts'     => [
                 'all'                 => RegisteredVehicle::where('transport_agent_id', $agent->id)->count(),
                 'bus'                 => RegisteredVehicle::where('transport_agent_id', $agent->id)->bus()->count(),
@@ -131,11 +131,27 @@ class VehicleController extends Controller
     }
 
     /**
+     * The vehicle types this agent may file, keyed by category.
+     *
+     * Trimmed to their own stream so the other stream's types never reach the
+     * page — a bike agent is not offered Bus, Car or Korope at all.
+     *
+     * @return array<string, array<int, string>>
+     */
+    private function typesFor($agent): array
+    {
+        return array_intersect_key(
+            RegisteredVehicle::TYPES,
+            $this->categoriesFor($agent)
+        );
+    }
+
+    /**
      * The streams this agent may capture.
      *
-     * Registration is now split in two and an agent belongs to one of them.
-     * Agents from before the split have no category and keep both, or their
-     * existing work would become uneditable.
+     * Registration is split in two and an agent belongs to one of them. Agents
+     * from before the split have no category and keep both, or their existing
+     * work would become uneditable.
      *
      * @return array<string, string>
      */
@@ -150,7 +166,7 @@ class VehicleController extends Controller
         return array_intersect_key(RegisteredVehicle::CATEGORIES, [$only => true]);
     }
 
-    /** The admin switch — the same one that closes the public signup. */
+    /** The admin switch. It closes capture here only; signing up stays open. */
     private function registrationOpen(): bool
     {
         return Setting::get('transport_agent_registration_enabled', '1') === '1';

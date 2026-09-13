@@ -14,21 +14,28 @@ class RegisteredVehicle extends Model
      * records and the reports have always said motorcycle, tricycle and bus.
      */
     public const CATEGORIES = [
-        'bus'                 => 'Korobe Bus (Buses & Cars)',
-        'motorcycle_tricycle' => 'Bike & Maruwa (Motorcycles & Tricycles)',
-    ];
-
-    /** Vehicle types offered under each category. */
-    public const TYPES = [
-        'bus'                 => ['Korobe Bus', 'Mini Bus', 'Car', 'Jeep/SUV', 'Truck'],
-        'motorcycle_tricycle' => ['Bike (Motorcycle)', 'Maruwa (Tricycle/Keke)'],
+        'bus'                 => 'Korope, Bus & Car',
+        'motorcycle_tricycle' => 'Bike & Maruwa',
     ];
 
     /**
-     * Types that were offered before the naming changed. Still valid on the
+     * Vehicle types offered under each category — the names the agents
+     * themselves use, nothing more.
+     */
+    public const TYPES = [
+        'bus'                 => ['Bus', 'Car', 'Korope'],
+        'motorcycle_tricycle' => ['Bike', 'Maruwa'],
+    ];
+
+    /**
+     * Types that were offered before the naming settled. Still valid on the
      * records that carry them, so editing such a vehicle does not fail.
      */
-    public const RETIRED_TYPES = ['Bus', 'Motorcycle', 'Tricycle (Keke)'];
+    public const RETIRED_TYPES = [
+        'Korobe Bus', 'Mini Bus', 'Jeep/SUV', 'Truck',
+        'Bike (Motorcycle)', 'Maruwa (Tricycle/Keke)',
+        'Motorcycle', 'Tricycle (Keke)',
+    ];
 
     protected $fillable = [
         'transport_agent_id', 'lga_id', 'lga_name',
