@@ -43,7 +43,9 @@ export default function Success({ registered = null }) {
 
                                 <div className="mt-5 rounded-2xl bg-gray-50 border border-gray-100 px-4 py-3 text-left">
                                     <p className="text-sm font-bold text-gray-800">{registered.name}</p>
-                                    <p className="text-xs text-gray-500 mt-0.5">{registered.lga}</p>
+                                    <p className="text-xs text-gray-500 mt-0.5">
+                                        {registered.lga}{registered.category ? ` · ${registered.category}` : ''}
+                                    </p>
                                     {registered.account_name && (
                                         <p className="text-xs text-emerald-700 mt-1.5">
                                             Payments to <span className="font-semibold">{registered.account_name}</span>
@@ -90,10 +92,12 @@ export default function Success({ registered = null }) {
                             <p className="text-sm text-gray-500 mt-2">Your registration has been recorded.</p>
                         )}
 
-                        <Link href={route('transport-agent.create')}
-                            className="inline-block mt-4 text-sm font-semibold text-amber-600 hover:text-amber-800">
-                            Register someone else →
-                        </Link>
+                        {registered?.slug && (
+                            <Link href={route('transport-agent.create', registered.slug)}
+                                className="inline-block mt-4 text-sm font-semibold text-amber-600 hover:text-amber-800">
+                                Register someone else →
+                            </Link>
+                        )}
                     </div>
                 </div>
             </div>

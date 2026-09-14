@@ -163,6 +163,10 @@ class TransportAgentController extends Controller
             'account_name' => $agent->bank_account_name,
             'updated'      => (bool) $existing,
             'phone'        => $agent->phone_number,
+            // So "register someone else" returns to the same link, rather than
+            // asking a page that no longer exists which stream this was.
+            'slug'         => $category,
+            'category'     => TransportAgent::CATEGORIES[$categoryKey]['label'] ?? null,
             // Only ever handed back on a fresh registration — an update must
             // not reveal the password to whoever is at the keyboard.
             'password'     => $existing ? null : $agent->getRawOriginal('login_password_plain'),
