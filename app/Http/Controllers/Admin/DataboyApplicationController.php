@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\DataboyApplication;
 use App\Exports\DataboyApplicationsExport;
+use App\Exports\DataboyApplicationsFullExport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Maatwebsite\Excel\Facades\Excel;
@@ -45,7 +46,9 @@ class DataboyApplicationController extends Controller
                 ->orWhere('calling_phone_number', 'like', "%{$search}%")
                 ->orWhere('account_number', 'like', "%{$search}%")
                 ->orWhere('email_address', 'like', "%{$search}%")))
-            ->latest()
+            // Same reason as the exports: a unique-column order so paging
+            // cannot repeat or skip a row.
+            ->orderByDesc('id')
             ->paginate(self::PER_PAGE)
             ->withQueryString();
 
@@ -77,19 +80,56 @@ class DataboyApplicationController extends Controller
 
     public function exportExcel(Request $request)
     {
-        $state = $request->get('state', 'all');
-        $batch = max(1, (int) $request->get('batch', 1));
+        $state  = $request->get('state', 'all');
+        $search = trim((string) $request->get('q', ''));
+        $suffix = $state !== 'all' ? "_{$state}" : '';
 
-        $query = DataboyApplication::with(['databoy:id,full_name', 'lga:id,name', 'ward:id,name', 'pollingUnit:id,name', 'apoOfficer:id,databoy_application_id,replaced_at'])->latest();
-        if ($state !== 'all') {
-            $query->where('state_of_residence', $state);
+        $query = $this->exportQuery($state, $search)
+            ->with([
+                'databoy:id,full_name',
+                'lga:id,name',
+                'ward:id,name',
+                'pollingUnit:id,name',
+                'apoOfficer:id,databoy_application_id,replaced_at',
+            ]);
+
+        // Everything in one file. Streamed a chunk at a time, so the size of
+        // the register does not decide whether the download succeeds.
+        if ($request->get('batch') === 'all') {
+            return Excel::download(
+                new DataboyApplicationsFullExport($query),
+                "databoy_applications_all{$suffix}.xlsx"
+            );
         }
 
+        $batch        = max(1, (int) $request->get('batch', 1));
         $applications = $query->skip(($batch - 1) * 500)->take(500)->get();
-        $suffix       = $state !== 'all' ? "_{$state}" : '';
-        $filename     = "databoy_applications_batch{$batch}{$suffix}.xlsx";
 
-        return Excel::download(new DataboyApplicationsExport($applications), $filename);
+        return Excel::download(
+            new DataboyApplicationsExport($applications),
+            "databoy_applications_batch{$batch}{$suffix}.xlsx"
+        );
+    }
+
+    /**
+     * The query both exports page through.
+     *
+     * Ordered by id, not by created_at. `latest()` alone is not a total order:
+     * applicants sharing a timestamp can come back in a different order on each
+     * query, and with skip()/take() that quietly drops some rows from one batch
+     * and repeats them in another — so fifteen batches would never add up to the
+     * full register. Ordering by a unique column removes that.
+     */
+    private function exportQuery(string $state, string $search = '')
+    {
+        return DataboyApplication::query()
+            ->when($state !== 'all', fn ($q) => $q->where('state_of_residence', $state))
+            ->when($search !== '', fn ($q) => $q->where(fn ($w) => $w
+                ->where('full_name', 'like', "%{$search}%")
+                ->orWhere('calling_phone_number', 'like', "%{$search}%")
+                ->orWhere('account_number', 'like', "%{$search}%")
+                ->orWhere('email_address', 'like', "%{$search}%")))
+            ->orderByDesc('id');
     }
 
     public function exportZip(Request $request)
@@ -106,12 +146,10 @@ class DataboyApplicationController extends Controller
 
         $map = $columnMap[$fileType] ?? $columnMap['passport'];
 
-        $query = DataboyApplication::latest();
-        if ($state !== 'all') {
-            $query->where('state_of_residence', $state);
-        }
-
-        $applications = $query->skip(($batch - 1) * 500)->take(500)->get();
+        $applications = $this->exportQuery($state, trim((string) $request->get('q', '')))
+            ->skip(($batch - 1) * 500)
+            ->take(500)
+            ->get();
 
         $tempDir = storage_path('app/temp');
         if (!is_dir($tempDir)) {

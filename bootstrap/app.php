@@ -20,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'databoy.auth' => \App\Http\Middleware\DataboyAuth::class,
             'transport-agent.auth' => \App\Http\Middleware\TransportAgentAuth::class,
+            'transport-admin.auth' => \App\Http\Middleware\TransportAdminAuth::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

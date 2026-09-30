@@ -1,0 +1,87 @@
+<?php
+
+namespace App\Exports\Concerns;
+
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
+
+/**
+ * The applicant spreadsheet's columns, shared by the batched and full exports
+ * so the two can never drift apart.
+ */
+trait MapsDataboyApplicationRows
+{
+    public function map($app): array
+    {
+        return [
+            // Read off apo_officers.replaced_at, which replace() is the only
+            // thing that writes. DataboyApplication::wasReplaced() infers the
+            // same thing from updated_at and counts any edit — a corrected
+            // polling unit included — so it is not used here.
+            $app->apoOfficer?->replaced_at ? 'Yes' : 'No',
+            optional($app->apoOfficer?->replaced_at)->format('Y-m-d H:i') ?? '',
+            $app->id,
+            $app->databoy?->full_name ?? '—',
+            $app->full_name,
+            $app->gender,
+            $app->age,
+            $app->email_address,
+            $app->calling_phone_number,
+            $app->whatsapp_number,
+            $app->state_of_residence,
+            $app->lga?->name ?? '',
+            $app->ward?->name ?? '',
+            $app->pollingUnit?->name ?? '',
+            $app->house_address,
+            $app->browsing_network,
+            $app->browsing_number,
+            $app->bank_name,
+            $app->account_number,
+            $app->bank_account_name,
+            $app->employment_status,
+            $app->availability ?? '',
+            $app->current_occupation ?? '',
+            $app->work_grade_level ?? '',
+            $app->has_voter_card ? 'Yes' : 'No',
+            optional($app->created_at)->format('Y-m-d H:i') ?? '',
+        ];
+    }
+
+    public function headings(): array
+    {
+        return [
+            'Replaced',
+            'Replaced At',
+            'ID',
+            'Registered By (Databoy)',
+            'Full Name',
+            'Gender',
+            'Age',
+            'Email Address',
+            'Phone Number',
+            'WhatsApp Number',
+            'State of Residence',
+            'LGA',
+            'Ward',
+            'Polling Unit',
+            'House Address',
+            'Browsing Network',
+            'Browsing Number',
+            'Bank Name',
+            'Account Number',
+            'Account Name',
+            'Employment Status',
+            'Availability',
+            'Current Occupation',
+            'Work Grade Level',
+            'Has Voter Card',
+            'Submitted At',
+        ];
+    }
+
+    public function styles(Worksheet $sheet): array
+    {
+        return [
+            1 => ['font' => ['bold' => true]],
+        ];
+    }
+}

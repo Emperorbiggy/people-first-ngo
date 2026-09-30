@@ -45,6 +45,10 @@ class HandleInertiaRequests extends Middleware
             'partyAgentRegistrationEnabled' => Auth::guard('databoy')->check()
                 ? Setting::get('party_agent_registration_enabled', '1') === '1'
                 : true,
+            // The transport panel's own sidebar needs the signed-in account.
+            'transportAdmin' => Auth::guard('transport_admin')->check()
+                ? Auth::guard('transport_admin')->user()->only(['id', 'full_name', 'email'])
+                : null,
             // While this is false the portal is held at the profile page, so the
             // sidebar hides everything the agent cannot reach yet.
             'transportAgentIdentityComplete' => Auth::guard('transport_agent')->check()

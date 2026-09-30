@@ -145,4 +145,9 @@ class TransportAgent extends Authenticatable
     }
 
     public function lga() { return $this->belongsTo(Lga::class); }
+
+    public function vehicles()
+    {
+        return $this->hasMany(RegisteredVehicle::class, 'transport_agent_id');
+    }
 }

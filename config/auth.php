@@ -56,6 +56,13 @@ return [
             'provider' => 'transport_agents',
         ],
 
+        // The transport panel. Separate from 'web' so a supervisor given this
+        // login cannot reach the main admin, and vice versa.
+        'transport_admin' => [
+            'driver' => 'session',
+            'provider' => 'transport_admins',
+        ],
+
         'api' => [
             'driver' => 'jwt',
             'provider' => 'users',
@@ -94,6 +101,11 @@ return [
         'transport_agents' => [
             'driver' => 'eloquent',
             'model' => App\Models\TransportAgent::class,
+        ],
+
+        'transport_admins' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\TransportAdmin::class,
         ],
 
         // 'users' => [

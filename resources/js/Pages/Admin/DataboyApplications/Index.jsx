@@ -16,7 +16,8 @@ function StatCard({ label, value, icon, color }) {
 }
 
 export default function Index({ applications, states, selectedState, search = '', totalCount, statsByState }) {
-    const [batch, setBatch]           = useState(1);
+    // 'all' or a batch number — kept as a string so the "all" option survives.
+    const [batch, setBatch]           = useState('all');
     const [exportState, setExportState] = useState(selectedState);
 
     const [term, setTerm] = useState(search);
@@ -31,6 +32,10 @@ export default function Index({ applications, states, selectedState, search = ''
         router.get(route('admin.databoy-applications.index'), { state, q: term }, { preserveScroll: true });
     };
 
+    // Excel can stream every row into one file; a ZIP of thousands of photos
+    // cannot be built that way, so file downloads stay per batch.
+    const zipDisabled = batch === 'all';
+
     const applySearch = (e) => {
         e.preventDefault();
         router.get(route('admin.databoy-applications.index'), { state: selectedState, q: term }, {
@@ -41,7 +46,8 @@ export default function Index({ applications, states, selectedState, search = ''
     };
 
     const buildExportUrl = (type, file = 'passport') => {
-        const params = new URLSearchParams({ batch, state: exportState, file });
+        // The search goes along too, so a download matches what is on screen.
+        const params = new URLSearchParams({ batch, state: exportState, file, q: term });
         return type === 'excel'
             ? route('admin.databoy-applications.export.excel') + '?' + params
             : route('admin.databoy-applications.export.zip')   + '?' + params;
@@ -118,8 +124,9 @@ export default function Index({ applications, states, selectedState, search = ''
                                 </div>
                                 <div>
                                     <label className="block text-xs font-medium text-gray-500 mb-1">Batch Number</label>
-                                    <select value={batch} onChange={(e) => setBatch(Number(e.target.value))}
+                                    <select value={batch} onChange={(e) => setBatch(e.target.value)}
                                         className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50">
+                                        <option value="all">All records ({matched.toLocaleString()}) — one file</option>
                                         {Array.from({ length: totalBatches }, (_, i) => (
                                             <option key={i + 1} value={i + 1}>
                                                 Batch {i + 1} (records {(i * 500) + 1}–{Math.min((i + 1) * 500, matched)})
@@ -133,21 +140,40 @@ export default function Index({ applications, states, selectedState, search = ''
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                                         Excel (.xlsx)
                                     </a>
-                                    <a href={buildExportUrl('zip', 'passport')}
-                                        className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl shadow transition">
+                                    <a href={zipDisabled ? undefined : buildExportUrl('zip', 'passport')}
+                                        aria-disabled={zipDisabled}
+                                        title={zipDisabled ? 'Choose a batch — file downloads are not available for all records at once' : undefined}
+                                        className={`inline-flex items-center gap-2 px-4 py-2 text-white text-sm font-semibold rounded-xl shadow transition ${
+                                            zipDisabled ? 'bg-gray-300 cursor-not-allowed pointer-events-none' : 'bg-blue-600 hover:bg-blue-700'
+                                        }`}>
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                                         Passport ZIP
                                     </a>
-                                    <a href={buildExportUrl('zip', 'id_card')}
-                                        className="inline-flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold rounded-xl shadow transition">
+                                    <a href={zipDisabled ? undefined : buildExportUrl('zip', 'id_card')}
+                                        aria-disabled={zipDisabled}
+                                        title={zipDisabled ? 'Choose a batch — file downloads are not available for all records at once' : undefined}
+                                        className={`inline-flex items-center gap-2 px-4 py-2 text-white text-sm font-semibold rounded-xl shadow transition ${
+                                            zipDisabled ? 'bg-gray-300 cursor-not-allowed pointer-events-none' : 'bg-violet-600 hover:bg-violet-700'
+                                        }`}>
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                                         ID Cards ZIP
                                     </a>
-                                    <a href={buildExportUrl('zip', 'certificate')}
-                                        className="inline-flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold rounded-xl shadow transition">
+                                    <a href={zipDisabled ? undefined : buildExportUrl('zip', 'certificate')}
+                                        aria-disabled={zipDisabled}
+                                        title={zipDisabled ? 'Choose a batch — file downloads are not available for all records at once' : undefined}
+                                        className={`inline-flex items-center gap-2 px-4 py-2 text-white text-sm font-semibold rounded-xl shadow transition ${
+                                            zipDisabled ? 'bg-gray-300 cursor-not-allowed pointer-events-none' : 'bg-amber-600 hover:bg-amber-700'
+                                        }`}>
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                                         Certificates ZIP
                                     </a>
+
+                                    {zipDisabled && (
+                                        <p className="basis-full text-xs text-gray-400">
+                                            Excel covers all {matched.toLocaleString()} records in one file. For the photo
+                                            and document ZIPs, pick a batch — bundling every file at once is too large to build.
+                                        </p>
+                                    )}
                                 </div>
                             </div>
                         </div>

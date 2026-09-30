@@ -60,6 +60,11 @@ use App\Http\Controllers\TransportAgent\AuthController as TransportAgentAuthCont
 use App\Http\Controllers\TransportAgent\DashboardController as TransportAgentDashboardController;
 use App\Http\Controllers\TransportAgent\VehicleController as TransportAgentVehicleController;
 use App\Http\Controllers\TransportAgent\ProfileController as TransportAgentProfileController;
+use App\Http\Controllers\TransportAdmin\AuthController as TransportAdminAuthController;
+use App\Http\Controllers\TransportAdmin\DashboardController as TransportAdminDashboardController;
+use App\Http\Controllers\TransportAdmin\AgentController as TransportAdminAgentController;
+use App\Http\Controllers\TransportAdmin\VehicleController as TransportAdminVehicleController;
+use App\Http\Controllers\TransportAdmin\ExportController as TransportAdminExportController;
 use App\Models\Country;
 use Illuminate\Support\Facades\Route;
 
@@ -117,6 +122,26 @@ Route::middleware('transport-agent.auth')->prefix('transport-agent')->name('tran
     Route::put('/profile/password', [TransportAgentProfileController::class, 'updatePassword'])->name('profile.password');
     // POST, not PUT: the passport and the ID are files.
     Route::post('/profile/identity', [TransportAgentProfileController::class, 'updateIdentity'])->name('profile.identity');
+});
+
+// Transport panel — its own login and its own accounts, so a transport
+// supervisor gets the vehicle register without the rest of the admin.
+Route::get('/transport-admin/login', [TransportAdminAuthController::class, 'showLogin'])->name('transport-admin.login');
+Route::post('/transport-admin/login', [TransportAdminAuthController::class, 'login'])->name('transport-admin.login.post');
+Route::post('/transport-admin/logout', [TransportAdminAuthController::class, 'logout'])->name('transport-admin.logout');
+
+Route::middleware('transport-admin.auth')->prefix('transport-admin')->name('transport-admin.')->group(function () {
+    Route::get('/dashboard', [TransportAdminDashboardController::class, 'index'])->name('dashboard');
+
+    Route::get('/agents', [TransportAdminAgentController::class, 'index'])->name('agents');
+    Route::get('/agents/{agent}', [TransportAdminAgentController::class, 'show'])->name('agents.show');
+    Route::post('/agents/{agent}/toggle', [TransportAdminAgentController::class, 'toggle'])->name('agents.toggle');
+
+    Route::get('/vehicles', [TransportAdminVehicleController::class, 'index'])->name('vehicles');
+
+    Route::get('/exports/agents', [TransportAdminExportController::class, 'agents'])->name('exports.agents');
+    Route::get('/exports/vehicles', [TransportAdminExportController::class, 'vehicles'])->name('exports.vehicles');
+    Route::get('/exports/photos', [TransportAdminExportController::class, 'photos'])->name('exports.photos');
 });
 
 // One link per stream — /transport-agent/bike-maruwa and /transport-agent/korobe-bus.
