@@ -51,8 +51,10 @@ class AccreditationController extends Controller
         return back()->with('success', "{$databoyApplication->full_name} has been accredited.");
     }
 
-    public function list()
+    public function list(Request $request)
     {
+        $search = trim((string) $request->get('q', ''));
+
         $applications = DataboyApplication::with([
                 'databoy:id,full_name',
                 'lga:id,name',
@@ -61,12 +63,20 @@ class AccreditationController extends Controller
                 'accreditedByDataboy:id,full_name',
             ])
             ->where('is_accredited', true)
+            // Searching here rather than in the browser: the page no longer
+            // holds every accredited applicant to filter through.
+            ->when($search !== '', fn ($q) => $q->where(fn ($w) => $w
+                ->where('full_name', 'like', "%{$search}%")
+                ->orWhere('calling_phone_number', 'like', "%{$search}%")))
             ->orderByDesc('accredited_at')
-            ->get([
+            ->select([
                 'id', 'full_name', 'calling_phone_number', 'registered_by', 'lga_id', 'ward_id',
                 'passport_photograph_path', 'accredited_at', 'accredited_by', 'accredited_by_databoy_id',
             ])
-            ->map(fn ($app) => [
+            ->paginate(50)
+            ->withQueryString()
+            // through() maps the rows and keeps the paginator around them.
+            ->through(fn ($app) => [
                 'id'                    => $app->id,
                 'full_name'             => $app->full_name,
                 'calling_phone_number'  => $app->calling_phone_number,
@@ -79,7 +89,7 @@ class AccreditationController extends Controller
                 'accreditor_type'       => $app->accredited_by ? 'Admin' : ($app->accredited_by_databoy_id ? 'Databoy' : null),
             ]);
 
-        return inertia('Admin/AccreditedList', compact('applications'));
+        return inertia('Admin/AccreditedList', compact('applications', 'search'));
     }
 
     public function wardStats()

@@ -1,21 +1,24 @@
 import { useState } from 'react';
+import { router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import Pagination from '@/Components/Pagination';
 
-export default function AccreditedList({ applications = [] }) {
-    const [search, setSearch] = useState('');
+export default function AccreditedList({ applications, search: initialSearch = '' }) {
+    const [search, setSearch] = useState(initialSearch);
 
-    const filtered = search.trim()
-        ? applications.filter((app) => {
-            const q = search.toLowerCase();
-            return (
-                app.full_name?.toLowerCase().includes(q) ||
-                app.calling_phone_number?.toLowerCase().includes(q) ||
-                app.databoy?.full_name?.toLowerCase().includes(q) ||
-                app.ward?.name?.toLowerCase().includes(q) ||
-                app.lga?.name?.toLowerCase().includes(q)
-            );
-        })
-        : applications;
+    const rows  = applications?.data ?? [];
+    const total = applications?.total ?? 0;
+
+    // Searching on the server — the page holds one page of rows, not all of
+    // them, so there is nothing local left to filter.
+    const submitSearch = (e) => {
+        e.preventDefault();
+        router.get(route('admin.accredited'), { q: search }, {
+            preserveScroll: true,
+            preserveState: true,
+            replace: true,
+        });
+    };
 
     return (
         <AdminLayout title="Accredited List">
@@ -30,25 +33,25 @@ export default function AccreditedList({ applications = [] }) {
                     <div className="px-5 py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center gap-3">
                         <div className="flex-1">
                             <h3 className="font-semibold text-gray-800">Accredited</h3>
-                            <p className="text-xs text-gray-400 mt-0.5">{filtered.length} of {applications.length} record{applications.length !== 1 ? 's' : ''}</p>
+                            <p className="text-xs text-gray-400 mt-0.5">{total.toLocaleString()} record{total !== 1 ? 's' : ''}{initialSearch ? ` matching “${initialSearch}”` : ''}</p>
                         </div>
-                        <div className="relative">
+                        <form onSubmit={submitSearch} className="relative">
                             <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                             </svg>
                             <input
-                                type="text"
-                                placeholder="Search by name, phone, ward, or databoy…"
+                                type="search"
+                                placeholder="Search name or phone, then press Enter"
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                                 className="pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 w-72"
                             />
-                        </div>
+                        </form>
                     </div>
 
-                    {applications.length === 0 ? (
+                    {total === 0 && !initialSearch ? (
                         <div className="py-16 text-center text-sm text-gray-400">No applicants have been accredited yet.</div>
-                    ) : filtered.length === 0 ? (
+                    ) : rows.length === 0 ? (
                         <div className="py-10 text-center text-sm text-gray-400">No accredited applicants match that search.</div>
                     ) : (
                         <div className="overflow-x-auto">
@@ -61,9 +64,9 @@ export default function AccreditedList({ applications = [] }) {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-50">
-                                    {filtered.map((app, idx) => (
+                                    {rows.map((app, idx) => (
                                         <tr key={app.id} className="hover:bg-indigo-50/30 transition-colors">
-                                            <td className="px-5 py-3 text-xs text-gray-400">{idx + 1}</td>
+                                            <td className="px-5 py-3 text-xs text-gray-400">{(applications?.from ?? 1) + idx}</td>
                                             <td className="px-5 py-3">
                                                 <div className="flex items-center gap-2">
                                                     {app.passport_photograph_path ? (
@@ -107,6 +110,8 @@ export default function AccreditedList({ applications = [] }) {
                             </table>
                         </div>
                     )}
+
+                    <Pagination paginator={applications} />
                 </div>
 
             </div>

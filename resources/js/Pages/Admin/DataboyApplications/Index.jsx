@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import Pagination from '@/Components/Pagination';
 
 function StatCard({ label, value, icon, color }) {
     return (
@@ -14,14 +15,29 @@ function StatCard({ label, value, icon, color }) {
     );
 }
 
-export default function Index({ applications, states, selectedState, totalCount, statsByState }) {
+export default function Index({ applications, states, selectedState, search = '', totalCount, statsByState }) {
     const [batch, setBatch]           = useState(1);
     const [exportState, setExportState] = useState(selectedState);
 
-    const totalBatches = Math.max(1, Math.ceil(applications.length / 500));
+    const [term, setTerm] = useState(search);
+
+    // Rows are paged server-side now; the export still works in 500s, so the
+    // batch count comes from the matched total rather than what is on screen.
+    const rows         = applications.data ?? [];
+    const matched      = applications.total ?? 0;
+    const totalBatches = Math.max(1, Math.ceil(matched / 500));
 
     const applyFilter = (state) => {
-        router.get(route('admin.databoy-applications.index'), { state }, { preserveScroll: true });
+        router.get(route('admin.databoy-applications.index'), { state, q: term }, { preserveScroll: true });
+    };
+
+    const applySearch = (e) => {
+        e.preventDefault();
+        router.get(route('admin.databoy-applications.index'), { state: selectedState, q: term }, {
+            preserveScroll: true,
+            preserveState: true,
+            replace: true,
+        });
     };
 
     const buildExportUrl = (type, file = 'passport') => {
@@ -43,7 +59,7 @@ export default function Index({ applications, states, selectedState, totalCount,
                     <StatCard label="States Represented" value={statsByState.length} color="bg-purple-100"
                         icon={<svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>}
                     />
-                    <StatCard label="Filtered Results" value={applications.length} color="bg-emerald-100"
+                    <StatCard label="Filtered Results" value={matched} color="bg-emerald-100"
                         icon={<svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z" /></svg>}
                     />
                     <StatCard label="Export Batches" value={totalBatches} color="bg-orange-100"
@@ -106,7 +122,7 @@ export default function Index({ applications, states, selectedState, totalCount,
                                         className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50">
                                         {Array.from({ length: totalBatches }, (_, i) => (
                                             <option key={i + 1} value={i + 1}>
-                                                Batch {i + 1} (records {(i * 500) + 1}–{Math.min((i + 1) * 500, applications.length)})
+                                                Batch {i + 1} (records {(i * 500) + 1}–{Math.min((i + 1) * 500, matched)})
                                             </option>
                                         ))}
                                     </select>
@@ -145,10 +161,19 @@ export default function Index({ applications, states, selectedState, totalCount,
                                         <span className="ml-2 px-2 py-0.5 bg-indigo-100 text-indigo-700 text-xs rounded-full font-medium">{selectedState}</span>
                                     )}
                                 </h3>
-                                <span className="text-sm text-gray-400">{applications.length} record{applications.length !== 1 ? 's' : ''}</span>
+                                <div className="flex items-center gap-3">
+                                    <form onSubmit={applySearch}>
+                                        <input type="search" value={term} onChange={(e) => setTerm(e.target.value)}
+                                            placeholder="Search name, phone, account, email"
+                                            className="px-3 py-1.5 w-64 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50" />
+                                    </form>
+                                    <span className="text-sm text-gray-400 whitespace-nowrap">
+                                        {matched.toLocaleString()} record{matched !== 1 ? 's' : ''}
+                                    </span>
+                                </div>
                             </div>
 
-                            {applications.length === 0 ? (
+                            {rows.length === 0 ? (
                                 <div className="py-16 text-center">
                                     <svg className="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -166,9 +191,9 @@ export default function Index({ applications, states, selectedState, totalCount,
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-gray-50">
-                                            {applications.map((app, idx) => (
+                                            {rows.map((app, idx) => (
                                                 <tr key={app.id} className="hover:bg-indigo-50/30 transition-colors">
-                                                    <td className="px-4 py-3 text-xs text-gray-400">{idx + 1}</td>
+                                                    <td className="px-4 py-3 text-xs text-gray-400">{(applications.from ?? 1) + idx}</td>
                                                     <td className="px-4 py-3">
                                                         <div className="flex items-center gap-3">
                                                             {app.passport_photograph_path ? (
@@ -225,6 +250,8 @@ export default function Index({ applications, states, selectedState, totalCount,
                                     </table>
                                 </div>
                             )}
+
+                            <Pagination paginator={applications} />
                         </div>
                     </div>
                 </div>
