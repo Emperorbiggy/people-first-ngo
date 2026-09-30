@@ -31,7 +31,7 @@ class TransportAgent extends Authenticatable
         ],
         'korobe_bus' => [
             'slug'             => 'korobe-bus',
-            'label'            => 'Korobe Bus',
+            'label'            => 'Korope, Bus & Car',
             'also'             => 'Buses & Cars',
             'vehicle_category' => 'bus',
         ],

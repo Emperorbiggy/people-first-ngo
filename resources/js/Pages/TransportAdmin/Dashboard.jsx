@@ -1,6 +1,28 @@
 import { Link } from '@inertiajs/react';
 import TransportAdminLayout from '@/Layouts/TransportAdminLayout';
 
+function StreamCard({ label, vehicles, agents, tone }) {
+    return (
+        <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
+            <p className="text-xs font-medium text-gray-500">{label}</p>
+            <div className="mt-2 flex items-end gap-4">
+                <div>
+                    <p className="text-2xl font-bold text-gray-900 tabular-nums leading-none">
+                        {(vehicles ?? 0).toLocaleString()}
+                    </p>
+                    <p className="text-[11px] text-gray-400 mt-1">vehicles</p>
+                </div>
+                <div className="pl-4 border-l border-gray-100">
+                    <p className={`text-2xl font-bold tabular-nums leading-none ${tone}`}>
+                        {(agents ?? 0).toLocaleString()}
+                    </p>
+                    <p className="text-[11px] text-gray-400 mt-1">agents</p>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 function Stat({ label, value, sub, tone = 'bg-slate-100 text-slate-600' }) {
     return (
         <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
@@ -25,10 +47,10 @@ export default function Dashboard({ stats, byLga = [], topAgents = [], daily = [
                         sub={`${stats.today.toLocaleString()} today`} tone="bg-emerald-50 text-emerald-700" />
                     <Stat label="Transport agents" value={stats.agents}
                         sub={`${stats.agents_active.toLocaleString()} active`} tone="bg-blue-50 text-blue-700" />
-                    <Stat label="Bike & Maruwa" value={stats.vehicles_bike}
-                        sub={`${stats.agents_bike.toLocaleString()} agents`} tone="bg-violet-50 text-violet-700" />
-                    <Stat label="Korope, Bus & Car" value={stats.vehicles_korope}
-                        sub={`${stats.agents_korope.toLocaleString()} agents`} tone="bg-amber-50 text-amber-700" />
+                    <StreamCard label="Bike & Maruwa"
+                        vehicles={stats.vehicles_bike} agents={stats.agents_bike} tone="text-violet-700" />
+                    <StreamCard label="Korope, Bus & Car"
+                        vehicles={stats.vehicles_korope} agents={stats.agents_korope} tone="text-amber-700" />
                 </div>
 
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
