@@ -16,7 +16,7 @@ class DataboyApplicationController extends Controller
     {
         $state = $request->get('state', 'all');
 
-        $query = DataboyApplication::with(['databoy:id,full_name', 'lga:id,name', 'ward:id,name', 'pollingUnit:id,name'])->latest();
+        $query = DataboyApplication::with(['databoy:id,full_name', 'lga:id,name', 'ward:id,name', 'pollingUnit:id,name', 'apoOfficer:id,databoy_application_id,replaced_at'])->latest();
         if ($state !== 'all') {
             $query->where('state_of_residence', $state);
         }
@@ -53,7 +53,7 @@ class DataboyApplicationController extends Controller
         $state = $request->get('state', 'all');
         $batch = max(1, (int) $request->get('batch', 1));
 
-        $query = DataboyApplication::with(['databoy:id,full_name', 'lga:id,name', 'ward:id,name', 'pollingUnit:id,name'])->latest();
+        $query = DataboyApplication::with(['databoy:id,full_name', 'lga:id,name', 'ward:id,name', 'pollingUnit:id,name', 'apoOfficer:id,databoy_application_id,replaced_at'])->latest();
         if ($state !== 'all') {
             $query->where('state_of_residence', $state);
         }

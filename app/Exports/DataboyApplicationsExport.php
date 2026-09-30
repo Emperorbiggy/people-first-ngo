@@ -15,6 +15,12 @@ class DataboyApplicationsExport implements FromCollection, WithHeadings, WithSty
     public function collection()
     {
         return $this->applications->map(fn ($app) => [
+            // Read off apo_officers.replaced_at, which replace() is the only
+            // thing that writes. DataboyApplication::wasReplaced() infers the
+            // same thing from updated_at and counts any edit — a corrected
+            // polling unit included — so it is not used here.
+            $app->apoOfficer?->replaced_at ? 'Yes' : 'No',
+            optional($app->apoOfficer?->replaced_at)->format('Y-m-d H:i') ?? '',
             $app->id,
             $app->databoy?->full_name ?? '—',
             $app->full_name,
@@ -45,6 +51,8 @@ class DataboyApplicationsExport implements FromCollection, WithHeadings, WithSty
     public function headings(): array
     {
         return [
+            'Replaced',
+            'Replaced At',
             'ID',
             'Registered By (Databoy)',
             'Full Name',
